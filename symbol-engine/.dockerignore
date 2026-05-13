@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+.git
+node_modules
+dist
+coverage
+*.log
+npm-debug.log*
+
+src/**/*.test.ts

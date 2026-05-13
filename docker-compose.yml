@@ -37,6 +37,7 @@ services:
   symbol-engine:
     build:
       context: ./symbol-engine
+      target: development
     environment:
       SYMBOL_ENGINE_PORT: ${SYMBOL_ENGINE_PORT:-3000}
       SYMBOL_ENGINE_API_TOKEN: ${SYMBOL_ENGINE_API_TOKEN}
