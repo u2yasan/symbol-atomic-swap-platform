@@ -38,8 +38,8 @@ jobs:
       - name: Install Symbol Engine dependencies in mounted volume
         run: docker compose run --rm --no-deps symbol-engine npm ci
 
-      - name: Start stack
-        run: docker compose up -d postgres redis symbol-engine drupal
+      - name: Start infrastructure
+        run: docker compose up -d postgres redis
 
       - name: Wait for PostgreSQL
         run: |
@@ -51,6 +51,9 @@ jobs:
           done
           docker compose logs postgres
           exit 1
+
+      - name: Start app services
+        run: docker compose up -d symbol-engine drupal
 
       - name: Wait for Symbol Engine
         run: |
