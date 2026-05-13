@@ -12,7 +12,7 @@ prepare-drupal-test:
 	$(DOCKER_COMPOSE_EXEC) drupal sh -lc 'cd /opt/drupal && mkdir -p web/sites/default/files web/sites/simpletest .phpunit.cache && chmod -R 0777 web/sites/default/files web/sites/simpletest .phpunit.cache'
 
 test-drupal: prepare-drupal-test
-	$(DOCKER_COMPOSE_EXEC) drupal sh -lc 'cd /opt/drupal && $(DRUPAL_PHPUNIT_ENV) vendor/bin/phpunit -c phpunit.xml.dist --group symbol_atomic_swap'
+	$(DOCKER_COMPOSE_EXEC) drupal sh -lc 'cd /opt/drupal && runuser -u www-data -- env $(DRUPAL_PHPUNIT_ENV) vendor/bin/phpunit -c phpunit.xml.dist --group symbol_atomic_swap'
 
 drush-cr:
 	$(DOCKER_COMPOSE_EXEC) drupal sh -lc 'cd /opt/drupal && vendor/bin/drush cr'
