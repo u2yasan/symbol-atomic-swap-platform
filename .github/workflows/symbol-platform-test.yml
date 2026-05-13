@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Drupal dependencies
-        run: docker run --rm -v "$PWD/drupal:/app" -w /app composer:2 composer install --no-interaction --prefer-dist --no-progress
+        run: docker run --rm -v "$PWD/drupal:/app" -w /app composer:2 composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-gd
 
       - name: Build containers
         run: docker compose build
