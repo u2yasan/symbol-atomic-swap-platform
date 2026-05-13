@@ -29,17 +29,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-          extensions: dom, mbstring, pdo_pgsql, xml, xmlwriter
-          coverage: none
-          tools: composer:v2
-
       - name: Install Drupal dependencies
-        working-directory: drupal
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: docker run --rm -v "$PWD/drupal:/app" -w /app composer:2 composer install --no-interaction --prefer-dist --no-progress
 
       - name: Build containers
         run: docker compose build
