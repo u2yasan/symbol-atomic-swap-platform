@@ -1,0 +1,34 @@
+{
+  "name": "symbol-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@types/pg": "^8.20.0",
+    "@types/ws": "^8.18.1",
+    "bitcore-mnemonic": "file:stubs/bitcore-mnemonic",
+    "dotenv": "^16.4.7",
+    "fastify": "^5.2.1",
+    "pg": "^8.20.0",
+    "pino": "^9.6.0",
+    "symbol-sdk": "latest",
+    "ws": "^8.20.1",
+    "zod": "^3.24.1"
+  },
+  "overrides": {
+    "bitcore-mnemonic": "$bitcore-mnemonic",
+    "bn.js": "4.12.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

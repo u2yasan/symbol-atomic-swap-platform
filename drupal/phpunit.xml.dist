@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="web/core/tests/bootstrap.php"
+         colors="true"
+         beStrictAboutTestsThatDoNotTestAnything="true"
+         beStrictAboutOutputDuringTests="true"
+         beStrictAboutChangesToGlobalState="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         failOnPhpunitWarning="true"
+         displayDetailsOnTestsThatTriggerErrors="true"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
+         cacheResult="false"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         cacheDirectory=".phpunit.cache">
+  <php>
+    <ini name="error_reporting" value="32767"/>
+    <ini name="memory_limit" value="-1"/>
+    <env name="SIMPLETEST_BASE_URL" value="http://127.0.0.1"/>
+    <env name="SIMPLETEST_DB" value="pgsql://drupal:drupal@postgres/drupal"/>
+    <env name="BROWSERTEST_OUTPUT_BASE_URL" value="http://127.0.0.1:8080"/>
+    <env name="SYMFONY_DEPRECATIONS_HELPER" value="disabled"/>
+  </php>
+  <testsuites>
+    <testsuite name="symbol-atomic-swap-kernel">
+      <directory>web/modules/custom/symbol_atomic_swap/tests/src/Kernel</directory>
+    </testsuite>
+    <testsuite name="symbol-atomic-swap-functional">
+      <directory>web/modules/custom/symbol_atomic_swap/tests/src/Functional</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>

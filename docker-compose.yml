@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-drupal}
+      POSTGRES_USER: ${POSTGRES_USER:-drupal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-drupal}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  drupal:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/drupal/Dockerfile
+    environment:
+      SYMBOL_ENGINE_BASE_URL: http://symbol-engine:3000
+      SYMBOL_ENGINE_API_TOKEN: ${SYMBOL_ENGINE_API_TOKEN}
+      SYMBOL_ENGINE_TIMEOUT: ${SYMBOL_ENGINE_TIMEOUT:-10}
+    depends_on:
+      - postgres
+      - symbol-engine
+    ports:
+      - "${DRUPAL_PORT:-8080}:80"
+    volumes:
+      - ./drupal/composer.json:/opt/drupal/composer.json
+      - ./drupal/composer.lock:/opt/drupal/composer.lock
+      - ./drupal/phpunit.xml.dist:/opt/drupal/phpunit.xml.dist
+      - ./drupal/vendor:/opt/drupal/vendor
+      - ./drupal/web:/var/www/html
+  symbol-engine:
+    build:
+      context: ./symbol-engine
+    environment:
+      SYMBOL_ENGINE_PORT: ${SYMBOL_ENGINE_PORT:-3000}
+      SYMBOL_ENGINE_API_TOKEN: ${SYMBOL_ENGINE_API_TOKEN}
+      SYMBOL_ENGINE_DATABASE_URL: ${SYMBOL_ENGINE_DATABASE_URL:-postgresql://drupal:drupal@postgres:5432/drupal}
+      SYMBOL_ENGINE_LISTENER_ENABLED: ${SYMBOL_ENGINE_LISTENER_ENABLED:-false}
+      SYMBOL_ENGINE_LISTENER_ADDRESSES: ${SYMBOL_ENGINE_LISTENER_ADDRESSES:-}
+      SYMBOL_ENGINE_RECONCILER_ENABLED: ${SYMBOL_ENGINE_RECONCILER_ENABLED:-false}
+      SYMBOL_ENGINE_RECONCILER_INTERVAL_MS: ${SYMBOL_ENGINE_RECONCILER_INTERVAL_MS:-30000}
+      SYMBOL_NETWORK: ${SYMBOL_NETWORK:-testnet}
+      SYMBOL_NODE_URL: ${SYMBOL_NODE_URL}
+      SYMBOL_WS_URL: ${SYMBOL_WS_URL}
+    ports:
+      - "${SYMBOL_ENGINE_PORT:-3000}:3000"
+    volumes:
+      - ./symbol-engine:/app
+      - symbol_engine_node_modules:/app/node_modules
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  symbol_engine_node_modules:

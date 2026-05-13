@@ -1,0 +1,6 @@
+name: Symbol Atomic Swap
+type: module
+description: Atomic swap coordination UI for Symbol mosaic swaps. Drupal is projection/cache only.
+core_version_requirement: ^11
+package: Symbol
+dependencies: []

@@ -1,0 +1,11 @@
+symbol_atomic_swap.engine_lookup:
+  title: 'Symbol Engine'
+  description: 'Read Symbol Engine network, intent, and projection state.'
+  route_name: symbol_atomic_swap.engine_lookup
+  parent: system.admin_config_services
+
+symbol_atomic_swap.engine_operations:
+  title: 'Symbol Engine Operations'
+  description: 'Build, verify, and announce Symbol Engine transactions.'
+  route_name: symbol_atomic_swap.engine_operations
+  parent: system.admin_config_services

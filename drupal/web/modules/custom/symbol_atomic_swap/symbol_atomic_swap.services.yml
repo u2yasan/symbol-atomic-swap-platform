@@ -1,0 +1,4 @@
+services:
+  symbol_atomic_swap.engine_client:
+    class: Drupal\symbol_atomic_swap\Service\SymbolEngineClient
+    arguments: ['@http_client']

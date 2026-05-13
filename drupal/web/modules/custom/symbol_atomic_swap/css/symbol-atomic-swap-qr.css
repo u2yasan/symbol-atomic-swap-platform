@@ -1,0 +1,16 @@
+.symbol-atomic-swap-qr {
+  margin-block: 1rem;
+}
+
+.symbol-atomic-swap-qr__canvas {
+  display: block;
+  image-rendering: pixelated;
+  max-inline-size: 100%;
+  background: #fff;
+  border: 1px solid #d4d4d8;
+}
+
+.symbol-atomic-swap-qr__error {
+  color: #a51b00;
+  font-weight: 600;
+}

@@ -1,0 +1,5 @@
+{
+  "name": "bitcore-mnemonic",
+  "version": "11.5.1",
+  "main": "index.cjs"
+}

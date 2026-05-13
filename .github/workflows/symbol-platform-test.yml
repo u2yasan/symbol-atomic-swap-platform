@@ -1,0 +1,109 @@
+name: Symbol Platform Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  POSTGRES_DB: drupal
+  POSTGRES_USER: drupal
+  POSTGRES_PASSWORD: drupal
+  SYMBOL_ENGINE_API_TOKEN: 0123456789abcdef0123456789abcdef
+  SYMBOL_ENGINE_DATABASE_URL: postgresql://drupal:drupal@postgres:5432/drupal
+  SYMBOL_ENGINE_LISTENER_ENABLED: "false"
+  SYMBOL_ENGINE_RECONCILER_ENABLED: "false"
+  SYMBOL_NETWORK: testnet
+  SYMBOL_NODE_URL: ""
+  SYMBOL_WS_URL: ""
+
+jobs:
+  test:
+    name: Engine and Drupal tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: dom, mbstring, pdo_pgsql, xml, xmlwriter
+          coverage: none
+          tools: composer:v2
+
+      - name: Install Drupal dependencies
+        working-directory: drupal
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Build containers
+        run: docker compose build
+
+      - name: Start stack
+        run: docker compose up -d postgres redis symbol-engine drupal
+
+      - name: Install Symbol Engine dependencies in mounted volume
+        run: docker compose exec -T symbol-engine npm ci
+
+      - name: Wait for PostgreSQL
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs postgres
+          exit 1
+
+      - name: Wait for Symbol Engine
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs symbol-engine
+          exit 1
+
+      - name: Wait for Drupal
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8080/symbol-atomic-swap/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs drupal
+          exit 1
+
+      - name: Audit Symbol Engine production dependencies
+        run: docker compose exec -T symbol-engine npm audit --omit=dev
+
+      - name: Typecheck Symbol Engine
+        run: docker compose exec -T symbol-engine npm run typecheck
+
+      - name: Build Symbol Engine
+        run: docker compose exec -T symbol-engine npm run build
+
+      - name: Rebuild Drupal caches
+        run: make drush-cr
+
+      - name: Run test suite
+        run: make test
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
