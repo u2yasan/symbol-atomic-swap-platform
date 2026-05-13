@@ -12,7 +12,7 @@ function secureCompare(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-function extractToken(request: FastifyRequest): string | null {
+export function extractToken(request: FastifyRequest): string | null {
   const authorization = request.headers.authorization;
   if (authorization?.startsWith('Bearer ')) {
     return authorization.slice('Bearer '.length);

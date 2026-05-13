@@ -1,15 +1,14 @@
 import Fastify from 'fastify';
-import { ZodError } from 'zod';
 import { createApiAuthHook } from './api/auth.js';
+import { handleApiError } from './api/errorHandler.js';
 import { registerRoutes } from './api/routes.js';
+import { createLoggerOptions, DEFAULT_BODY_LIMIT_BYTES, registerSecurity } from './api/security.js';
 import { loadEnv } from './config/env.js';
-import { InvalidStateTransitionError } from './listener/eventDispatcher.js';
 import { createDatabase } from './db/pool.js';
 import { runMigrations } from './db/migrations.js';
 import { SwapIntentRepository } from './repository/swapIntentRepository.js';
 import { EventRepository } from './repository/eventRepository.js';
 import { ProjectionRepository } from './repository/projectionRepository.js';
-import { InvalidAnnouncementError } from './transaction/announceService.js';
 import { SymbolListener } from './listener/symbolListener.js';
 import { TransactionReconciler } from './worker/transactionReconciler.js';
 
@@ -24,38 +23,19 @@ const repositories = {
 };
 
 const app = Fastify({
-  logger: true,
+  bodyLimit: DEFAULT_BODY_LIMIT_BYTES,
+  logger: createLoggerOptions(),
 });
 
-app.setErrorHandler((error, _request, reply) => {
-  if (error instanceof ZodError) {
-    return reply.code(400).send({
-      error: 'validation_failed',
-      issues: error.issues,
-    });
-  }
+await registerSecurity(app);
 
-  if (error instanceof InvalidStateTransitionError) {
-    return reply.code(error.statusCode).send({
-      error: 'invalid_state_transition',
-      message: error.message,
-    });
-  }
+app.setErrorHandler(handleApiError);
 
-  if (error instanceof InvalidAnnouncementError) {
-    return reply.code(error.statusCode).send({
-      error: 'invalid_announcement',
-      message: error.message,
-    });
-  }
-
-  app.log.error(error);
-  return reply.code(500).send({
-    error: 'internal_error',
-  });
-});
-
-app.get('/health', async () => {
+app.get('/health', {
+  config: {
+    rateLimit: false,
+  },
+}, async () => {
   return {
     status: 'ok',
     service: 'symbol-engine',

@@ -8,6 +8,7 @@ import type { SwapIntentRepository } from '../repository/swapIntentRepository.js
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import { intentParamsSchema, projectionParamsSchema } from '../dto/readModels.js';
+import { LARGE_PAYLOAD_BODY_LIMIT_BYTES, SMALL_BODY_LIMIT_BYTES } from './security.js';
 
 export type RouteDependencies = {
   nodeUrl: string | undefined;
@@ -55,7 +56,15 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     });
   });
 
-  app.post('/v1/aggregate-complete/build', async (request, reply) => {
+  app.post('/v1/aggregate-complete/build', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     const result = buildAggregateComplete(request.body);
     await dependencies.repositories.swapIntents.create({
       id: result.intentId,
@@ -73,7 +82,15 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     return reply.code(201).send(response);
   });
 
-  app.post('/v1/transactions/verify-signed-payload', async (request, reply) => {
+  app.post('/v1/transactions/verify-signed-payload', {
+    bodyLimit: LARGE_PAYLOAD_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     const intentHash = typeof request.body === 'object'
       && request.body !== null
       && 'intentHash' in request.body
@@ -89,7 +106,15 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     return reply.code(result.accepted ? 200 : 400).send(result);
   });
 
-  app.post('/v1/transactions/announce', async (request, reply) => {
+  app.post('/v1/transactions/announce', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     const result = await announceVerifiedTransaction(request.body, {
       nodeUrl: dependencies.nodeUrl,
       swapIntents: dependencies.repositories.swapIntents,
@@ -99,12 +124,22 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     return reply.code(202).send(result);
   });
 
-  app.post('/v1/events', async (request, reply) => {
+  app.post('/v1/events', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
     const projection = await dispatchBlockchainEvent(request.body, dependencies.repositories);
     return reply.code(202).send(projection);
   });
 
-  app.post('/v1/finalization/check', async (request, reply) => {
+  app.post('/v1/finalization/check', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+  }, async (request, reply) => {
     return reply.send({
       finalized: isTransactionFinalized(request.body),
     });
