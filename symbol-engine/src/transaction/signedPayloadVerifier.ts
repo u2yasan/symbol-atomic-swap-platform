@@ -36,6 +36,20 @@ function readAmount(amount: unknown): string {
   return value.toString();
 }
 
+const publicVerificationErrorMessages = new Set([
+  'invalid mosaic id',
+  'invalid amount',
+  'embedded transaction is not transfer',
+  'embedded transfer must contain exactly one mosaic',
+]);
+
+function publicVerificationFailureReason(error: unknown): string {
+  if (error instanceof Error && publicVerificationErrorMessages.has(error.message)) {
+    return error.message;
+  }
+  return 'signed payload verification failed';
+}
+
 export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | null): SignedPayloadVerificationResult {
   const parsed = signedPayloadVerificationSchema.safeParse(input);
   if (!parsed.success) {
@@ -168,7 +182,7 @@ export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | n
   } catch (error) {
     return {
       accepted: false,
-      reason: error instanceof Error ? error.message : 'signed payload verification failed',
+      reason: publicVerificationFailureReason(error),
     };
   }
 }

@@ -115,6 +115,8 @@ Before announcement, the decoded transaction must match the original swap intent
 
 Reject payloads that contain extra transfers, changed recipients, changed mosaic IDs, changed amounts, or unexpected signer public keys.
 
+Signed transaction verification failures must not echo decoder, serializer, or SDK exception details. Expected semantic mismatches may return stable reason strings; unexpected parsing failures must use a generic verification failure reason.
+
 ## Finalization Rules
 
 The only completed swap state is `finalized`.

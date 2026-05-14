@@ -119,6 +119,17 @@ test('verifySignedPayload rejects malformed hex', () => {
   assert.match(result.reason, /payload must be hex/);
 });
 
+test('verifySignedPayload hides malformed transaction decoder details', () => {
+  const intent = makeIntent();
+  const result = verifySignedPayload({
+    payload: 'AB',
+    intentHash: intent.intentHash,
+  }, intent);
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'signed payload verification failed');
+});
+
 test('verifySignedPayload rejects missing stored intent', () => {
   const intent = makeIntent();
   const result = verifySignedPayload({

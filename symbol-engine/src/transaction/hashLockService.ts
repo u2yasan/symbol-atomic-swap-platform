@@ -138,6 +138,22 @@ function readDuration(duration: unknown): string {
   return value.toString();
 }
 
+const publicHashLockVerificationErrorMessages = new Set([
+  'swap intent not found',
+  'hash lock requires aggregate bonded intent',
+  'aggregate bonded intent must be signed before hash lock',
+  'invalid hash lock mosaic id',
+  'invalid hash lock amount',
+  'invalid hash lock duration',
+]);
+
+function publicHashLockVerificationFailureReason(error: unknown): string {
+  if (error instanceof Error && publicHashLockVerificationErrorMessages.has(error.message)) {
+    return error.message;
+  }
+  return 'hash lock verification failed';
+}
+
 export function verifySignedHashLockPayload(input: unknown, intent: SwapIntentRecord | null): {
   accepted: boolean;
   reason: string;
@@ -210,7 +226,7 @@ export function verifySignedHashLockPayload(input: unknown, intent: SwapIntentRe
   } catch (error) {
     return {
       accepted: false,
-      reason: error instanceof Error ? error.message : 'hash lock verification failed',
+      reason: publicHashLockVerificationFailureReason(error),
     };
   }
 }

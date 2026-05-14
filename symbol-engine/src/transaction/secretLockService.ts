@@ -135,6 +135,22 @@ function assertSignedTransaction(transaction: { signature: { bytes: Uint8Array }
   }
 }
 
+const publicSecretLockVerificationErrorMessages = new Set([
+  'invalid secret lock mosaic id',
+  'invalid secret lock amount',
+  'invalid secret lock duration',
+  'unsupported secret lock hash algorithm',
+  'transaction signature is missing',
+  'transaction signature verification failed',
+]);
+
+function publicSecretLockVerificationFailureReason(error: unknown, fallback: string): string {
+  if (error instanceof Error && publicSecretLockVerificationErrorMessages.has(error.message)) {
+    return error.message;
+  }
+  return fallback;
+}
+
 export function buildSecretLockTransaction(input: unknown): SecretLockBuildResult {
   const request = secretLockBuildRequestSchema.parse(input);
   const facade = new SymbolFacade(request.network);
@@ -263,7 +279,10 @@ export function verifySignedSecretLockPayload(input: unknown): {
       transactionHash: facade.hashTransaction(transaction).toString().toUpperCase(),
     };
   } catch (error) {
-    return { accepted: false, reason: error instanceof Error ? error.message : 'secret lock verification failed' };
+    return {
+      accepted: false,
+      reason: publicSecretLockVerificationFailureReason(error, 'secret lock verification failed'),
+    };
   }
 }
 
@@ -321,7 +340,10 @@ export function verifySignedSecretProofPayload(input: unknown): {
       secret: expectedSecret,
     };
   } catch (error) {
-    return { accepted: false, reason: error instanceof Error ? error.message : 'secret proof verification failed' };
+    return {
+      accepted: false,
+      reason: publicSecretLockVerificationFailureReason(error, 'secret proof verification failed'),
+    };
   }
 }
 

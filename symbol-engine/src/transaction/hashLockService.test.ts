@@ -156,6 +156,17 @@ test('verifySignedHashLockPayload rejects unsigned hash lock', async () => {
   assert.equal(result.reason, 'hash lock signature is missing');
 });
 
+test('verifySignedHashLockPayload hides malformed transaction decoder details', () => {
+  const { intent } = makeSignedBondedIntent();
+  const result = verifySignedHashLockPayload({
+    intentHash: intent.intentHash,
+    payload: 'AB',
+  }, intent);
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'hash lock verification failed');
+});
+
 test('buildHashLockTransaction rejects unsigned bonded intent', async () => {
   const { intent } = makeSignedBondedIntent();
   await assert.rejects(() => buildHashLockTransaction({

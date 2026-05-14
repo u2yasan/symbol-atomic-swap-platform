@@ -102,6 +102,24 @@ test('verifySignedSecretLockPayload rejects mismatched amount', () => {
   assert.equal(result.reason, 'secret lock amount mismatch');
 });
 
+test('verifySignedSecretLockPayload hides malformed transaction decoder details', () => {
+  const { signer, recipient } = makeAccounts();
+  const result = verifySignedSecretLockPayload({
+    network: 'testnet',
+    signerPublicKey: signer.publicKey.toString(),
+    recipientAddress: recipient.address.toString(),
+    mosaicId: '72C0212E67A08BCE',
+    amount: '100',
+    duration: 480,
+    secret: 'A'.repeat(64),
+    hashAlgorithm: 'SHA3_256',
+    payload: 'AB',
+  });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'secret lock verification failed');
+});
+
 test('buildSecretProofTransaction derives secret from proof and returns unsigned payload', () => {
   const { signer, recipient } = makeAccounts();
   const result = buildSecretProofTransaction({
@@ -160,6 +178,21 @@ test('verifySignedSecretProofPayload rejects wrong proof expectation', () => {
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'secret proof hash mismatch');
+});
+
+test('verifySignedSecretProofPayload hides malformed transaction decoder details', () => {
+  const { signer, recipient } = makeAccounts();
+  const result = verifySignedSecretProofPayload({
+    network: 'testnet',
+    signerPublicKey: signer.publicKey.toString(),
+    recipientAddress: recipient.address.toString(),
+    proof: 'B'.repeat(64),
+    hashAlgorithm: 'SHA3_256',
+    payload: 'AB',
+  });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'secret proof verification failed');
 });
 
 test('announceSignedSecretLock sends verified payload to node', async () => {
