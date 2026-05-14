@@ -38,6 +38,8 @@ final class SwapOfferForm extends FormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state, $offerId = NULL): array {
+    $form['#tree'] = TRUE;
+
     $offer_id = $offerId !== NULL ? (int) $offerId : NULL;
     $offer = $offer_id ? $this->offers->find($offer_id) : NULL;
     if ($offerId && !$offer) {
@@ -104,7 +106,7 @@ final class SwapOfferForm extends FormBase {
       ];
       $form['leg_' . $index]['signer_public_key'] = [
         '#type' => 'textfield',
-        '#title' => $this->t('Signer public key'),
+        '#title' => $this->t('Transfer leg @number signer public key', ['@number' => $index]),
         '#maxlength' => 64,
         '#size' => 72,
         '#required' => TRUE,
@@ -117,7 +119,7 @@ final class SwapOfferForm extends FormBase {
       ];
       $form['leg_' . $index]['recipient_address'] = [
         '#type' => 'textfield',
-        '#title' => $this->t('Recipient address'),
+        '#title' => $this->t('Transfer leg @number recipient address', ['@number' => $index]),
         '#maxlength' => 46,
         '#size' => 52,
         '#required' => TRUE,
@@ -129,7 +131,7 @@ final class SwapOfferForm extends FormBase {
       ];
       $form['leg_' . $index]['mosaic_id'] = [
         '#type' => 'textfield',
-        '#title' => $this->t('Mosaic ID'),
+        '#title' => $this->t('Transfer leg @number mosaic ID', ['@number' => $index]),
         '#maxlength' => 16,
         '#size' => 24,
         '#required' => TRUE,
@@ -142,7 +144,7 @@ final class SwapOfferForm extends FormBase {
       ];
       $form['leg_' . $index]['amount'] = [
         '#type' => 'textfield',
-        '#title' => $this->t('Amount'),
+        '#title' => $this->t('Transfer leg @number amount', ['@number' => $index]),
         '#maxlength' => 32,
         '#size' => 24,
         '#required' => TRUE,
@@ -259,7 +261,7 @@ final class SwapOfferForm extends FormBase {
       $this->messenger()->addError($this->t('Swap offer was saved as draft, but Symbol Engine build failed: @message', [
         '@message' => $exception->getMessage(),
       ]));
-      $form_state->setRedirect('symbol_atomic_swap.offer_edit', ['offerId' => $id]);
+      $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $id]);
     }
   }
 

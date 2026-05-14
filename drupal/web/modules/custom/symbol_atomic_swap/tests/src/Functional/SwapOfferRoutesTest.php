@@ -54,8 +54,57 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Offer label');
     $assert_session->fieldExists('Correlation ID');
-    $assert_session->fieldExists('Signer public key');
+    $assert_session->fieldExists('Transfer leg 1 signer public key');
+    $assert_session->fieldExists('Transfer leg 2 signer public key');
     $assert_session->buttonExists('Create and build QR');
+  }
+
+  /**
+   * Nested transfer leg values must not overwrite each other on submit.
+   */
+  public function testCreateOfferPreservesDistinctTransferLegValues(): void {
+    $creator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'create symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($creator);
+
+    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->submitForm([
+      'label' => 'Distinct leg submit offer',
+      'network' => 'testnet',
+      'correlation_id' => 'ui-distinct-leg-0001',
+      'deadline_hours' => '2',
+      'max_fee' => '',
+      'leg_1[signer_public_key]' => str_repeat('A', 64),
+      'leg_1[recipient_address]' => 'TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      'leg_1[mosaic_id]' => '72C0212E67A08BCE',
+      'leg_1[amount]' => '100',
+      'leg_2[signer_public_key]' => str_repeat('B', 64),
+      'leg_2[recipient_address]' => 'TBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+      'leg_2[mosaic_id]' => '72C0212E67A08BCF',
+      'leg_2[amount]' => '200',
+    ], 'Create and build QR');
+
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextNotContains('Signer public key must be 64 hex characters.');
+    $assert_session->pageTextNotContains('Recipient address must be 39 to 46 characters.');
+    $assert_session->pageTextNotContains('Mosaic ID must be 16 hex characters.');
+    $assert_session->pageTextNotContains('Amount must be a positive integer.');
+
+    $records = \Drupal::service('symbol_atomic_swap.offer_repository')->search([
+      'q' => 'ui-distinct-leg-0001',
+    ]);
+    $this->assertCount(1, $records);
+    $this->assertSame(str_repeat('A', 64), $records[0]['leg1_signer_public_key']);
+    $this->assertSame('TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', $records[0]['leg1_recipient_address']);
+    $this->assertSame('72C0212E67A08BCE', $records[0]['leg1_mosaic_id']);
+    $this->assertSame('100', $records[0]['leg1_amount']);
+    $this->assertSame(str_repeat('B', 64), $records[0]['leg2_signer_public_key']);
+    $this->assertSame('TBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB', $records[0]['leg2_recipient_address']);
+    $this->assertSame('72C0212E67A08BCF', $records[0]['leg2_mosaic_id']);
+    $this->assertSame('200', $records[0]['leg2_amount']);
   }
 
   /**
