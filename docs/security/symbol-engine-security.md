@@ -83,6 +83,8 @@ Persisted and returned Symbol node announcement responses must be normalized to 
 
 Persisted reconciliation failure responses must not store raw Symbol REST status bodies. Store only stable public failure identifiers such as Symbol status `code`.
 
+Symbol REST client DTOs must expose only parsed fields required by callers. Raw upstream response bodies must not be returned from the REST client API.
+
 Validation error responses must expose only stable public issue fields: `code`, `path`, and `message`. They must not echo rejected request values or serializer-specific internals.
 
 Shutdown must stop background listeners and reconcilers, close the HTTP server, and then close the database pool. The database pool must still be closed if HTTP server close fails. Failed shutdown must be logged and must exit nonzero.

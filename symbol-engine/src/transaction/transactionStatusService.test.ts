@@ -123,11 +123,6 @@ test('reconcileTransactionStatus maps status failure to failed', async () => {
         found: true,
         transactionHash,
         code: 'Failure_Core_Past_Deadline',
-        raw: {
-          code: 'Failure_Core_Past_Deadline',
-          payload: 'A'.repeat(256),
-          url: 'https://node.example.test',
-        },
       }),
       getConfirmedTransaction: async () => ({ found: false, transactionHash }),
       getUnconfirmedTransaction: async () => ({ found: false, transactionHash }),

@@ -6,19 +6,16 @@ export type SymbolTransactionLookup = {
   found: boolean;
   transactionHash: string;
   blockHeight?: number;
-  raw?: unknown;
 };
 
 export type SymbolStatusLookup = {
   found: boolean;
   transactionHash: string;
   code?: string;
-  raw?: unknown;
 };
 
 export type SymbolNetworkProperties = {
   networkIdentifier?: string;
-  raw: unknown;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -112,7 +109,6 @@ export class SymbolRestClient {
       found: true,
       transactionHash,
       ...(blockHeight ? { blockHeight } : {}),
-      raw,
     };
   }
 
@@ -128,7 +124,6 @@ export class SymbolRestClient {
     return {
       found: true,
       transactionHash,
-      raw: await readJson(response),
     };
   }
 
@@ -148,7 +143,6 @@ export class SymbolRestClient {
       found: true,
       transactionHash: readString(record.hash) ?? transactionHash,
       ...(code ? { code } : {}),
-      raw,
     };
   }
 
@@ -170,7 +164,6 @@ export class SymbolRestClient {
     const raw = await readJson(response);
     const networkIdentifier = extractNetworkIdentifier(raw);
     return {
-      raw,
       ...(networkIdentifier ? { networkIdentifier } : {}),
     };
   }
