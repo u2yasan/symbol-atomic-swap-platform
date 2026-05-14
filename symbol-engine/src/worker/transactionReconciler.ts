@@ -10,6 +10,7 @@ type SymbolNetwork = 'mainnet' | 'testnet';
 export type TransactionReconcilerOptions = {
   network: SymbolNetwork;
   nodeUrl: string;
+  nodeRequestTimeoutMs?: number;
   intervalMs: number;
   repositories: {
     swapIntents: SwapIntentRepository;
@@ -27,7 +28,11 @@ export class TransactionReconciler {
   private readonly client: SymbolRestClient;
 
   public constructor(private readonly options: TransactionReconcilerOptions) {
-    this.client = options.client ?? new SymbolRestClient(options.nodeUrl);
+    this.client = options.client ?? new SymbolRestClient(
+      options.nodeUrl,
+      fetch,
+      options.nodeRequestTimeoutMs,
+    );
   }
 
   public start(): void {

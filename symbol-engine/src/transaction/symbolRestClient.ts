@@ -1,3 +1,5 @@
+import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
+
 type FetchLike = typeof fetch;
 
 export type SymbolTransactionLookup = {
@@ -73,10 +75,31 @@ export class SymbolRestClient {
   public constructor(
     private readonly nodeUrl: string,
     private readonly fetcher: FetchLike = fetch,
+    private readonly requestTimeoutMs = 10000,
   ) {}
 
+  private async request(path: string): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
+
+    try {
+      return await this.fetcher(new URL(path, this.nodeUrl), {
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new SymbolNodeUnavailableError(`Symbol node request timed out after ${this.requestTimeoutMs}ms.`);
+      }
+
+      const message = error instanceof Error ? error.message : 'request failed';
+      throw new SymbolNodeUnavailableError(`Symbol node request failed: ${message}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   public async getConfirmedTransaction(transactionHash: string): Promise<SymbolTransactionLookup> {
-    const response = await this.fetcher(new URL(`/transactions/confirmed/${transactionHash}`, this.nodeUrl));
+    const response = await this.request(`/transactions/confirmed/${transactionHash}`);
     if (response.status === 404) {
       return { found: false, transactionHash };
     }
@@ -95,7 +118,7 @@ export class SymbolRestClient {
   }
 
   public async getUnconfirmedTransaction(transactionHash: string): Promise<SymbolTransactionLookup> {
-    const response = await this.fetcher(new URL(`/transactions/unconfirmed/${transactionHash}`, this.nodeUrl));
+    const response = await this.request(`/transactions/unconfirmed/${transactionHash}`);
     if (response.status === 404) {
       return { found: false, transactionHash };
     }
@@ -111,7 +134,7 @@ export class SymbolRestClient {
   }
 
   public async getTransactionStatus(transactionHash: string): Promise<SymbolStatusLookup> {
-    const response = await this.fetcher(new URL(`/transactionStatus/${transactionHash}`, this.nodeUrl));
+    const response = await this.request(`/transactionStatus/${transactionHash}`);
     if (response.status === 404) {
       return { found: false, transactionHash };
     }
@@ -131,7 +154,7 @@ export class SymbolRestClient {
   }
 
   public async getFinalizedHeight(): Promise<number | null> {
-    const response = await this.fetcher(new URL('/chain/info', this.nodeUrl));
+    const response = await this.request('/chain/info');
     if (!response.ok) {
       throw new Error(`chain info lookup failed: ${response.status}`);
     }
@@ -140,7 +163,7 @@ export class SymbolRestClient {
   }
 
   public async getNetworkProperties(): Promise<SymbolNetworkProperties> {
-    const response = await this.fetcher(new URL('/network/properties', this.nodeUrl));
+    const response = await this.request('/network/properties');
     if (!response.ok) {
       throw new Error(`network properties lookup failed: ${response.status}`);
     }

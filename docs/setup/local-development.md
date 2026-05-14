@@ -156,7 +156,7 @@ Current implementation covers:
 - production startup preflight for Symbol node network mismatch
 - production startup preflight for Symbol WebSocket listener reachability
 - explicit `503 symbol_node_unavailable` responses for announcement APIs without `SYMBOL_NODE_URL`
-- bounded Symbol node announcement HTTP requests via `SYMBOL_NODE_REQUEST_TIMEOUT_MS`
+- bounded Symbol node REST requests via `SYMBOL_NODE_REQUEST_TIMEOUT_MS`
 
 ## Test Commands
 

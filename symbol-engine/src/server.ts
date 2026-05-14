@@ -86,6 +86,7 @@ if (env.SYMBOL_ENGINE_RECONCILER_ENABLED) {
   reconciler = new TransactionReconciler({
     network: env.SYMBOL_NETWORK,
     nodeUrl: env.SYMBOL_NODE_URL,
+    nodeRequestTimeoutMs: env.SYMBOL_NODE_REQUEST_TIMEOUT_MS,
     intervalMs: env.SYMBOL_ENGINE_RECONCILER_INTERVAL_MS,
     repositories,
     logger: app.log,
