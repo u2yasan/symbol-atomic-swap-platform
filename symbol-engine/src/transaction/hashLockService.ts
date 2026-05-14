@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { integerStringSchema, publicKeySchema } from '../dto/aggregateComplete.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { NormalizedBondedSwapIntent, SwapIntentRecord } from '../repository/types.js';
+import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 
 const intentHashSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/);
 
@@ -222,7 +223,7 @@ export async function announceSignedHashLock(
 ): Promise<HashLockAnnouncementResult> {
   const request = signedHashLockAnnouncementSchema.parse(input);
   if (!dependencies.nodeUrl) {
-    throw new Error('SYMBOL_NODE_URL is required for hash lock announcement.');
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for hash lock announcement.');
   }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());

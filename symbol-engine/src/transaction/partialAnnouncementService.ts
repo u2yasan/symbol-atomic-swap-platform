@@ -4,6 +4,7 @@ import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import { InvalidAnnouncementError } from './announceService.js';
+import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 
 const partialAnnouncementRequestSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
@@ -28,7 +29,7 @@ export async function announcePartialAggregateBonded(
   const request = partialAnnouncementRequestSchema.parse(input);
 
   if (!dependencies.nodeUrl) {
-    throw new Error('SYMBOL_NODE_URL is required for partial transaction announcement.');
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for partial transaction announcement.');
   }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());

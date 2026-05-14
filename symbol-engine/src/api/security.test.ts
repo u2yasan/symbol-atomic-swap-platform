@@ -10,6 +10,7 @@ import {
   registerSecurity,
   SMALL_BODY_LIMIT_BYTES,
 } from './security.js';
+import { SymbolNodeUnavailableError } from '../transaction/symbolNodeErrors.js';
 
 const token = '0123456789abcdef0123456789abcdef';
 
@@ -38,6 +39,10 @@ async function makeApp() {
       },
     },
   }, async (request) => request.body);
+
+  app.post('/missing-node-url', async () => {
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for transaction announcement.');
+  });
 
   return app;
 }
@@ -141,6 +146,22 @@ test('security headers are set on responses', async () => {
   assert.equal(response.headers['x-content-type-options'], 'nosniff');
   assert.equal(response.headers['x-frame-options'], 'DENY');
   assert.equal(response.headers['x-powered-by'], undefined);
+  await app.close();
+});
+
+test('missing Symbol node URL returns service unavailable instead of internal error', async () => {
+  const app = await makeApp();
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/missing-node-url',
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  });
+
+  assert.equal(response.statusCode, 503);
+  assert.equal(response.json().error, 'symbol_node_unavailable');
   await app.close();
 });
 

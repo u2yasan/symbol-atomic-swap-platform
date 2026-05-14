@@ -6,6 +6,7 @@ import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import { InvalidAnnouncementError } from './announceService.js';
+import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 
 const cosignatureAnnouncementSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
@@ -35,7 +36,7 @@ export async function announceAggregateBondedCosignature(
   const request = cosignatureAnnouncementSchema.parse(input);
 
   if (!dependencies.nodeUrl) {
-    throw new Error('SYMBOL_NODE_URL is required for cosignature announcement.');
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for cosignature announcement.');
   }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());

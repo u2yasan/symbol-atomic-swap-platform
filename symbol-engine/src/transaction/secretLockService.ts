@@ -3,6 +3,7 @@ import { Hash256, PublicKey, Signature, utils } from 'symbol-sdk';
 import { Address, descriptors, models, SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
 import { z } from 'zod';
 import { addressSchema, integerStringSchema, mosaicIdSchema, publicKeySchema } from '../dto/aggregateComplete.js';
+import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 
 const secretSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'secret must be 32-byte hex');
 const proofSchema = z.string().regex(/^[0-9A-Fa-f]{2,2048}$/, 'proof must be hex');
@@ -329,7 +330,7 @@ async function announceVerifiedPayload(
   nodeUrl: string | undefined,
 ): Promise<SecretAnnouncementResult> {
   if (!nodeUrl) {
-    throw new Error('SYMBOL_NODE_URL is required for secret transaction announcement.');
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for secret transaction announcement.');
   }
 
   const response = await fetch(new URL('/transactions', nodeUrl), {

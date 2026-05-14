@@ -4,6 +4,7 @@ import { InvalidStateTransitionError } from '../listener/eventDispatcher.js';
 import { InvalidAnnouncementError } from '../transaction/announceService.js';
 import { InvalidHashLockError } from '../transaction/hashLockService.js';
 import { InvalidSecretLockError } from '../transaction/secretLockService.js';
+import { SymbolNodeUnavailableError } from '../transaction/symbolNodeErrors.js';
 
 function hasClientStatusCode(error: FastifyError): error is FastifyError & { statusCode: number } {
   return typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500;
@@ -53,6 +54,13 @@ export function handleApiError(error: FastifyError, _request: FastifyRequest, re
   if (error instanceof InvalidSecretLockError) {
     return reply.code(error.statusCode).send({
       error: 'invalid_secret_lock',
+      message: error.message,
+    });
+  }
+
+  if (error instanceof SymbolNodeUnavailableError) {
+    return reply.code(error.statusCode).send({
+      error: 'symbol_node_unavailable',
       message: error.message,
     });
   }

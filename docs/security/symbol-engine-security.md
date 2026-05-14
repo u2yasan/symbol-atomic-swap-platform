@@ -67,6 +67,8 @@ When `SYMBOL_NODE_URL` is configured in production, Symbol Engine must read `/ne
 
 When the listener is enabled in production, Symbol Engine must open a WebSocket connection during startup and fail before serving traffic if the endpoint cannot complete the handshake within the configured timeout.
 
+Announcement APIs must fail with `503 symbol_node_unavailable` when `SYMBOL_NODE_URL` is not configured. They must not return a generic internal error for missing infrastructure configuration.
+
 ## Public Health Route
 
 `GET /health` is public for service monitoring.

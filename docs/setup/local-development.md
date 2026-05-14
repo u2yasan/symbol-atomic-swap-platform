@@ -154,6 +154,7 @@ Current implementation covers:
 - production fail-fast validation for HTTPS/WSS Symbol endpoints
 - production startup preflight for Symbol node network mismatch
 - production startup preflight for Symbol WebSocket listener reachability
+- explicit `503 symbol_node_unavailable` responses for announcement APIs without `SYMBOL_NODE_URL`
 
 ## Test Commands
 
