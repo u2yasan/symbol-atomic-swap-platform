@@ -30,6 +30,14 @@ function uniqueCharacterCount(value: string): number {
   return new Set(value).size;
 }
 
+function isSecureHttpUrl(value: string | undefined): boolean {
+  return value === undefined || new URL(value).protocol === 'https:';
+}
+
+function isSecureWebSocketUrl(value: string | undefined): boolean {
+  return value === undefined || new URL(value).protocol === 'wss:';
+}
+
 const optionalUrlSchema = z.preprocess(
   (value) => value === '' ? undefined : value,
   z.string().url().optional(),
@@ -101,6 +109,22 @@ const envSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['SYMBOL_ENGINE_DATABASE_URL'],
       message: 'SYMBOL_ENGINE_DATABASE_URL is required in production.',
+    });
+  }
+
+  if (value.NODE_ENV === 'production' && !isSecureHttpUrl(value.SYMBOL_NODE_URL)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_NODE_URL'],
+      message: 'SYMBOL_NODE_URL must use https in production.',
+    });
+  }
+
+  if (value.NODE_ENV === 'production' && !isSecureWebSocketUrl(value.SYMBOL_WS_URL)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_WS_URL'],
+      message: 'SYMBOL_WS_URL must use wss in production.',
     });
   }
 });

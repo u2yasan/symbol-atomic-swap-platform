@@ -73,3 +73,36 @@ test('loadEnvFrom rejects production environment without database URL', () => {
     return true;
   });
 });
+
+test('loadEnvFrom rejects insecure production Symbol node URL', () => {
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_NODE_URL: 'http://symbol-node.example:3000',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /SYMBOL_NODE_URL must use https in production/);
+    return true;
+  });
+});
+
+test('loadEnvFrom rejects insecure production Symbol WebSocket URL', () => {
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_WS_URL: 'ws://symbol-node.example:3000/ws',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /SYMBOL_WS_URL must use wss in production/);
+    return true;
+  });
+});
+
+test('loadEnvFrom accepts secure production Symbol endpoints', () => {
+  const env = loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_NODE_URL: 'https://symbol-node.example:3001',
+    SYMBOL_WS_URL: 'wss://symbol-node.example:3001/ws',
+  });
+
+  assert.equal(env.SYMBOL_NODE_URL, 'https://symbol-node.example:3001');
+  assert.equal(env.SYMBOL_WS_URL, 'wss://symbol-node.example:3001/ws');
+});

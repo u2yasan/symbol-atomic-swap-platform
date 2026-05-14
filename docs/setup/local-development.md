@@ -133,7 +133,7 @@ It checks pending transaction hashes through Symbol node REST and updates projec
 
 REST 404 is not treated as failure.
 
-## Known Implementation Limits
+## Current Implementation Scope
 
 Current implementation covers:
 
@@ -150,10 +150,9 @@ Current implementation covers:
 - event idempotency
 - unsafe finalization transition rejection
 - finalization height check
+- Drupal UI for swap creation and operation
+- production fail-fast validation for HTTPS/WSS Symbol endpoints
 
-Current implementation does not yet cover:
-
-- Drupal UI for swap creation
 ## Test Commands
 
 Start the stack before running integration-style tests:

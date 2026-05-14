@@ -56,6 +56,13 @@ If `SYMBOL_ENGINE_API_TOKEN` is missing on Symbol Engine, protected routes must 
 
 This prevents accidentally running protected endpoints without authentication.
 
+In production, Symbol node endpoints must use encrypted transport:
+
+- `SYMBOL_NODE_URL` must use `https://`
+- `SYMBOL_WS_URL` must use `wss://`
+
+Plain HTTP/WebSocket endpoints are acceptable only for non-production local or isolated test environments.
+
 ## Public Health Route
 
 `GET /health` is public for service monitoring.

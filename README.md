@@ -65,6 +65,7 @@ Implemented:
 - unsafe finalization transition rejection
 - finalization height check
 - production environment fail-fast validation for Engine API token and database URL
+- production environment fail-fast validation for HTTPS Symbol REST and WSS Symbol WebSocket endpoints
 - production Engine API token weak-pattern rejection
 - Drupal Engine client fail-closed validation for missing, short, or weak-pattern API tokens
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis
@@ -105,6 +106,6 @@ Implemented:
 
 Not implemented yet:
 
-- Production hardening and end-to-end testnet validation.
+- Remaining production hardening and end-to-end testnet validation.
 
 Do not treat this repository as production-ready until the hardening items are implemented and tested.
