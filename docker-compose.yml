@@ -8,12 +8,12 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_BIND_ADDRESS:-127.0.0.1}:5432:5432"
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_BIND_ADDRESS:-127.0.0.1}:6379:6379"
 
   drupal:
     build:
@@ -27,7 +27,7 @@ services:
       - postgres
       - symbol-engine
     ports:
-      - "${DRUPAL_PORT:-8080}:80"
+      - "${DRUPAL_BIND_ADDRESS:-127.0.0.1}:${DRUPAL_PORT:-8080}:80"
     volumes:
       - ./drupal/composer.json:/opt/drupal/composer.json
       - ./drupal/composer.lock:/opt/drupal/composer.lock
@@ -50,7 +50,7 @@ services:
       SYMBOL_NODE_URL: ${SYMBOL_NODE_URL}
       SYMBOL_WS_URL: ${SYMBOL_WS_URL}
     ports:
-      - "${SYMBOL_ENGINE_PORT:-3000}:3000"
+      - "${SYMBOL_ENGINE_BIND_ADDRESS:-127.0.0.1}:${SYMBOL_ENGINE_PORT:-3000}:3000"
     volumes:
       - ./symbol-engine:/app
       - symbol_engine_node_modules:/app/node_modules
