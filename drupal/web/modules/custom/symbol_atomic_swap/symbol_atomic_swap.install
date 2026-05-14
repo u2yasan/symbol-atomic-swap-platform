@@ -155,6 +155,7 @@ function symbol_atomic_swap_schema(): array {
     'primary key' => ['id'],
     'unique keys' => [
       'uuid' => ['uuid'],
+      'network_correlation_id' => ['network', 'correlation_id'],
     ],
     'indexes' => [
       'state' => ['state'],
@@ -284,4 +285,49 @@ function symbol_atomic_swap_update_11005(): void {
     }
   }
   $config->save();
+}
+
+/**
+ * Enforces unique offer correlation IDs per network.
+ */
+function symbol_atomic_swap_update_11006(): void {
+  $connection = \Drupal::database();
+  $schema = $connection->schema();
+
+  if (!$schema->tableExists('symbol_atomic_swap_offer')) {
+    return;
+  }
+  if ($schema->indexExists('symbol_atomic_swap_offer', 'network_correlation_id')) {
+    return;
+  }
+
+  $records = $connection->select('symbol_atomic_swap_offer', 'o')
+    ->fields('o', ['id', 'network', 'correlation_id'])
+    ->orderBy('network')
+    ->orderBy('correlation_id')
+    ->orderBy('id')
+    ->execute()
+    ->fetchAllAssoc('id');
+
+  $seen = [];
+  $duplicates = [];
+  foreach ($records as $record) {
+    $key = $record->network . ':' . $record->correlation_id;
+    if (isset($seen[$key])) {
+      $duplicates[$key][] = (int) $record->id;
+      continue;
+    }
+    $seen[$key] = (int) $record->id;
+  }
+
+  if ($duplicates !== []) {
+    $messages = [];
+    foreach ($duplicates as $key => $ids) {
+      array_unshift($ids, $seen[$key]);
+      $messages[] = $key . ' offer IDs ' . implode(', ', $ids);
+    }
+    throw new \Drupal\Core\Utility\UpdateException('Duplicate Symbol Atomic Swap offer correlation IDs must be resolved before adding the unique key: ' . implode('; ', $messages));
+  }
+
+  $schema->addUniqueKey('symbol_atomic_swap_offer', 'network_correlation_id', ['network', 'correlation_id']);
 }

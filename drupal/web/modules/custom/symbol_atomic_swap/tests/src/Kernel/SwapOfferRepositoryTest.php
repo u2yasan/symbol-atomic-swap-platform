@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\symbol_atomic_swap\Kernel;
 
-use Drupal\KernelTests\KernelTestBase;
+use Drupal\Core\Database\IntegrityConstraintViolationException;
 use Drupal\Core\Queue\DatabaseQueue;
+use Drupal\KernelTests\KernelTestBase;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -284,6 +285,28 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
   }
 
   /**
+   * Network/correlation ID pairs are unique at repository storage level.
+   */
+  public function testNetworkCorrelationIdIsUnique(): void {
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-unique-correlation-1',
+      'network' => 'testnet',
+      'correlation_id' => 'swap-unique-correlation',
+    ]));
+
+    $this->assertTrue($this->repository->existsByNetworkCorrelationId('testnet', 'swap-unique-correlation'));
+    $this->assertFalse($this->repository->existsByNetworkCorrelationId('mainnet', 'swap-unique-correlation'));
+
+    $this->expectException(IntegrityConstraintViolationException::class);
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-unique-correlation-2',
+      'network' => 'testnet',
+      'correlation_id' => 'swap-unique-correlation',
+    ]));
+  }
+
+
+  /**
    * @param array<string, mixed> $overrides
    *
    * @return array<string, mixed>
@@ -294,7 +317,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
       'label' => 'Kernel offer',
       'state' => 'qr_generated',
       'network' => 'testnet',
-      'correlation_id' => 'swap-test-kernel',
+      'correlation_id' => 'swap-test-kernel-' . bin2hex(random_bytes(4)),
       'deadline_hours' => 2,
       'max_fee' => NULL,
       'leg1_signer_public_key' => str_repeat('A', 64),

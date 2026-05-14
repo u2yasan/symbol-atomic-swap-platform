@@ -108,6 +108,52 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
+   * Correlation IDs must be unique per network.
+   */
+  public function testCreateOfferRejectsDuplicateNetworkCorrelationId(): void {
+    $creator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'create symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($creator);
+
+    \Drupal::service('symbol_atomic_swap.offer_repository')->insert($this->offerValues([
+      'uuid' => 'offer-duplicate-correlation',
+      'label' => 'Existing correlation offer',
+      'network' => 'testnet',
+      'correlation_id' => 'ui-duplicate-correlation',
+      'uid' => (int) $creator->id(),
+    ]));
+
+    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->submitForm([
+      'label' => 'Duplicate correlation offer',
+      'network' => 'testnet',
+      'correlation_id' => 'ui-duplicate-correlation',
+      'deadline_hours' => '2',
+      'max_fee' => '',
+      'leg_1[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
+      'leg_1[recipient_address]' => 'TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI',
+      'leg_1[mosaic_id]' => '72C0212E67A08BCE',
+      'leg_1[amount]' => '100',
+      'leg_2[signer_public_key]' => 'A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0',
+      'leg_2[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
+      'leg_2[mosaic_id]' => '72C0212E67A08BCF',
+      'leg_2[amount]' => '200',
+    ], 'Create and build QR');
+
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Correlation ID is already used for this network.');
+
+    $records = \Drupal::service('symbol_atomic_swap.offer_repository')->search([
+      'q' => 'ui-duplicate-correlation',
+    ]);
+    $this->assertCount(1, $records);
+  }
+
+
+  /**
    * Existing offers can be viewed and admin-only edit/delete routes render.
    */
   public function testExistingOfferRoutesRender(): void {
@@ -461,7 +507,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'label' => 'Functional offer',
       'state' => 'qr_generated',
       'network' => 'testnet',
-      'correlation_id' => 'swap-test-functional',
+      'correlation_id' => 'swap-test-functional-' . bin2hex(random_bytes(4)),
       'deadline_hours' => 2,
       'max_fee' => NULL,
       'leg1_signer_public_key' => str_repeat('A', 64),

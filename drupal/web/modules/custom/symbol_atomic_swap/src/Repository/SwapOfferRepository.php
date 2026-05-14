@@ -79,6 +79,23 @@ final class SwapOfferRepository {
   }
 
   /**
+   * Returns TRUE when a network/correlation ID pair is already used.
+   */
+  public function existsByNetworkCorrelationId(string $network, string $correlation_id, ?int $exclude_id = NULL): bool {
+    $query = $this->database->select(self::TABLE, 'o')
+      ->fields('o', ['id'])
+      ->condition('network', $network)
+      ->condition('correlation_id', $correlation_id)
+      ->range(0, 1);
+
+    if ($exclude_id !== NULL) {
+      $query->condition('id', $exclude_id, '<>');
+    }
+
+    return $query->execute()->fetchField() !== FALSE;
+  }
+
+  /**
    * @return int[]
    */
   public function projectionSyncCandidateIds(int $limit = 50): array {

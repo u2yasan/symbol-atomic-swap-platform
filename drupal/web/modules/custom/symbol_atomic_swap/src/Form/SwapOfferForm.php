@@ -176,6 +176,8 @@ final class SwapOfferForm extends FormBase {
     $correlation_id = trim((string) $form_state->getValue('correlation_id', ''));
     $deadline_hours = (int) $form_state->getValue('deadline_hours', 0);
     $max_fee = trim((string) $form_state->getValue('max_fee', ''));
+    $network = (string) $form_state->getValue('network');
+    $offer_id = $form_state->getValue('offer_id');
 
     if (strlen($correlation_id) < 8 || strlen($correlation_id) > 128) {
       $form_state->setErrorByName('correlation_id', $this->t('Correlation ID must be 8 to 128 characters.'));
@@ -183,8 +185,11 @@ final class SwapOfferForm extends FormBase {
     if ($deadline_hours < 1 || $deadline_hours > 48) {
       $form_state->setErrorByName('deadline_hours', $this->t('Deadline hours must be between 1 and 48.'));
     }
-    if ((string) $form_state->getValue('network') === 'mainnet' && !$this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')) {
+    if ($network === 'mainnet' && !$this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')) {
       $form_state->setErrorByName('network', $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'));
+    }
+    if ($correlation_id !== '' && $this->offers->existsByNetworkCorrelationId($network, $correlation_id, $offer_id ? (int) $offer_id : NULL)) {
+      $form_state->setErrorByName('correlation_id', $this->t('Correlation ID is already used for this network.'));
     }
     if ($max_fee !== '' && !$this->isPositiveInteger($max_fee)) {
       $form_state->setErrorByName('max_fee', $this->t('Max fee must be a positive integer.'));
