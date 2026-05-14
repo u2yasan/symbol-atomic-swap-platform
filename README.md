@@ -67,6 +67,7 @@ Implemented:
 - production environment fail-fast validation for Engine API token and database URL
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis
 - CI production Docker image build check for Symbol Engine
+- CI sensitive file policy check for `.env`, private key, and credential file tracking
 - Aggregate Bonded unsigned payload build API with hash lock requirements
 - Aggregate Bonded signed payload semantic verification
 - Aggregate Bonded Hash Lock unsigned payload build, semantic verification, and node announcement endpoint

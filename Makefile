@@ -1,9 +1,12 @@
 DRUPAL_PHPUNIT_ENV = SIMPLETEST_BASE_URL=http://127.0.0.1 SIMPLETEST_DB=pgsql://drupal:drupal@postgres/drupal BROWSERTEST_OUTPUT_BASE_URL=http://127.0.0.1:8080
 DOCKER_COMPOSE_EXEC ?= docker compose exec -T
 
-.PHONY: test test-symbol-engine test-drupal prepare-drupal-test build-symbol-engine-production drush-cr
+.PHONY: test test-symbol-engine test-drupal prepare-drupal-test check-sensitive-files build-symbol-engine-production drush-cr
 
 test: test-symbol-engine test-drupal
+
+check-sensitive-files:
+	./scripts/check-sensitive-files.sh
 
 test-symbol-engine:
 	$(DOCKER_COMPOSE_EXEC) symbol-engine npm test
