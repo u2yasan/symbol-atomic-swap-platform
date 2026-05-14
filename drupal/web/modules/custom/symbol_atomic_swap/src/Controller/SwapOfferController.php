@@ -183,8 +183,8 @@ final class SwapOfferController extends ControllerBase {
 
     $build['details'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Offer JSON'),
-      '#value' => json_encode($offer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+      '#title' => $this->t('Public offer JSON'),
+      '#value' => json_encode($this->publicOfferDebugData($offer), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
       '#rows' => 24,
       '#attributes' => [
         'readonly' => 'readonly',
@@ -207,6 +207,16 @@ final class SwapOfferController extends ControllerBase {
     if (!$offer) {
       throw $this->createNotFoundException();
     }
+    return $offer;
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   *
+   * @return array<string, mixed>
+   */
+  private function publicOfferDebugData(array $offer): array {
+    unset($offer['signed_payload'], $offer['node_response']);
     return $offer;
   }
 
