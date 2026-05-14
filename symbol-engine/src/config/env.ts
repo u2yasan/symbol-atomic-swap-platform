@@ -4,11 +4,31 @@ import { z } from 'zod';
 dotenv.config();
 
 const weakApiTokenValues = new Set([
+  '0123456789abcdef0123456789abcdef',
   'replace-with-at-least-32-random-characters',
   'change-me',
   'changeme',
   'development-token',
 ]);
+
+function isRepeatedPattern(value: string): boolean {
+  for (let length = 1; length <= Math.floor(value.length / 2); length += 1) {
+    if (value.length % length !== 0) {
+      continue;
+    }
+
+    const pattern = value.slice(0, length);
+    if (pattern.repeat(value.length / length) === value) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function uniqueCharacterCount(value: string): number {
+  return new Set(value).size;
+}
 
 const optionalUrlSchema = z.preprocess(
   (value) => value === '' ? undefined : value,
@@ -49,6 +69,22 @@ const envSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['SYMBOL_ENGINE_API_TOKEN'],
       message: 'SYMBOL_ENGINE_API_TOKEN must not use a placeholder value.',
+    });
+  }
+
+  if (value.NODE_ENV === 'production' && token && uniqueCharacterCount(token) < 8) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_ENGINE_API_TOKEN'],
+      message: 'SYMBOL_ENGINE_API_TOKEN must look randomly generated.',
+    });
+  }
+
+  if (value.NODE_ENV === 'production' && token && isRepeatedPattern(token)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_ENGINE_API_TOKEN'],
+      message: 'SYMBOL_ENGINE_API_TOKEN must not use a repeated pattern.',
     });
   }
 

@@ -35,6 +35,7 @@ Authorization: Bearer <SYMBOL_ENGINE_API_TOKEN>
 Token rules:
 
 - minimum 32 characters
+- must not be a placeholder, repeated pattern, or low-variety string
 - generated from cryptographically secure randomness
 - stored in environment variables or a secret manager
 - shared only between Drupal and Symbol Engine
