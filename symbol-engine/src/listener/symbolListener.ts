@@ -12,18 +12,30 @@ type ListenerRepositories = {
   projections: ProjectionRepository;
 };
 
+type WebSocketLike = {
+  on(event: 'open', listener: () => void): WebSocketLike;
+  on(event: 'message', listener: (data: { toString(): string }) => void): WebSocketLike;
+  on(event: 'close', listener: (code: number, reason: { toString(): string }) => void): WebSocketLike;
+  on(event: 'error', listener: (error: Error) => void): WebSocketLike;
+  send(data: string): void;
+  close(): void;
+};
+
+type WebSocketConstructor = new (url: string) => WebSocketLike;
+
 export type SymbolListenerOptions = {
   wsUrl: string;
   network: SymbolNetwork;
   addresses: string[];
   repositories: ListenerRepositories;
   logger: FastifyBaseLogger;
+  webSocketConstructor?: WebSocketConstructor;
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
 };
 
 export class SymbolListener {
-  private socket: WebSocket | null = null;
+  private socket: WebSocketLike | null = null;
   private stopped = false;
   private reconnectAttempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -46,11 +58,14 @@ export class SymbolListener {
   }
 
   private connect(): void {
-    this.socket = new WebSocket(this.options.wsUrl);
+    const webSocketConstructor = this.options.webSocketConstructor ?? WebSocket;
+    this.socket = new webSocketConstructor(this.options.wsUrl);
 
     this.socket.on('open', () => {
       this.reconnectAttempt = 0;
-      this.options.logger.info({ wsUrl: this.options.wsUrl }, 'symbol listener connected');
+      this.options.logger.info({
+        addressCount: this.options.addresses.length,
+      }, 'symbol listener connected');
     });
 
     this.socket.on('message', (data) => {

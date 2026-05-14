@@ -74,6 +74,7 @@ Implemented:
 - hashed API token identifiers for rate limiting
 - graceful shutdown closes HTTP server before database teardown
 - Symbol node endpoint disclosure disabled by default in network metadata API
+- Symbol listener connection logs omit node endpoint URLs
 - production Engine API token weak-pattern rejection
 - Drupal Engine client fail-closed validation for missing, short, or weak-pattern API tokens
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis

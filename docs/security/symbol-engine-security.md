@@ -130,6 +130,7 @@ Never log:
 - private data from wallet callbacks
 - Secret Lock proofs
 - authorization headers
+- Symbol node REST or WebSocket URLs
 
 API tokens must not be reused as raw operational keys inside middleware. Derived identifiers, such as rate-limit keys, must use a one-way digest of the token.
 
