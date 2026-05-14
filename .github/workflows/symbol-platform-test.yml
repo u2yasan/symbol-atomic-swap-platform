@@ -92,6 +92,9 @@ jobs:
       - name: Build Symbol Engine production image
         run: make build-symbol-engine-production
 
+      - name: Smoke test Symbol Engine production image
+        run: make smoke-symbol-engine-production
+
       - name: Run test suite
         run: make test
 

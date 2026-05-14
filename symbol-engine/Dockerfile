@@ -27,6 +27,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
+COPY --from=build --chown=node:node /app/stubs ./stubs
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 
