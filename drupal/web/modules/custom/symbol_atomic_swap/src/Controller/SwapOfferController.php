@@ -34,6 +34,17 @@ final class SwapOfferController extends ControllerBase {
       $operations = [
         Link::fromTextAndUrl($this->t('View'), Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
       ];
+      if ($this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
+        if (!empty($offer['intent_hash']) && in_array($offer['state'], ['qr_generated', 'signed'], TRUE)) {
+          $operations[] = Link::fromTextAndUrl($this->t('Submit signed payload'), Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]))->toString();
+        }
+        if ($offer['state'] === 'signed') {
+          $operations[] = Link::fromTextAndUrl($this->t('Announce transaction'), Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]))->toString();
+        }
+        if (!empty($offer['transaction_hash']) && !in_array($offer['state'], ['draft', 'qr_generated', 'finalized'], TRUE)) {
+          $operations[] = Link::fromTextAndUrl($this->t('Sync projection'), Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]))->toString();
+        }
+      }
       if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
         $operations[] = Link::fromTextAndUrl($this->t('Edit'), Url::fromRoute('symbol_atomic_swap.offer_edit', ['offerId' => $offer['id']]))->toString();
         $operations[] = Link::fromTextAndUrl($this->t('Delete'), Url::fromRoute('symbol_atomic_swap.offer_delete', ['offerId' => $offer['id']]))->toString();

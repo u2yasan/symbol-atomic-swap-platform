@@ -172,6 +172,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
 
     $assert_session = $this->assertSession();
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Submit signed payload');
+    $assert_session->linkNotExists('Announce transaction');
+
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Submit signed payload');
@@ -183,6 +188,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->buttonExists('Verify signed payload');
 
     $repository->markSigned($id, str_repeat('D', 64));
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Submit signed payload');
+    $assert_session->linkExists('Announce transaction');
+    $assert_session->linkExists('Sync projection');
+
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Announce transaction');
