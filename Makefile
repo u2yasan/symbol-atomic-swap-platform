@@ -15,7 +15,16 @@ check-node-dependency-policy:
 	./scripts/check-node-dependency-policy.js
 
 audit-drupal-dependencies:
-	docker run --rm -v "$(PWD)/drupal:/app" -w /app composer:2 composer audit --locked --no-interaction
+	@set -eu; \
+	for attempt in 1 2 3; do \
+		if docker run --rm -v "$(PWD)/drupal:/app" -w /app composer:2 composer audit --locked --no-interaction; then \
+			exit 0; \
+		fi; \
+		if [ "$$attempt" -eq 3 ]; then \
+			exit 1; \
+		fi; \
+		sleep 5; \
+	done
 
 test-symbol-engine:
 	$(DOCKER_COMPOSE_EXEC) symbol-engine npm test
