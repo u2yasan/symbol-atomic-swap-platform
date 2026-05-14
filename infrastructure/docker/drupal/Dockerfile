@@ -1,4 +1,4 @@
-FROM drupal:11-php8.4-apache
+FROM drupal:11-php8.4-apache@sha256:cf92b0c767af06d6dc356c49c7eee8ecd9752cdde37b3e7fd85fd1f236010358
 
 RUN a2enmod rewrite
 
