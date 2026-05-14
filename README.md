@@ -72,6 +72,7 @@ Implemented:
 - bounded Symbol node announcement HTTP requests with configurable timeout
 - bounded Symbol node REST read requests with configurable timeout
 - hashed API token identifiers for rate limiting
+- graceful shutdown closes HTTP server before database teardown
 - production Engine API token weak-pattern rejection
 - Drupal Engine client fail-closed validation for missing, short, or weak-pattern API tokens
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis

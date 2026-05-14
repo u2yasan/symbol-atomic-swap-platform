@@ -12,6 +12,7 @@ import { EventRepository } from './repository/eventRepository.js';
 import { ProjectionRepository } from './repository/projectionRepository.js';
 import { SymbolListener } from './listener/symbolListener.js';
 import { TransactionReconciler } from './worker/transactionReconciler.js';
+import { handleShutdownSignal, shutdownSymbolEngine } from './serverLifecycle.js';
 
 const env = loadEnv();
 await runProductionPreflight(env);
@@ -95,17 +96,28 @@ if (env.SYMBOL_ENGINE_RECONCILER_ENABLED) {
 }
 
 const shutdown = async (): Promise<void> => {
-  listener?.stop();
-  reconciler?.stop();
-  await db.end();
+  await shutdownSymbolEngine({
+    app,
+    db,
+    listener,
+    reconciler,
+  });
 };
 
 process.once('SIGINT', () => {
-  void shutdown().finally(() => process.exit(0));
+  handleShutdownSignal({
+    shutdown,
+    logError: (error) => app.log.error(error),
+    exit: (code) => process.exit(code),
+  });
 });
 
 process.once('SIGTERM', () => {
-  void shutdown().finally(() => process.exit(0));
+  handleShutdownSignal({
+    shutdown,
+    logError: (error) => app.log.error(error),
+    exit: (code) => process.exit(code),
+  });
 });
 
 try {

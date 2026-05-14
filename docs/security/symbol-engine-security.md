@@ -71,6 +71,8 @@ Announcement APIs must fail with `503 symbol_node_unavailable` when `SYMBOL_NODE
 
 Symbol node REST requests must use a bounded timeout controlled by `SYMBOL_NODE_REQUEST_TIMEOUT_MS`. Timeout or transport failure must return `503 symbol_node_unavailable`.
 
+Shutdown must stop background listeners and reconcilers, close the HTTP server, and then close the database pool. The database pool must still be closed if HTTP server close fails. Failed shutdown must be logged and must exit nonzero.
+
 ## Public Health Route
 
 `GET /health` is public for service monitoring.
