@@ -76,6 +76,7 @@ Implemented:
 - Symbol node endpoint disclosure disabled by default in network metadata API
 - Symbol listener connection logs omit node endpoint URLs
 - Symbol listener warning/error logs omit raw WebSocket messages and payloads
+- logger redaction covers Secret Lock values and Symbol node endpoint URLs
 - production Engine API token weak-pattern rejection
 - Drupal Engine client fail-closed validation for missing, short, or weak-pattern API tokens
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis

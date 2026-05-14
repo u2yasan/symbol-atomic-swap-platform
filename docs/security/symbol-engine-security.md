@@ -133,6 +133,8 @@ Never log:
 - Symbol node REST or WebSocket URLs
 - raw Symbol WebSocket messages, close reasons, or event payloads
 
+Logger redaction must include request payloads, signing payloads, Secret Lock `secret` / `proof` values, Symbol node URLs, API tokens, and database URLs.
+
 API tokens must not be reused as raw operational keys inside middleware. Derived identifiers, such as rate-limit keys, must use a one-way digest of the token.
 
 Log only stable identifiers:

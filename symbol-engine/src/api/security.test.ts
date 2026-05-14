@@ -204,6 +204,8 @@ test('logger options redact tokens and transaction payloads', () => {
       },
       body: {
         payload: 'ABCD'.repeat(64),
+        secret: 'A'.repeat(64),
+        proof: 'B'.repeat(64),
       },
     },
     body: {
@@ -212,9 +214,21 @@ test('logger options redact tokens and transaction payloads', () => {
       qrPayload: {
         unsignedPayload: '5678'.repeat(64),
       },
+      secret: 'C'.repeat(64),
+      proof: 'D'.repeat(64),
+    },
+    nodeUrl: 'https://node.example.test',
+    wsUrl: 'wss://node.example.test/ws',
+    nested: {
+      nodeUrl: 'https://nested-node.example.test',
+      wsUrl: 'wss://nested-node.example.test/ws',
+      secret: 'E'.repeat(64),
+      proof: 'F'.repeat(64),
     },
     SYMBOL_ENGINE_API_TOKEN: token,
     SYMBOL_ENGINE_DATABASE_URL: 'postgresql://user:password@example.test/db',
+    SYMBOL_NODE_URL: 'https://env-node.example.test',
+    SYMBOL_WS_URL: 'wss://env-node.example.test/ws',
   }, 'redaction-test');
 
   assert.doesNotMatch(output, new RegExp(token));
@@ -222,5 +236,14 @@ test('logger options redact tokens and transaction payloads', () => {
   assert.doesNotMatch(output, /DCBADCBA/);
   assert.doesNotMatch(output, /12341234/);
   assert.doesNotMatch(output, /56785678/);
+  assert.doesNotMatch(output, /AAAAAAAA/);
+  assert.doesNotMatch(output, /BBBBBBBB/);
+  assert.doesNotMatch(output, /CCCCCCCC/);
+  assert.doesNotMatch(output, /DDDDDDDD/);
+  assert.doesNotMatch(output, /EEEEEEEE/);
+  assert.doesNotMatch(output, /FFFFFFFF/);
   assert.doesNotMatch(output, /password@example/);
+  assert.doesNotMatch(output, /node\.example/);
+  assert.doesNotMatch(output, /nested-node\.example/);
+  assert.doesNotMatch(output, /env-node\.example/);
 });
