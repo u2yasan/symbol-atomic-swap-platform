@@ -65,6 +65,8 @@ Plain HTTP/WebSocket endpoints are acceptable only for non-production local or i
 
 When `SYMBOL_NODE_URL` is configured in production, Symbol Engine must read `/network/properties` during startup and fail before serving traffic if the node network identifier does not match `SYMBOL_NETWORK`.
 
+When the listener is enabled in production, Symbol Engine must open a WebSocket connection during startup and fail before serving traffic if the endpoint cannot complete the handshake within the configured timeout.
+
 ## Public Health Route
 
 `GET /health` is public for service monitoring.

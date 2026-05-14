@@ -153,6 +153,7 @@ Current implementation covers:
 - Drupal UI for swap creation and operation
 - production fail-fast validation for HTTPS/WSS Symbol endpoints
 - production startup preflight for Symbol node network mismatch
+- production startup preflight for Symbol WebSocket listener reachability
 
 ## Test Commands
 
