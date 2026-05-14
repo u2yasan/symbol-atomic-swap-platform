@@ -79,6 +79,8 @@ Symbol node REST requests must use a bounded timeout controlled by `SYMBOL_NODE_
 
 Symbol node transport failures must not echo low-level connection errors, hostnames, URLs, or upstream response details in client-facing API messages. Preserve diagnostics in logs or error causes only.
 
+Persisted and returned Symbol node announcement responses must be normalized to public fields only: HTTP `status`, Symbol `code`, and bounded `message`. Raw upstream response bodies must not be stored or returned.
+
 Validation error responses must expose only stable public issue fields: `code`, `path`, and `message`. They must not echo rejected request values or serializer-specific internals.
 
 Shutdown must stop background listeners and reconcilers, close the HTTP server, and then close the database pool. The database pool must still be closed if HTTP server close fails. Failed shutdown must be logged and must exit nonzero.

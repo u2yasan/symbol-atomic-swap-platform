@@ -6,6 +6,7 @@ import type { SwapIntentRepository } from '../repository/swapIntentRepository.js
 import type { NormalizedBondedSwapIntent, SwapIntentRecord } from '../repository/types.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
+import { publicSymbolNodeResponse, type PublicSymbolNodeResponse } from './symbolNodeResponse.js';
 
 const intentHashSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/);
 
@@ -40,7 +41,7 @@ export type HashLockAnnouncementResult = {
   intentHash: string;
   aggregateTransactionHash: string;
   hashLockTransactionHash: string;
-  nodeResponse: unknown;
+  nodeResponse: PublicSymbolNodeResponse;
 };
 
 export class InvalidHashLockError extends Error {
@@ -254,7 +255,7 @@ export async function announceSignedHashLock(
     payload: verification.payload,
   }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 
-  const nodeResponse = await response.json().catch(() => ({ status: response.status }));
+  const nodeResponse = await publicSymbolNodeResponse(response);
   if (!response.ok) {
     throw new InvalidHashLockError('symbol node rejected hash lock announcement');
   }

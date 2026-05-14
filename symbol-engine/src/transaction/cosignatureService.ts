@@ -8,6 +8,7 @@ import type { SwapIntentRepository } from '../repository/swapIntentRepository.js
 import { InvalidAnnouncementError } from './announceService.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
+import { publicSymbolNodeResponse, type PublicSymbolNodeResponse } from './symbolNodeResponse.js';
 
 const cosignatureAnnouncementSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
@@ -22,7 +23,7 @@ export type CosignatureAnnouncementResult = {
   intentHash: string;
   transactionHash: string;
   signerPublicKey: string;
-  nodeResponse: unknown;
+  nodeResponse: PublicSymbolNodeResponse;
 };
 
 export async function announceAggregateBondedCosignature(
@@ -83,7 +84,7 @@ export async function announceAggregateBondedCosignature(
     body,
     dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {},
   );
-  const nodeResponse = await response.json().catch(() => ({ status: response.status }));
+  const nodeResponse = await publicSymbolNodeResponse(response);
 
   if (!response.ok) {
     await dependencies.swapIntents.markFailed(intent.intentHash, nodeResponse);

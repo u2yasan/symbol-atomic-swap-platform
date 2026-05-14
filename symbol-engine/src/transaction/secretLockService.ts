@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { addressSchema, integerStringSchema, mosaicIdSchema, publicKeySchema } from '../dto/aggregateComplete.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
+import { publicSymbolNodeResponse, type PublicSymbolNodeResponse } from './symbolNodeResponse.js';
 
 const secretSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'secret must be 32-byte hex');
 const proofSchema = z.string().regex(/^[0-9A-Fa-f]{2,2048}$/, 'proof must be hex');
@@ -69,7 +70,7 @@ export type SecretProofBuildResult = {
 export type SecretAnnouncementResult = {
   accepted: true;
   transactionHash: string;
-  nodeResponse: unknown;
+  nodeResponse: PublicSymbolNodeResponse;
 };
 
 export class InvalidSecretLockError extends Error {
@@ -360,7 +361,7 @@ async function announceVerifiedPayload(
   const response = await putJsonToSymbolNode(nodeUrl, '/transactions', {
     payload,
   }, nodeRequestTimeoutMs ? { timeoutMs: nodeRequestTimeoutMs } : {});
-  const nodeResponse = await response.json().catch(() => ({ status: response.status }));
+  const nodeResponse = await publicSymbolNodeResponse(response);
   if (!response.ok) {
     throw new InvalidSecretLockError('symbol node rejected secret transaction announcement');
   }

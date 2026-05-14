@@ -154,7 +154,7 @@ test('announceAggregateBondedCosignature verifies and announces detached cosigna
     assert.equal(result.signerPublicKey, cosignature.signerPublicKey);
     assert.equal(calls[0]!.url, 'https://node.example.test/transactions/cosignature');
     assert.deepEqual(JSON.parse(calls[0]!.body as string), cosignature);
-    assert.deepEqual(marked.partialCosigned, { message: 'accepted' });
+    assert.deepEqual(marked.partialCosigned, { status: 202, message: 'accepted' });
     assert.equal(events[0]!.eventType, 'CosignatureReceived');
     assert.equal(events[0]!.signerPublicKey, cosignature.signerPublicKey);
   } finally {
@@ -205,7 +205,7 @@ test('announceAggregateBondedCosignature marks failed when node rejects cosignat
       }, dependencies),
       /rejected cosignature/,
     );
-    assert.deepEqual(marked.failed, { code: 'Failure' });
+    assert.deepEqual(marked.failed, { status: 409, code: 'Failure' });
     assert.equal(events[0]!.eventType, 'TransactionFailed');
   } finally {
     globalThis.fetch = originalFetch;

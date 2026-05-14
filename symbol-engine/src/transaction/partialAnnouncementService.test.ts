@@ -113,7 +113,7 @@ test('announcePartialAggregateBonded sends signed bonded payload to partial endp
     assert.equal(result.transactionHash, intent.transactionHash);
     assert.equal(calls[0]!.url, 'https://node.example.test/transactions/partial');
     assert.deepEqual(JSON.parse(calls[0]!.body as string), { payload: intent.signedPayload });
-    assert.deepEqual(marked.partialAnnounced, { message: 'accepted' });
+    assert.deepEqual(marked.partialAnnounced, { status: 202, message: 'accepted' });
     assert.equal(events[0]!.eventType, 'PartialTransactionAdded');
   } finally {
     globalThis.fetch = originalFetch;
@@ -145,7 +145,7 @@ test('announcePartialAggregateBonded marks failed when node rejects partial tran
       () => announcePartialAggregateBonded({ intentHash: intent.intentHash }, dependencies),
       /rejected partial transaction/,
     );
-    assert.deepEqual(marked.failed, { code: 'Failure' });
+    assert.deepEqual(marked.failed, { status: 409, code: 'Failure' });
     assert.equal(events[0]!.eventType, 'TransactionFailed');
   } finally {
     globalThis.fetch = originalFetch;

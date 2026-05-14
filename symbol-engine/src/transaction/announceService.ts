@@ -5,6 +5,7 @@ import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
+import { publicSymbolNodeResponse, type PublicSymbolNodeResponse } from './symbolNodeResponse.js';
 
 const announceRequestSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
@@ -14,7 +15,7 @@ export type AnnounceResult = {
   accepted: boolean;
   intentHash: string;
   transactionHash: string;
-  nodeResponse: unknown;
+  nodeResponse: PublicSymbolNodeResponse;
 };
 
 export class InvalidAnnouncementError extends Error {
@@ -50,7 +51,7 @@ export async function announceVerifiedTransaction(
     payload: intent.signedPayload,
   }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 
-  const nodeResponse = await response.json().catch(() => ({ status: response.status }));
+  const nodeResponse = await publicSymbolNodeResponse(response);
 
   if (!response.ok) {
     await dependencies.swapIntents.markFailed(intent.intentHash, nodeResponse);

@@ -34,6 +34,8 @@ Validation failures return `400 validation_failed`. Each issue contains only `co
 
 Symbol node transport failures return `503 symbol_node_unavailable` with a generic message. Low-level connection details are not exposed in API responses.
 
+Announcement `nodeResponse` values contain only normalized public fields: `status`, `code`, and `message`.
+
 ## Public Health Check
 
 ```http
