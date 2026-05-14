@@ -124,14 +124,13 @@ test('loadEnvFrom rejects out-of-range Symbol node request timeout', () => {
   });
 });
 
-test('loadEnvFrom normalizes valid listener addresses', () => {
+test('loadEnvFrom normalizes and deduplicates valid listener addresses', () => {
   const env = loadEnvFrom({
     ...validProductionEnv,
     SYMBOL_ENGINE_LISTENER_ADDRESSES: ' tchbdenclkebilbpwp3jpb2xny64oe7pyhhe32i , TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I ',
   });
 
   assert.deepEqual(env.SYMBOL_ENGINE_LISTENER_ADDRESSES, [
-    'TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I',
     'TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I',
   ]);
 });

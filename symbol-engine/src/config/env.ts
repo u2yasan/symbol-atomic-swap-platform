@@ -58,9 +58,11 @@ const envSchema = z.object({
   SYMBOL_ENGINE_API_TOKEN: optionalNonEmptyStringSchema,
   SYMBOL_ENGINE_DATABASE_URL: z.string().url().optional(),
   SYMBOL_ENGINE_LISTENER_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-  SYMBOL_ENGINE_LISTENER_ADDRESSES: z.string().default('').transform((value) => value.split(',')
-    .map((address) => address.trim().toUpperCase())
-    .filter((address) => address.length > 0)),
+  SYMBOL_ENGINE_LISTENER_ADDRESSES: z.string().default('').transform((value) => [
+    ...new Set(value.split(',')
+      .map((address) => address.trim().toUpperCase())
+      .filter((address) => address.length > 0)),
+  ]),
   SYMBOL_ENGINE_RECONCILER_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SYMBOL_ENGINE_RECONCILER_INTERVAL_MS: z.coerce.number().int().min(5000).max(3600000).default(30000),
   SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
