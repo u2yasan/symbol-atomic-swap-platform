@@ -136,6 +136,16 @@ final class SwapOfferController extends ControllerBase {
           'data-qr-payload' => json_encode($qr_payload, JSON_UNESCAPED_SLASHES),
         ],
       ];
+      $build['qr_payload'] = [
+        '#type' => 'textarea',
+        '#title' => $this->t('QR payload'),
+        '#value' => json_encode($qr_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+        '#rows' => 8,
+        '#attributes' => [
+          'readonly' => 'readonly',
+          'spellcheck' => 'false',
+        ],
+      ];
     }
 
     $notification_items = [];

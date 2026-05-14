@@ -112,6 +112,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('qr_generated');
     $assert_session->pageTextContains(str_repeat('C', 64));
     $assert_session->pageTextContains('Swap transaction was confirmed but is not finalized yet.');
+    $assert_session->pageTextContains('QR payload');
+    $assert_session->pageTextContains('"type": "symbol-aggregate-complete"');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->pageTextContains('Public offer JSON');
 
