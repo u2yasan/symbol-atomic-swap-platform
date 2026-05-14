@@ -66,6 +66,7 @@ Implemented:
 - finalization height check
 - production environment fail-fast validation for Engine API token and database URL
 - production Engine API token weak-pattern rejection
+- Drupal Engine client fail-closed validation for missing, short, or weak-pattern API tokens
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis
 - Docker Compose healthchecks and readiness-gated service dependencies
 - CI production Docker image build check for Symbol Engine

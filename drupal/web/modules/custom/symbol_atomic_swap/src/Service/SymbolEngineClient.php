@@ -11,6 +11,14 @@ use GuzzleHttp\Exception\RequestException;
 
 final class SymbolEngineClient {
 
+  private const WEAK_API_TOKEN_VALUES = [
+    '0123456789abcdef0123456789abcdef',
+    'replace-with-at-least-32-random-characters',
+    'change-me',
+    'changeme',
+    'development-token',
+  ];
+
   public function __construct(
     private readonly ClientInterface $httpClient,
   ) {}
@@ -68,10 +76,42 @@ final class SymbolEngineClient {
     if ($token === '') {
       throw new \RuntimeException('SYMBOL_ENGINE_API_TOKEN is required for protected Symbol Engine API calls.');
     }
+    if (strlen($token) < 32) {
+      throw new \RuntimeException('SYMBOL_ENGINE_API_TOKEN must be at least 32 characters.');
+    }
+    if (in_array(strtolower($token), self::WEAK_API_TOKEN_VALUES, TRUE)) {
+      throw new \RuntimeException('SYMBOL_ENGINE_API_TOKEN must not use a placeholder value.');
+    }
+    if ($this->uniqueCharacterCount($token) < 8) {
+      throw new \RuntimeException('SYMBOL_ENGINE_API_TOKEN must look randomly generated.');
+    }
+    if ($this->isRepeatedPattern($token)) {
+      throw new \RuntimeException('SYMBOL_ENGINE_API_TOKEN must not use a repeated pattern.');
+    }
 
     return [
       'Authorization' => 'Bearer ' . $token,
     ];
+  }
+
+  private function uniqueCharacterCount(string $value): int {
+    return strlen(count_chars($value, 3));
+  }
+
+  private function isRepeatedPattern(string $value): bool {
+    $length = strlen($value);
+    for ($pattern_length = 1; $pattern_length <= intdiv($length, 2); $pattern_length++) {
+      if ($length % $pattern_length !== 0) {
+        continue;
+      }
+
+      $pattern = substr($value, 0, $pattern_length);
+      if (str_repeat($pattern, intdiv($length, $pattern_length)) === $value) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   private function timeout(): float {

@@ -42,6 +42,8 @@ Token rules:
 - never committed to Git
 - never logged
 
+Drupal must reject missing, shorter-than-32-character, placeholder, repeated-pattern, or low-variety tokens before making protected Symbol Engine requests.
+
 Local token generation:
 
 ```sh

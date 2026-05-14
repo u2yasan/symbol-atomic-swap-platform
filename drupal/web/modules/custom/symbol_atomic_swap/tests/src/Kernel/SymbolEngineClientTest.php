@@ -20,6 +20,8 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('symbol_atomic_swap')]
 final class SymbolEngineClientTest extends KernelTestBase {
 
+  private const VALID_TOKEN = 'f3b9c1a84e7d42fa9c05b8d63e2a71cb';
+
   /**
    * {@inheritdoc}
    */
@@ -56,7 +58,7 @@ final class SymbolEngineClientTest extends KernelTestBase {
    */
   public function testProtectedRequestUsesBearerToken(): void {
     putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
-    putenv('SYMBOL_ENGINE_API_TOKEN=test-token');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
     putenv('SYMBOL_ENGINE_TIMEOUT=3');
 
     $history = [];
@@ -69,8 +71,71 @@ final class SymbolEngineClientTest extends KernelTestBase {
     $this->assertSame('testnet', $result['network']);
     $this->assertCount(1, $history);
     $request = $history[0]['request'];
-    $this->assertSame('Bearer test-token', $request->getHeaderLine('Authorization'));
+    $this->assertSame('Bearer ' . self::VALID_TOKEN, $request->getHeaderLine('Authorization'));
     $this->assertSame('http://engine.local/v1/network', (string) $request->getUri());
+  }
+
+  /**
+   * Protected Engine API requests must reject weak local token values before IO.
+   */
+  public function testProtectedRequestRejectsShortTokenBeforeRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=test-token');
+
+    $history = [];
+    $client = $this->client([], $history);
+
+    $this->expectException(\RuntimeException::class);
+    $this->expectExceptionMessage('SYMBOL_ENGINE_API_TOKEN must be at least 32 characters.');
+
+    try {
+      $client->network();
+    }
+    finally {
+      $this->assertSame([], $history);
+    }
+  }
+
+  /**
+   * Protected Engine API requests must reject placeholder token values before IO.
+   */
+  public function testProtectedRequestRejectsPlaceholderTokenBeforeRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=0123456789abcdef0123456789abcdef');
+
+    $history = [];
+    $client = $this->client([], $history);
+
+    $this->expectException(\RuntimeException::class);
+    $this->expectExceptionMessage('SYMBOL_ENGINE_API_TOKEN must not use a placeholder value.');
+
+    try {
+      $client->network();
+    }
+    finally {
+      $this->assertSame([], $history);
+    }
+  }
+
+  /**
+   * Protected Engine API requests must reject repeated token patterns before IO.
+   */
+  public function testProtectedRequestRejectsRepeatedTokenBeforeRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+
+    $history = [];
+    $client = $this->client([], $history);
+
+    $this->expectException(\RuntimeException::class);
+    $this->expectExceptionMessage('SYMBOL_ENGINE_API_TOKEN must look randomly generated.');
+
+    try {
+      $client->network();
+    }
+    finally {
+      $this->assertSame([], $history);
+    }
   }
 
   /**
@@ -97,7 +162,7 @@ final class SymbolEngineClientTest extends KernelTestBase {
    */
   public function testRequestExceptionIsNormalized(): void {
     putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
-    putenv('SYMBOL_ENGINE_API_TOKEN=test-token');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
 
     $client = $this->client([
       new Response(409, [], '{"error":"invalid_state","message":"announce requires signed intent"}'),
@@ -122,7 +187,7 @@ final class SymbolEngineClientTest extends KernelTestBase {
    */
   public function testInvalidHashIsRejectedBeforeRequest(): void {
     putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
-    putenv('SYMBOL_ENGINE_API_TOKEN=test-token');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
 
     $history = [];
     $client = $this->client([], $history);
