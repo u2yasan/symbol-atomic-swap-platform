@@ -131,6 +131,7 @@ Never log:
 - Secret Lock proofs
 - authorization headers
 - Symbol node REST or WebSocket URLs
+- raw Symbol WebSocket messages, close reasons, or event payloads
 
 API tokens must not be reused as raw operational keys inside middleware. Derived identifiers, such as rate-limit keys, must use a one-way digest of the token.
 

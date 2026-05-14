@@ -73,12 +73,19 @@ export class SymbolListener {
     });
 
     this.socket.on('close', (code, reason) => {
-      this.options.logger.warn({ code, reason: reason.toString() }, 'symbol listener disconnected');
+      const reasonText = reason.toString();
+      this.options.logger.warn({
+        code,
+        hasReason: reasonText.length > 0,
+        reasonLength: reasonText.length,
+      }, 'symbol listener disconnected');
       this.scheduleReconnect();
     });
 
     this.socket.on('error', (error) => {
-      this.options.logger.error({ error }, 'symbol listener websocket error');
+      this.options.logger.error({
+        errorName: error.name,
+      }, 'symbol listener websocket error');
     });
   }
 
@@ -103,7 +110,9 @@ export class SymbolListener {
     try {
       parsed = JSON.parse(message);
     } catch {
-      this.options.logger.warn({ message }, 'symbol listener received invalid json');
+      this.options.logger.warn({
+        messageLength: message.length,
+      }, 'symbol listener received invalid json');
       return;
     }
 
@@ -163,7 +172,9 @@ export class SymbolListener {
   private async handleFinalizedBlock(payload: unknown): Promise<void> {
     const finalizedHeight = normalizeFinalizedBlockHeight(payload);
     if (!finalizedHeight) {
-      this.options.logger.warn({ payload }, 'symbol listener ignored finalizedBlock without height');
+      this.options.logger.warn({
+        payloadType: typeof payload,
+      }, 'symbol listener ignored finalizedBlock without height');
       return;
     }
 
