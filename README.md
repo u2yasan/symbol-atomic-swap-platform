@@ -75,6 +75,7 @@ Implemented:
 - CI Composer audit check for Drupal locked dependencies
 - CI sensitive file policy check for `.env`, private key, and credential file tracking
 - CI sensitive file policy check for weak Symbol Engine API tokens in runtime configuration
+- CI repository hygiene check rejecting generated or installed dependency artifacts
 - Aggregate Bonded unsigned payload build API with hash lock requirements
 - Aggregate Bonded signed payload semantic verification
 - Aggregate Bonded Hash Lock unsigned payload build, semantic verification, and node announcement endpoint

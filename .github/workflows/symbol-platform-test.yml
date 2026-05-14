@@ -32,6 +32,9 @@ jobs:
       - name: Check sensitive file policy
         run: make check-sensitive-files
 
+      - name: Check repository hygiene policy
+        run: make check-repository-hygiene
+
       - name: Check Node dependency policy
         run: make check-node-dependency-policy
 
