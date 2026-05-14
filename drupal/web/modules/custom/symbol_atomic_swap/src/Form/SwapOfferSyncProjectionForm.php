@@ -43,8 +43,8 @@ final class SwapOfferSyncProjectionForm extends ConfirmFormBase {
     }
     $this->offer = $offer;
 
-    if (empty($offer['transaction_hash'])) {
-      $this->messenger()->addWarning($this->t('Offer does not have a transaction hash yet.'));
+    if (!$this->offers->canSyncProjection($offer)) {
+      $this->messenger()->addWarning($this->t('Only non-terminal chain-tracked offers with a valid transaction hash can be synced.'));
     }
 
     return parent::buildForm($form, $form_state);
@@ -64,6 +64,11 @@ final class SwapOfferSyncProjectionForm extends ConfirmFormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $offer_id = (int) $this->offer['id'];
+    if (!$this->offers->canSyncProjection($this->offer)) {
+      $this->messenger()->addError($this->t('Projection sync is not allowed for the current offer state.'));
+      $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
+      return;
+    }
 
     try {
       $result = $this->synchronizer->sync($offer_id);

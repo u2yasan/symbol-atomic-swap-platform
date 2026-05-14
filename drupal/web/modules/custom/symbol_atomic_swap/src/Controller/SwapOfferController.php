@@ -11,6 +11,7 @@ use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 final class SwapOfferController extends ControllerBase {
 
@@ -18,6 +19,7 @@ final class SwapOfferController extends ControllerBase {
     private readonly SwapOfferRepository $offers,
     private readonly SwapOfferNotificationRepository $notifications,
     private readonly DateFormatterInterface $dateFormatter,
+    private readonly RequestStack $requestStack,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -25,40 +27,25 @@ final class SwapOfferController extends ControllerBase {
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.offer_notification_repository'),
       $container->get('date.formatter'),
+      $container->get('request_stack'),
     );
   }
 
   public function list(): array {
+    $filters = $this->filtersFromRequest();
     $rows = [];
-    foreach ($this->offers->all() as $offer) {
-      $operations = [
-        Link::fromTextAndUrl($this->t('View'), Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
-      ];
-      if ($this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
-        if (!empty($offer['intent_hash']) && in_array($offer['state'], ['qr_generated', 'signed'], TRUE)) {
-          $operations[] = Link::fromTextAndUrl($this->t('Submit signed payload'), Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]))->toString();
-        }
-        if ($offer['state'] === 'signed') {
-          $operations[] = Link::fromTextAndUrl($this->t('Announce transaction'), Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]))->toString();
-        }
-        if (!empty($offer['transaction_hash']) && !in_array($offer['state'], ['draft', 'qr_generated', 'finalized'], TRUE)) {
-          $operations[] = Link::fromTextAndUrl($this->t('Sync projection'), Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]))->toString();
-        }
-      }
-      if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
-        $operations[] = Link::fromTextAndUrl($this->t('Edit'), Url::fromRoute('symbol_atomic_swap.offer_edit', ['offerId' => $offer['id']]))->toString();
-        $operations[] = Link::fromTextAndUrl($this->t('Delete'), Url::fromRoute('symbol_atomic_swap.offer_delete', ['offerId' => $offer['id']]))->toString();
-      }
-
+    foreach ($this->offers->search($filters) as $offer) {
       $rows[] = [
         Link::fromTextAndUrl((string) $offer['label'], Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
-        $offer['state'],
+        $this->stateLabel((string) $offer['state']),
         $offer['network'],
+        (string) $offer['uid'],
         $offer['intent_hash'] ?: '',
+        $offer['transaction_hash'] ?: '',
         $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : '',
         [
           'data' => [
-            '#markup' => implode(' | ', $operations),
+            '#markup' => implode(' | ', $this->operationLinks($offer)),
           ],
         ],
       ];
@@ -68,6 +55,7 @@ final class SwapOfferController extends ControllerBase {
       '#cache' => [
         'max-age' => 0,
       ],
+      'filters' => $this->filterForm($filters),
       'actions' => [
         '#type' => 'actions',
         'add' => [
@@ -84,7 +72,9 @@ final class SwapOfferController extends ControllerBase {
           $this->t('Offer'),
           $this->t('State'),
           $this->t('Network'),
+          $this->t('Owner UID'),
           $this->t('Intent hash'),
+          $this->t('Transaction hash'),
           $this->t('Changed'),
           $this->t('Operations'),
         ],
@@ -113,18 +103,64 @@ final class SwapOfferController extends ControllerBase {
       ],
       '#attached' => ['library' => ['symbol_atomic_swap/qr']],
       'summary' => [
-        '#theme' => 'item_list',
-        '#items' => [
-          $this->t('State: @state', ['@state' => $offer['state']]),
-          $this->t('Network: @network', ['@network' => $offer['network']]),
-          $this->t('Correlation ID: @id', ['@id' => $offer['correlation_id']]),
-          $this->t('Intent hash: @hash', ['@hash' => $offer['intent_hash'] ?: '']),
-          $this->t('Transaction hash: @hash', ['@hash' => $offer['transaction_hash'] ?: '']),
-          $this->t('Projection state: @state', ['@state' => $offer['projection_state'] ?: '']),
-          $this->t('Block height: @height', ['@height' => $offer['block_height'] ?: '']),
-          $this->t('Finalized height: @height', ['@height' => $offer['finalized_height'] ?: '']),
-          $this->t('Expired at: @time', ['@time' => !empty($offer['expired_at']) ? $this->dateFormatter->format((int) $offer['expired_at'], 'short') : '']),
+        '#type' => 'details',
+        '#title' => $this->t('Summary'),
+        '#open' => TRUE,
+        'table' => $this->keyValueTable([
+          [$this->t('State'), $this->stateLabel((string) $offer['state'])],
+          [$this->t('Network'), (string) $offer['network']],
+          [$this->t('Owner UID'), (string) $offer['uid']],
+          [$this->t('Correlation ID'), (string) $offer['correlation_id']],
+          [$this->t('Deadline hours'), (string) $offer['deadline_hours']],
+          [$this->t('Max fee'), (string) ($offer['max_fee'] ?: '')],
+          [$this->t('Intent hash'), (string) ($offer['intent_hash'] ?: '')],
+          [$this->t('Transaction hash'), (string) ($offer['transaction_hash'] ?: '')],
+          [$this->t('Created'), $offer['created'] ? $this->dateFormatter->format((int) $offer['created'], 'short') : ''],
+          [$this->t('Changed'), $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : ''],
+          [$this->t('Expired at'), !empty($offer['expired_at']) ? $this->dateFormatter->format((int) $offer['expired_at'], 'short') : ''],
+        ]),
+      ],
+      'legs' => [
+        '#type' => 'details',
+        '#title' => $this->t('Transfer legs'),
+        '#open' => TRUE,
+        'table' => [
+          '#type' => 'table',
+          '#header' => [
+            $this->t('Leg'),
+            $this->t('Signer public key'),
+            $this->t('Recipient address'),
+            $this->t('Mosaic ID'),
+            $this->t('Amount'),
+          ],
+          '#rows' => [
+            [
+              '1',
+              (string) $offer['leg1_signer_public_key'],
+              (string) $offer['leg1_recipient_address'],
+              (string) $offer['leg1_mosaic_id'],
+              (string) $offer['leg1_amount'],
+            ],
+            [
+              '2',
+              (string) $offer['leg2_signer_public_key'],
+              (string) $offer['leg2_recipient_address'],
+              (string) $offer['leg2_mosaic_id'],
+              (string) $offer['leg2_amount'],
+            ],
+          ],
         ],
+      ],
+      'projection' => [
+        '#type' => 'details',
+        '#title' => $this->t('Projection'),
+        '#open' => TRUE,
+        'table' => $this->keyValueTable([
+          [$this->t('Projection state'), (string) ($offer['projection_state'] ?: '')],
+          [$this->t('Block height'), (string) ($offer['block_height'] ?: '')],
+          [$this->t('Finalized height'), (string) ($offer['finalized_height'] ?: '')],
+          [$this->t('Projection updated at'), (string) ($offer['projection_updated_at'] ?: '')],
+        ]),
       ],
     ];
 
@@ -137,6 +173,10 @@ final class SwapOfferController extends ControllerBase {
         ],
       ];
       $build['qr_payload'] = [
+        '#type' => 'details',
+        '#title' => $this->t('QR payload'),
+        '#open' => FALSE,
+        'payload' => [
         '#type' => 'textarea',
         '#title' => $this->t('QR payload'),
         '#value' => json_encode($qr_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
@@ -144,6 +184,7 @@ final class SwapOfferController extends ControllerBase {
         '#attributes' => [
           'readonly' => 'readonly',
           'spellcheck' => 'false',
+        ],
         ],
       ];
     }
@@ -172,8 +213,7 @@ final class SwapOfferController extends ControllerBase {
         '#title' => $this->t('Submit signed payload'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && !empty($offer['intent_hash'])
-          && in_array($offer['state'], ['qr_generated', 'signed'], TRUE),
+          && $this->offers->canSubmitSignedPayload($offer),
         '#attributes' => ['class' => ['button', 'button--primary']],
       ],
       'announce' => [
@@ -181,7 +221,7 @@ final class SwapOfferController extends ControllerBase {
         '#title' => $this->t('Announce transaction'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && $offer['state'] === 'signed',
+          && $this->offers->canAnnounce($offer),
         '#attributes' => ['class' => ['button']],
       ],
       'sync_projection' => [
@@ -189,8 +229,7 @@ final class SwapOfferController extends ControllerBase {
         '#title' => $this->t('Sync projection'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && !empty($offer['transaction_hash'])
-          && !in_array($offer['state'], ['draft', 'qr_generated', 'finalized'], TRUE),
+          && $this->offers->canSyncProjection($offer),
         '#attributes' => ['class' => ['button']],
       ],
       'edit' => [
@@ -203,6 +242,10 @@ final class SwapOfferController extends ControllerBase {
     ];
 
     $build['details'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Public offer JSON'),
+      '#open' => FALSE,
+      'payload' => [
       '#type' => 'textarea',
       '#title' => $this->t('Public offer JSON'),
       '#value' => json_encode($this->publicOfferDebugData($offer), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
@@ -210,6 +253,7 @@ final class SwapOfferController extends ControllerBase {
       '#attributes' => [
         'readonly' => 'readonly',
         'spellcheck' => 'false',
+      ],
       ],
     ];
 
@@ -239,6 +283,122 @@ final class SwapOfferController extends ControllerBase {
   private function publicOfferDebugData(array $offer): array {
     unset($offer['signed_payload'], $offer['node_response']);
     return $offer;
+  }
+
+  /**
+   * @return array<string, string>
+   */
+  private function filtersFromRequest(): array {
+    $query = $this->requestStack->getCurrentRequest()?->query;
+    if ($query === NULL) {
+      return [];
+    }
+
+    $filters = [];
+    foreach (['state', 'network', 'owner', 'q'] as $key) {
+      $value = trim((string) $query->get($key, ''));
+      if ($value !== '') {
+        $filters[$key] = $value;
+      }
+    }
+
+    return $filters;
+  }
+
+  /**
+   * @param array<string, string> $filters
+   */
+  private function filterForm(array $filters): array {
+    return [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['symbol-atomic-swap-offer-filters']],
+      'form' => [
+        '#type' => 'inline_template',
+        '#template' => '<form method="get" action="{{ action }}"><label>{{ q_label }} <input name="q" value="{{ q }}" /></label> <label>{{ state_label }} <select name="state"><option value="">{{ any }}</option>{% for value,label in states %}<option value="{{ value }}"{% if value == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label> <label>{{ network_label }} <select name="network"><option value="">{{ any }}</option><option value="testnet"{% if network == "testnet" %} selected{% endif %}>testnet</option><option value="mainnet"{% if network == "mainnet" %} selected{% endif %}>mainnet</option></select></label> <label>{{ owner_label }} <input name="owner" value="{{ owner }}" size="8" /></label> <button class="button" type="submit">{{ apply }}</button> <a class="button" href="{{ action }}">{{ reset }}</a></form>',
+        '#context' => [
+          'action' => Url::fromRoute('symbol_atomic_swap.offer_list')->toString(),
+          'q_label' => $this->t('Search'),
+          'state_label' => $this->t('State'),
+          'network_label' => $this->t('Network'),
+          'owner_label' => $this->t('Owner UID'),
+          'apply' => $this->t('Apply'),
+          'reset' => $this->t('Reset'),
+          'any' => $this->t('- Any -'),
+          'q' => $filters['q'] ?? '',
+          'state' => $filters['state'] ?? '',
+          'network' => $filters['network'] ?? '',
+          'owner' => $filters['owner'] ?? '',
+          'states' => [
+            'draft' => 'draft',
+            'qr_generated' => 'qr_generated',
+            'signed' => 'signed',
+            'announced' => 'announced',
+            'unconfirmed' => 'unconfirmed',
+            'confirmed' => 'confirmed',
+            'finalized' => 'finalized',
+            'expired' => 'expired',
+            'failed' => 'failed',
+            'rolled_back' => 'rolled_back',
+          ],
+        ],
+      ],
+    ];
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   *
+   * @return string[]
+   */
+  private function operationLinks(array $offer): array {
+    $operations = [
+      Link::fromTextAndUrl($this->t('View'), Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
+    ];
+    if ($this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
+      if ($this->offers->canSubmitSignedPayload($offer)) {
+        $operations[] = Link::fromTextAndUrl($this->t('Submit signed payload'), Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]))->toString();
+      }
+      if ($this->offers->canAnnounce($offer)) {
+        $operations[] = Link::fromTextAndUrl($this->t('Announce transaction'), Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]))->toString();
+      }
+      if ($this->offers->canSyncProjection($offer)) {
+        $operations[] = Link::fromTextAndUrl($this->t('Sync projection'), Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]))->toString();
+      }
+    }
+    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+      $operations[] = Link::fromTextAndUrl($this->t('Edit'), Url::fromRoute('symbol_atomic_swap.offer_edit', ['offerId' => $offer['id']]))->toString();
+      $operations[] = Link::fromTextAndUrl($this->t('Delete'), Url::fromRoute('symbol_atomic_swap.offer_delete', ['offerId' => $offer['id']]))->toString();
+    }
+
+    return $operations;
+  }
+
+  private function stateLabel(string $state): string {
+    if ($state === 'finalized') {
+      return $state . ' [terminal, completed]';
+    }
+    if ($this->offers->isTerminalState($state)) {
+      return $state . ' [terminal]';
+    }
+    if (in_array($state, ['signed', 'announced', 'unconfirmed', 'confirmed'], TRUE)) {
+      return $state . ' [requires sync]';
+    }
+    return $state;
+  }
+
+  /**
+   * @param array<int, array{0: mixed, 1: string}> $values
+   */
+  private function keyValueTable(array $values): array {
+    $rows = [];
+    foreach ($values as $row) {
+      $rows[] = [$row[0], $row[1]];
+    }
+
+    return [
+      '#type' => 'table',
+      '#rows' => $rows,
+    ];
   }
 
 }

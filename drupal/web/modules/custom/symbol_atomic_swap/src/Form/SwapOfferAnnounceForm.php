@@ -43,8 +43,8 @@ final class SwapOfferAnnounceForm extends ConfirmFormBase {
     }
     $this->offer = $offer;
 
-    if (($offer['state'] ?? '') !== 'signed') {
-      $this->messenger()->addWarning($this->t('Only signed offers can be announced.'));
+    if (!$this->offers->canAnnounce($offer)) {
+      $this->messenger()->addWarning($this->t('Only signed offers with a verified transaction hash can be announced.'));
     }
 
     return parent::buildForm($form, $form_state);
@@ -64,8 +64,8 @@ final class SwapOfferAnnounceForm extends ConfirmFormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $offer_id = (int) $this->offer['id'];
-    if (($this->offer['state'] ?? '') !== 'signed') {
-      $this->messenger()->addError($this->t('Offer must be signed before announcement.'));
+    if (!$this->offers->canAnnounce($this->offer)) {
+      $this->messenger()->addError($this->t('Offer must be signed and have a verified transaction hash before announcement.'));
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
       return;
     }

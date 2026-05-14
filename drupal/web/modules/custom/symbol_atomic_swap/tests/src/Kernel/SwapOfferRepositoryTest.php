@@ -208,6 +208,43 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
   }
 
   /**
+   * Offer operation guards must reject unsafe state transitions.
+   */
+  public function testOperationGuardsRejectUnsafeStates(): void {
+    $draft_id = $this->repository->insert($this->offerValues([
+      'state' => 'draft',
+      'transaction_hash' => NULL,
+    ]));
+
+    $this->assertFalse($this->repository->canSubmitSignedPayload($this->repository->find($draft_id)));
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Signed payload can only be submitted');
+    $this->repository->markSigned($draft_id, str_repeat('D', 64));
+  }
+
+  /**
+   * Announce and projection sync guards are state-aware.
+   */
+  public function testOperationGuardsAllowOnlyChainTrackedStates(): void {
+    $signed_id = $this->repository->insert($this->offerValues([
+      'state' => 'signed',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+    $finalized_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-finalized-guard',
+      'state' => 'finalized',
+      'transaction_hash' => str_repeat('E', 64),
+    ]));
+
+    $this->assertTrue($this->repository->canSubmitSignedPayload($this->repository->find($signed_id)));
+    $this->assertTrue($this->repository->canAnnounce($this->repository->find($signed_id)));
+    $this->assertTrue($this->repository->canSyncProjection($this->repository->find($signed_id)));
+    $this->assertFalse($this->repository->canSubmitSignedPayload($this->repository->find($finalized_id)));
+    $this->assertFalse($this->repository->canAnnounce($this->repository->find($finalized_id)));
+    $this->assertFalse($this->repository->canSyncProjection($this->repository->find($finalized_id)));
+  }
+
+  /**
    * Cron expires stale offers before queueing projection sync candidates.
    */
   public function testCronExpiresStaleOffers(): void {

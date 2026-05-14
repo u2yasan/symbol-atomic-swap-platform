@@ -12,6 +12,9 @@ use Drupal\Core\Utility\Error;
 final class SwapOfferRepository {
 
   private const TABLE = 'symbol_atomic_swap_offer';
+  public const TERMINAL_STATES = ['expired', 'cancelled', 'failed', 'rolled_back', 'finalized'];
+  public const SIGNABLE_STATES = ['qr_generated', 'signed'];
+  public const SYNCABLE_STATES = ['signed', 'announced', 'unconfirmed', 'confirmed', 'partial_announced', 'partial_cosigned'];
 
   public function __construct(
     private readonly Connection $database,
@@ -21,12 +24,39 @@ final class SwapOfferRepository {
    * @return array<int, array<string, mixed>>
    */
   public function all(): array {
-    return $this->database->select(self::TABLE, 'o')
+    return $this->search();
+  }
+
+  /**
+   * @param array<string, string> $filters
+   *
+   * @return array<int, array<string, mixed>>
+   */
+  public function search(array $filters = [], int $limit = 100): array {
+    $query = $this->database->select(self::TABLE, 'o')
       ->fields('o')
       ->orderBy('changed', 'DESC')
-      ->range(0, 100)
-      ->execute()
-      ->fetchAll(FetchAs::Associative);
+      ->range(0, $limit);
+
+    if (!empty($filters['state'])) {
+      $query->condition('state', $filters['state']);
+    }
+    if (!empty($filters['network'])) {
+      $query->condition('network', $filters['network']);
+    }
+    if (!empty($filters['owner'])) {
+      $query->condition('uid', (int) $filters['owner']);
+    }
+    if (!empty($filters['q'])) {
+      $or = $query->orConditionGroup()
+        ->condition('label', '%' . $this->database->escapeLike($filters['q']) . '%', 'LIKE')
+        ->condition('correlation_id', '%' . $this->database->escapeLike($filters['q']) . '%', 'LIKE')
+        ->condition('intent_hash', strtoupper($filters['q']))
+        ->condition('transaction_hash', strtoupper($filters['q']));
+      $query->condition($or);
+    }
+
+    return $query->execute()->fetchAll(FetchAs::Associative);
   }
 
   /**
@@ -49,7 +79,7 @@ final class SwapOfferRepository {
     $query = $this->database->select(self::TABLE, 'o')
       ->fields('o', ['id'])
       ->isNotNull('transaction_hash')
-      ->condition('state', ['signed', 'announced', 'unconfirmed', 'confirmed', 'partial_announced', 'partial_cosigned'], 'IN')
+      ->condition('state', self::SYNCABLE_STATES, 'IN')
       ->orderBy('changed', 'ASC')
       ->range(0, $limit);
 
@@ -109,6 +139,14 @@ final class SwapOfferRepository {
   }
 
   public function markSigned(int $id, string $transaction_hash): void {
+    $offer = $this->find($id);
+    if (!$offer) {
+      throw new \InvalidArgumentException('Swap offer not found.');
+    }
+    if (!$this->canSubmitSignedPayload($offer)) {
+      throw new \InvalidArgumentException('Signed payload can only be submitted for QR-generated or already signed offers with an intent hash.');
+    }
+
     $this->update($id, [
       'state' => 'signed',
       'transaction_hash' => strtoupper($transaction_hash),
@@ -117,6 +155,14 @@ final class SwapOfferRepository {
   }
 
   public function markAnnounced(int $id, string $transaction_hash): void {
+    $offer = $this->find($id);
+    if (!$offer) {
+      throw new \InvalidArgumentException('Swap offer not found.');
+    }
+    if (!$this->canAnnounce($offer)) {
+      throw new \InvalidArgumentException('Only signed offers with an intent hash and transaction hash can be announced.');
+    }
+
     $this->update($id, [
       'state' => 'announced',
       'transaction_hash' => strtoupper($transaction_hash),
@@ -141,6 +187,39 @@ final class SwapOfferRepository {
     ]);
 
     return TRUE;
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  public function canSubmitSignedPayload(array $offer): bool {
+    return !empty($offer['intent_hash'])
+      && $this->isHash((string) $offer['intent_hash'])
+      && in_array((string) ($offer['state'] ?? ''), self::SIGNABLE_STATES, TRUE);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  public function canAnnounce(array $offer): bool {
+    return ($offer['state'] ?? '') === 'signed'
+      && !empty($offer['intent_hash'])
+      && $this->isHash((string) $offer['intent_hash'])
+      && !empty($offer['transaction_hash'])
+      && $this->isHash((string) $offer['transaction_hash']);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  public function canSyncProjection(array $offer): bool {
+    return !empty($offer['transaction_hash'])
+      && $this->isHash((string) $offer['transaction_hash'])
+      && in_array((string) ($offer['state'] ?? ''), self::SYNCABLE_STATES, TRUE);
+  }
+
+  public function isTerminalState(string $state): bool {
+    return in_array($state, self::TERMINAL_STATES, TRUE);
   }
 
   /**
@@ -248,6 +327,10 @@ final class SwapOfferRepository {
       'qr_payload' => $qr_payload,
       'transaction_hash' => $offer['transaction_hash'] ?? NULL,
     ];
+  }
+
+  private function isHash(string $value): bool {
+    return preg_match('/^[0-9A-Fa-f]{64}$/', $value) === 1;
   }
 
 }
