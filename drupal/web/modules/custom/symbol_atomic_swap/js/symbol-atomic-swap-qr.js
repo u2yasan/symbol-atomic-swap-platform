@@ -119,7 +119,9 @@
   function chooseVersion(byteLength) {
     for (let version = 1; version <= 40; version++) {
       const ccBits = version < 10 ? 8 : 16;
-      if (4 + ccBits + byteLength * 8 <= dataCapacity(version) * 8) {
+      // Version 23 is avoided because common mobile and JS decoders fail to read
+      // this module layout reliably for Symbol's large JSON payloads.
+      if (version !== 23 && 4 + ccBits + byteLength * 8 <= dataCapacity(version) * 8) {
         return version;
       }
     }
@@ -210,11 +212,6 @@
     finder(0, size - 7);
     finder(size - 7, 0);
 
-    for (let i = 8; i < size - 8; i++) {
-      set(6, i, i % 2 === 0);
-      set(i, 6, i % 2 === 0);
-    }
-
     alignmentCenters[version].forEach((row) => {
       alignmentCenters[version].forEach((col) => {
         if (reserved[row][col]) {
@@ -227,6 +224,15 @@
         }
       });
     });
+
+    for (let i = 8; i < size - 8; i++) {
+      if (!reserved[6][i]) {
+        set(6, i, i % 2 === 0);
+      }
+      if (!reserved[i][6]) {
+        set(i, 6, i % 2 === 0);
+      }
+    }
 
     set(4 * version + 9, 8, true);
     for (let i = 0; i < 9; i++) {
@@ -321,23 +327,23 @@
     for (let i = 0; i < 15; i++) {
       const dark = ((bits >>> i) & 1) === 1;
       if (i < 6) {
-        modules[8][i] = dark;
+        modules[i][8] = dark;
       }
       else if (i < 8) {
-        modules[8][i + 1] = dark;
+        modules[i + 1][8] = dark;
       }
       else {
-        modules[8][size - 15 + i] = dark;
+        modules[size - 15 + i][8] = dark;
       }
 
       if (i < 8) {
-        modules[size - i - 1][8] = dark;
+        modules[8][size - i - 1] = dark;
       }
       else if (i < 9) {
-        modules[15 - i][8] = dark;
+        modules[8][15 - i] = dark;
       }
       else {
-        modules[14 - i][8] = dark;
+        modules[8][14 - i] = dark;
       }
     }
   }
