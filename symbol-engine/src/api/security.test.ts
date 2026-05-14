@@ -7,6 +7,7 @@ import { handleApiError } from './errorHandler.js';
 import {
   createLoggerOptions,
   DEFAULT_BODY_LIMIT_BYTES,
+  rateLimitKey,
   registerSecurity,
   SMALL_BODY_LIMIT_BYTES,
 } from './security.js';
@@ -133,6 +134,27 @@ test('rate limit is enforced per API token and excludes health', async () => {
   assert.equal(second.json().error, 'rate_limit_exceeded');
   assert.equal(health.statusCode, 200);
   await app.close();
+});
+
+test('rate limit key hashes API tokens instead of storing raw token values', () => {
+  const request = {
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+    ip: '127.0.0.1',
+  };
+
+  const first = rateLimitKey(request as never);
+  const second = rateLimitKey(request as never);
+  const fallback = rateLimitKey({
+    headers: {},
+    ip: '127.0.0.1',
+  } as never);
+
+  assert.equal(first, second);
+  assert.match(first, /^token:[0-9a-f]{64}$/);
+  assert.doesNotMatch(first, new RegExp(token));
+  assert.equal(fallback, 'ip:127.0.0.1');
 });
 
 test('security headers are set on responses', async () => {

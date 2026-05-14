@@ -127,6 +127,8 @@ Never log:
 - Secret Lock proofs
 - authorization headers
 
+API tokens must not be reused as raw operational keys inside middleware. Derived identifiers, such as rate-limit keys, must use a one-way digest of the token.
+
 Log only stable identifiers:
 
 - transaction hash

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -45,10 +46,14 @@ export function createLoggerOptions(): LoggerOptions {
   };
 }
 
-function rateLimitKey(request: FastifyRequest): string {
+function tokenRateLimitKey(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+export function rateLimitKey(request: FastifyRequest): string {
   const token = extractToken(request);
   if (token) {
-    return `token:${token}`;
+    return `token:${tokenRateLimitKey(token)}`;
   }
 
   return `ip:${request.ip}`;
