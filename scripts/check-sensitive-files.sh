@@ -58,4 +58,21 @@ done
 grep -Fxq '.env' .gitignore || fail ".gitignore must exclude .env"
 grep -Fxq '.env.local' .gitignore || fail ".gitignore must exclude .env.local"
 
+weak_engine_token_config=$(
+  git ls-files '.github/workflows/*.yml' 'docker-compose*.yml' | xargs awk '
+    /SYMBOL_ENGINE_API_TOKEN:[[:space:]]*0123456789abcdef0123456789abcdef/ {
+      print FILENAME ":" FNR ": " $0
+    }
+    /SYMBOL_ENGINE_API_TOKEN:[[:space:]]*replace-with-at-least-32-random-characters/ {
+      print FILENAME ":" FNR ": " $0
+    }
+  '
+)
+
+if [ -n "$weak_engine_token_config" ]; then
+  printf '%s\n' "Refusing weak Symbol Engine API token in runtime configuration:" >&2
+  printf '%s\n' "$weak_engine_token_config" >&2
+  exit 1
+fi
+
 printf '%s\n' "Sensitive file policy passed."
