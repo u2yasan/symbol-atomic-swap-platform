@@ -124,6 +124,30 @@ test('loadEnvFrom rejects out-of-range Symbol node request timeout', () => {
   });
 });
 
+test('loadEnvFrom rejects enabled listener without Symbol WebSocket URL', () => {
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_ENGINE_LISTENER_ENABLED: 'true',
+    SYMBOL_WS_URL: '',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /SYMBOL_WS_URL is required when SYMBOL_ENGINE_LISTENER_ENABLED=true/);
+    return true;
+  });
+});
+
+test('loadEnvFrom rejects enabled reconciler without Symbol node URL', () => {
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_ENGINE_RECONCILER_ENABLED: 'true',
+    SYMBOL_NODE_URL: '',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /SYMBOL_NODE_URL is required when SYMBOL_ENGINE_RECONCILER_ENABLED=true/);
+    return true;
+  });
+});
+
 test('loadEnvFrom normalizes and deduplicates valid listener addresses', () => {
   const env = loadEnvFrom({
     ...validProductionEnv,

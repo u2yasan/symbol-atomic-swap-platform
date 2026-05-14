@@ -136,6 +136,22 @@ const envSchema = z.object({
     });
   }
 
+  if (value.SYMBOL_ENGINE_LISTENER_ENABLED && !value.SYMBOL_WS_URL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_WS_URL'],
+      message: 'SYMBOL_WS_URL is required when SYMBOL_ENGINE_LISTENER_ENABLED=true.',
+    });
+  }
+
+  if (value.SYMBOL_ENGINE_RECONCILER_ENABLED && !value.SYMBOL_NODE_URL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_NODE_URL'],
+      message: 'SYMBOL_NODE_URL is required when SYMBOL_ENGINE_RECONCILER_ENABLED=true.',
+    });
+  }
+
   const expectedAddressPrefix = value.SYMBOL_NETWORK === 'mainnet' ? 'N' : 'T';
   for (const address of value.SYMBOL_ENGINE_LISTENER_ADDRESSES) {
     if (!isRawSymbolAddress(address)) {

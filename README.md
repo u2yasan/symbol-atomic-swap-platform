@@ -66,6 +66,7 @@ Implemented:
 - finalization height check
 - production environment fail-fast validation for Engine API token and database URL
 - production environment fail-fast validation for HTTPS Symbol REST and WSS Symbol WebSocket endpoints
+- fail-fast validation for enabled listener and reconciler endpoint dependencies
 - production startup preflight rejecting Symbol network mismatch
 - production startup preflight rejecting unreachable Symbol WebSocket listener endpoint
 - fail-fast validation for listener address format and network prefix

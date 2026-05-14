@@ -104,6 +104,7 @@ Enable the Symbol WebSocket listener:
 
 ```text
 SYMBOL_ENGINE_LISTENER_ENABLED=true
+SYMBOL_WS_URL=wss://sym-test-01.opening-line.jp:3001/ws
 SYMBOL_ENGINE_LISTENER_ADDRESSES=TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I
 ```
 
@@ -127,6 +128,7 @@ Enable transaction status reconciliation:
 
 ```text
 SYMBOL_ENGINE_RECONCILER_ENABLED=true
+SYMBOL_NODE_URL=https://sym-test-01.opening-line.jp:3001
 SYMBOL_ENGINE_RECONCILER_INTERVAL_MS=30000
 ```
 
