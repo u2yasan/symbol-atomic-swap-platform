@@ -31,8 +31,7 @@ export async function putJsonToSymbolNode(
       throw new SymbolNodeUnavailableError(`Symbol node request timed out after ${timeoutMs}ms.`);
     }
 
-    const message = error instanceof Error ? error.message : 'request failed';
-    throw new SymbolNodeUnavailableError(`Symbol node request failed: ${message}`);
+    throw new SymbolNodeUnavailableError('Symbol node request failed.', { cause: error });
   } finally {
     clearTimeout(timeout);
   }

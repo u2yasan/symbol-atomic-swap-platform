@@ -91,8 +91,7 @@ export class SymbolRestClient {
         throw new SymbolNodeUnavailableError(`Symbol node request timed out after ${this.requestTimeoutMs}ms.`);
       }
 
-      const message = error instanceof Error ? error.message : 'request failed';
-      throw new SymbolNodeUnavailableError(`Symbol node request failed: ${message}`);
+      throw new SymbolNodeUnavailableError('Symbol node request failed.', { cause: error });
     } finally {
       clearTimeout(timeout);
     }

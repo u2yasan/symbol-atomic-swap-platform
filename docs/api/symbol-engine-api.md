@@ -32,6 +32,8 @@ If `SYMBOL_ENGINE_API_TOKEN` is not configured on Symbol Engine, protected route
 
 Validation failures return `400 validation_failed`. Each issue contains only `code`, `path`, and `message`; rejected request values are not echoed.
 
+Symbol node transport failures return `503 symbol_node_unavailable` with a generic message. Low-level connection details are not exposed in API responses.
+
 ## Public Health Check
 
 ```http

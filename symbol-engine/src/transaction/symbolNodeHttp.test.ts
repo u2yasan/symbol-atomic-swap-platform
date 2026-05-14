@@ -49,16 +49,19 @@ test('putJsonToSymbolNode converts timeout to Symbol node unavailable error', as
 });
 
 test('putJsonToSymbolNode converts fetch failure to Symbol node unavailable error', async () => {
+  const cause = new Error('connection reset from https://node.example.test');
+
   await assert.rejects(() => putJsonToSymbolNode('https://node.example.test', '/transactions', {
     payload: 'ABCD',
   }, {
     fetcher: async () => {
-      throw new Error('connection reset');
+      throw cause;
     },
   }), (error) => {
     assert.ok(error instanceof SymbolNodeUnavailableError);
     assert.equal(error.statusCode, 503);
-    assert.match(error.message, /connection reset/);
+    assert.equal(error.message, 'Symbol node request failed.');
+    assert.equal(error.cause, cause);
     return true;
   });
 });
