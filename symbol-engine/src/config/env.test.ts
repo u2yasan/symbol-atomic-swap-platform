@@ -123,3 +123,38 @@ test('loadEnvFrom rejects out-of-range Symbol node request timeout', () => {
     return true;
   });
 });
+
+test('loadEnvFrom normalizes valid listener addresses', () => {
+  const env = loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_ENGINE_LISTENER_ADDRESSES: ' tchbdenclkebilbpwp3jpb2xny64oe7pyhhe32i , TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I ',
+  });
+
+  assert.deepEqual(env.SYMBOL_ENGINE_LISTENER_ADDRESSES, [
+    'TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I',
+    'TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I',
+  ]);
+});
+
+test('loadEnvFrom rejects invalid listener address format', () => {
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_ENGINE_LISTENER_ADDRESSES: 'not-a-symbol-address',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /contains invalid Symbol address/);
+    return true;
+  });
+});
+
+test('loadEnvFrom rejects listener address network mismatch', () => {
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_NETWORK: 'mainnet',
+    SYMBOL_ENGINE_LISTENER_ADDRESSES: 'TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /does not match SYMBOL_NETWORK=mainnet/);
+    return true;
+  });
+});

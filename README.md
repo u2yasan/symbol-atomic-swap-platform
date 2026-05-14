@@ -68,6 +68,7 @@ Implemented:
 - production environment fail-fast validation for HTTPS Symbol REST and WSS Symbol WebSocket endpoints
 - production startup preflight rejecting Symbol network mismatch
 - production startup preflight rejecting unreachable Symbol WebSocket listener endpoint
+- fail-fast validation for listener address format and network prefix
 - announcement APIs return explicit 503 when Symbol node URL is unavailable
 - bounded Symbol node announcement HTTP requests with configurable timeout
 - bounded Symbol node REST read requests with configurable timeout

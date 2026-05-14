@@ -38,6 +38,10 @@ function isSecureWebSocketUrl(value: string | undefined): boolean {
   return value === undefined || new URL(value).protocol === 'wss:';
 }
 
+function isRawSymbolAddress(value: string): boolean {
+  return /^[A-Z2-7]{39}$/.test(value);
+}
+
 const optionalUrlSchema = z.preprocess(
   (value) => value === '' ? undefined : value,
   z.string().url().optional(),
@@ -55,7 +59,7 @@ const envSchema = z.object({
   SYMBOL_ENGINE_DATABASE_URL: z.string().url().optional(),
   SYMBOL_ENGINE_LISTENER_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SYMBOL_ENGINE_LISTENER_ADDRESSES: z.string().default('').transform((value) => value.split(',')
-    .map((address) => address.trim())
+    .map((address) => address.trim().toUpperCase())
     .filter((address) => address.length > 0)),
   SYMBOL_ENGINE_RECONCILER_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SYMBOL_ENGINE_RECONCILER_INTERVAL_MS: z.coerce.number().int().min(5000).max(3600000).default(30000),
@@ -128,6 +132,26 @@ const envSchema = z.object({
       path: ['SYMBOL_WS_URL'],
       message: 'SYMBOL_WS_URL must use wss in production.',
     });
+  }
+
+  const expectedAddressPrefix = value.SYMBOL_NETWORK === 'mainnet' ? 'N' : 'T';
+  for (const address of value.SYMBOL_ENGINE_LISTENER_ADDRESSES) {
+    if (!isRawSymbolAddress(address)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['SYMBOL_ENGINE_LISTENER_ADDRESSES'],
+        message: `SYMBOL_ENGINE_LISTENER_ADDRESSES contains invalid Symbol address: ${address}`,
+      });
+      continue;
+    }
+
+    if (!address.startsWith(expectedAddressPrefix)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['SYMBOL_ENGINE_LISTENER_ADDRESSES'],
+        message: `SYMBOL_ENGINE_LISTENER_ADDRESSES address ${address} does not match SYMBOL_NETWORK=${value.SYMBOL_NETWORK}.`,
+      });
+    }
   }
 });
 

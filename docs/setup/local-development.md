@@ -107,6 +107,9 @@ SYMBOL_ENGINE_LISTENER_ENABLED=true
 SYMBOL_ENGINE_LISTENER_ADDRESSES=TCHBDENCLKEBILBPWP3JPB2XNY64OE7PYHHE32I
 ```
 
+Listener addresses must be raw Symbol addresses for the configured network.
+Testnet addresses must start with `T`; mainnet addresses must start with `N`.
+
 `finalizedBlock` is subscribed globally.
 
 Transaction channels are subscribed per configured address:
