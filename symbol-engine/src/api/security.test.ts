@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import Fastify from 'fastify';
 import pino from 'pino';
+import { z } from 'zod';
 import { createApiAuthHook } from './auth.js';
 import { handleApiError } from './errorHandler.js';
 import {
@@ -43,6 +44,12 @@ async function makeApp() {
 
   app.post('/missing-node-url', async () => {
     throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for transaction announcement.');
+  });
+
+  app.post('/validation-error', async (request) => {
+    z.object({
+      amount: z.number().int().positive(),
+    }).parse(request.body);
   });
 
   return app;
@@ -184,6 +191,28 @@ test('missing Symbol node URL returns service unavailable instead of internal er
 
   assert.equal(response.statusCode, 503);
   assert.equal(response.json().error, 'symbol_node_unavailable');
+  await app.close();
+});
+
+test('validation errors expose only public issue fields', async () => {
+  const app = await makeApp();
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/validation-error',
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+    payload: {
+      amount: 'secret-not-a-number',
+    },
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(Object.keys(response.json()), ['error', 'issues']);
+  assert.equal(response.json().error, 'validation_failed');
+  assert.deepEqual(Object.keys(response.json().issues[0]).sort(), ['code', 'message', 'path']);
+  assert.doesNotMatch(response.body, /secret-not-a-number/);
   await app.close();
 });
 

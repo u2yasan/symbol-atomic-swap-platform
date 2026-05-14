@@ -1,5 +1,5 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
-import { ZodError } from 'zod';
+import { ZodError, type ZodIssue } from 'zod';
 import { InvalidStateTransitionError } from '../listener/eventDispatcher.js';
 import { InvalidAnnouncementError } from '../transaction/announceService.js';
 import { InvalidHashLockError } from '../transaction/hashLockService.js';
@@ -22,11 +22,19 @@ function clientErrorCode(error: FastifyError): string {
   return 'request_error';
 }
 
+function publicValidationIssues(issues: ZodIssue[]) {
+  return issues.map((issue) => ({
+    code: issue.code,
+    path: issue.path,
+    message: issue.message,
+  }));
+}
+
 export function handleApiError(error: FastifyError, _request: FastifyRequest, reply: FastifyReply) {
   if (error instanceof ZodError) {
     return reply.code(400).send({
       error: 'validation_failed',
-      issues: error.issues,
+      issues: publicValidationIssues(error.issues),
     });
   }
 

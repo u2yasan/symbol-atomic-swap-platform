@@ -72,6 +72,7 @@ Implemented:
 - fail-fast validation for listener address format and network prefix
 - listener address normalization and duplicate subscription prevention
 - announcement APIs return explicit 503 when Symbol node URL is unavailable
+- validation error responses omit rejected request values and serializer internals
 - bounded Symbol node announcement HTTP requests with configurable timeout
 - bounded Symbol node REST read requests with configurable timeout
 - hashed API token identifiers for rate limiting

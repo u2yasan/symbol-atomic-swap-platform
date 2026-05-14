@@ -30,6 +30,8 @@ Missing or invalid request token returns `401`.
 
 If `SYMBOL_ENGINE_API_TOKEN` is not configured on Symbol Engine, protected routes fail closed with `503`.
 
+Validation failures return `400 validation_failed`. Each issue contains only `code`, `path`, and `message`; rejected request values are not echoed.
+
 ## Public Health Check
 
 ```http
