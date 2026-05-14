@@ -6,6 +6,7 @@ const workflowFiles = [
 ];
 
 const fullCommitSha = /^[0-9a-f]{40}$/;
+const floatingRunnerLabel = /\b[a-z]+-latest\b/;
 let failed = false;
 
 function fail(message) {
@@ -17,6 +18,11 @@ for (const file of workflowFiles) {
   const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
 
   lines.forEach((line, index) => {
+    const runnerMatch = line.match(/^\s*runs-on:\s*([^\s#]+)/);
+    if (runnerMatch && floatingRunnerLabel.test(runnerMatch[1])) {
+      fail(`${file}:${index + 1}: GitHub Actions runner must not use a floating latest label: ${runnerMatch[1]}`);
+    }
+
     const match = line.match(/^\s*uses:\s*([^@\s]+\/[^@\s]+)@([^\s#]+)/);
     if (!match) {
       return;
