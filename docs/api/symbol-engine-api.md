@@ -26,7 +26,7 @@ All routes except `GET /health` require:
 Authorization: Bearer <SYMBOL_ENGINE_API_TOKEN>
 ```
 
-Missing or invalid token returns `401`.
+Missing or invalid request token returns `401`.
 
 If `SYMBOL_ENGINE_API_TOKEN` is not configured on Symbol Engine, protected routes fail closed with `503`.
 

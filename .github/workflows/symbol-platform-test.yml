@@ -35,6 +35,9 @@ jobs:
       - name: Check repository hygiene policy
         run: make check-repository-hygiene
 
+      - name: Check environment example policy
+        run: make check-env-example-policy
+
       - name: Check Node dependency policy
         run: make check-node-dependency-policy
 

@@ -1,7 +1,7 @@
 DRUPAL_PHPUNIT_ENV = SIMPLETEST_BASE_URL=http://127.0.0.1 SIMPLETEST_DB=pgsql://drupal:drupal@postgres/drupal BROWSERTEST_OUTPUT_BASE_URL=http://127.0.0.1:8080
 DOCKER_COMPOSE_EXEC ?= docker compose exec -T
 
-.PHONY: test test-symbol-engine test-drupal prepare-drupal-test check-sensitive-files check-repository-hygiene check-node-dependency-policy check-docker-image-policy check-github-actions-policy audit-drupal-dependencies build-symbol-engine-production smoke-symbol-engine-production drush-cr
+.PHONY: test test-symbol-engine test-drupal prepare-drupal-test check-sensitive-files check-repository-hygiene check-env-example-policy check-node-dependency-policy check-docker-image-policy check-github-actions-policy audit-drupal-dependencies build-symbol-engine-production smoke-symbol-engine-production drush-cr
 
 test: test-symbol-engine test-drupal
 
@@ -10,6 +10,9 @@ check-sensitive-files:
 
 check-repository-hygiene:
 	./scripts/check-repository-hygiene.sh
+
+check-env-example-policy:
+	./scripts/check-env-example-policy.js
 
 check-node-dependency-policy:
 	./scripts/check-node-dependency-policy.js
