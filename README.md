@@ -64,6 +64,7 @@ Implemented:
 - event projection idempotency
 - unsafe finalization transition rejection
 - finalization height check
+- production environment fail-fast validation for Engine API token and database URL
 - Aggregate Bonded unsigned payload build API with hash lock requirements
 - Aggregate Bonded signed payload semantic verification
 - Aggregate Bonded Hash Lock unsigned payload build, semantic verification, and node announcement endpoint
