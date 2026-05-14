@@ -2,3 +2,27 @@ services:
   symbol_atomic_swap.engine_client:
     class: Drupal\symbol_atomic_swap\Service\SymbolEngineClient
     arguments: ['@http_client']
+
+  symbol_atomic_swap.offer_repository:
+    class: Drupal\symbol_atomic_swap\Repository\SwapOfferRepository
+    arguments: ['@database']
+
+  symbol_atomic_swap.offer_notification_repository:
+    class: Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository
+    arguments: ['@database', '@datetime.time', '@symbol_atomic_swap.offer_notification_webhook_notifier', '@symbol_atomic_swap.offer_notification_email_notifier']
+
+  symbol_atomic_swap.offer_notification_webhook_notifier:
+    class: Drupal\symbol_atomic_swap\Service\SwapOfferNotificationWebhookNotifier
+    arguments: ['@http_client', '@logger.factory']
+
+  symbol_atomic_swap.offer_notification_email_notifier:
+    class: Drupal\symbol_atomic_swap\Service\SwapOfferNotificationEmailNotifier
+    arguments: ['@plugin.manager.mail', '@language_manager', '@logger.factory']
+
+  symbol_atomic_swap.offer_projection_synchronizer:
+    class: Drupal\symbol_atomic_swap\Service\SwapOfferProjectionSynchronizer
+    arguments: ['@symbol_atomic_swap.offer_repository', '@symbol_atomic_swap.engine_client', '@symbol_atomic_swap.offer_notification_repository']
+
+  symbol_atomic_swap.offer_expiration_manager:
+    class: Drupal\symbol_atomic_swap\Service\SwapOfferExpirationManager
+    arguments: ['@symbol_atomic_swap.offer_repository', '@datetime.time', '@logger.factory', '@symbol_atomic_swap.offer_notification_repository']

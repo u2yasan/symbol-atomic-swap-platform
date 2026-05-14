@@ -1,0 +1,265 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Install and update hooks for Symbol Atomic Swap.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function symbol_atomic_swap_schema(): array {
+  $schema['symbol_atomic_swap_offer'] = [
+    'description' => 'Stores local swap offer projections created through Drupal.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'uuid' => [
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ],
+      'label' => [
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ],
+      'state' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => 'draft',
+      ],
+      'network' => [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+      ],
+      'correlation_id' => [
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ],
+      'deadline_hours' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'size' => 'small',
+      ],
+      'max_fee' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => FALSE,
+      ],
+      'leg1_signer_public_key' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'leg1_recipient_address' => [
+        'type' => 'varchar',
+        'length' => 46,
+        'not null' => TRUE,
+      ],
+      'leg1_mosaic_id' => [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+      ],
+      'leg1_amount' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ],
+      'leg2_signer_public_key' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'leg2_recipient_address' => [
+        'type' => 'varchar',
+        'length' => 46,
+        'not null' => TRUE,
+      ],
+      'leg2_mosaic_id' => [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+      ],
+      'leg2_amount' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+      ],
+      'intent_hash' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+      ],
+      'unsigned_payload' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'qr_payload' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'transaction_hash' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+      ],
+      'projection_state' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => FALSE,
+      ],
+      'block_height' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'finalized_height' => [
+        'type' => 'int',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'projection_updated_at' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+      ],
+      'expired_at' => [
+        'type' => 'int',
+        'not null' => FALSE,
+      ],
+      'uid' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'created' => [
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'changed' => [
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uuid' => ['uuid'],
+    ],
+    'indexes' => [
+      'state' => ['state'],
+      'intent_hash' => ['intent_hash'],
+      'transaction_hash' => ['transaction_hash'],
+      'projection_state' => ['projection_state'],
+      'uid' => ['uid'],
+    ],
+  ];
+
+  $schema['symbol_atomic_swap_notification'] = [
+    'description' => 'Stores user-facing notifications for swap offers.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'offer_id' => [
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'type' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'severity' => [
+        'type' => 'varchar',
+        'length' => 16,
+        'not null' => TRUE,
+      ],
+      'message' => [
+        'type' => 'text',
+        'not null' => TRUE,
+      ],
+      'created' => [
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'read_at' => [
+        'type' => 'int',
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'offer_type' => ['offer_id', 'type'],
+    ],
+    'indexes' => [
+      'offer_id' => ['offer_id'],
+      'read_at' => ['read_at'],
+      'created' => ['created'],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Creates the swap offer table for existing installations.
+ */
+function symbol_atomic_swap_update_11001(): void {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->tableExists('symbol_atomic_swap_offer')) {
+    $module_schema = symbol_atomic_swap_schema();
+    $schema->createTable('symbol_atomic_swap_offer', $module_schema['symbol_atomic_swap_offer']);
+  }
+}
+
+/**
+ * Adds Engine projection sync fields to swap offers.
+ */
+function symbol_atomic_swap_update_11002(): void {
+  $schema = \Drupal::database()->schema();
+  $fields = symbol_atomic_swap_schema()['symbol_atomic_swap_offer']['fields'];
+
+  foreach (['projection_state', 'block_height', 'finalized_height', 'projection_updated_at'] as $field_name) {
+    if (!$schema->fieldExists('symbol_atomic_swap_offer', $field_name)) {
+      $schema->addField('symbol_atomic_swap_offer', $field_name, $fields[$field_name]);
+    }
+  }
+
+  if (!$schema->indexExists('symbol_atomic_swap_offer', 'projection_state')) {
+    $schema->addIndex('symbol_atomic_swap_offer', 'projection_state', ['projection_state']);
+  }
+}
+
+/**
+ * Adds local expiration timestamp to swap offers.
+ */
+function symbol_atomic_swap_update_11003(): void {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->fieldExists('symbol_atomic_swap_offer', 'expired_at')) {
+    $fields = symbol_atomic_swap_schema()['symbol_atomic_swap_offer']['fields'];
+    $schema->addField('symbol_atomic_swap_offer', 'expired_at', $fields['expired_at']);
+  }
+}
+
+/**
+ * Adds user-facing offer notifications.
+ */
+function symbol_atomic_swap_update_11004(): void {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->tableExists('symbol_atomic_swap_notification')) {
+    $module_schema = symbol_atomic_swap_schema();
+    $schema->createTable('symbol_atomic_swap_notification', $module_schema['symbol_atomic_swap_notification']);
+  }
+}

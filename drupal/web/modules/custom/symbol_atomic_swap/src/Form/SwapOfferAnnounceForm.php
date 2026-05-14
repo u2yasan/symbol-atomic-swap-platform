@@ -1,0 +1,88 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\symbol_atomic_swap\Form;
+
+use Drupal\Core\Form\ConfirmFormBase;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
+final class SwapOfferAnnounceForm extends ConfirmFormBase {
+
+  /**
+   * @var array<string, mixed>
+   */
+  private array $offer = [];
+
+  public function __construct(
+    private readonly SwapOfferRepository $offers,
+    private readonly SymbolEngineClient $engineClient,
+  ) {}
+
+  public static function create(ContainerInterface $container): self {
+    return new self(
+      $container->get('symbol_atomic_swap.offer_repository'),
+      $container->get('symbol_atomic_swap.engine_client'),
+    );
+  }
+
+  public function getFormId(): string {
+    return 'symbol_atomic_swap_offer_announce_form';
+  }
+
+  public function buildForm(array $form, FormStateInterface $form_state, $offerId = NULL): array {
+    $offer = $offerId !== NULL ? $this->offers->find((int) $offerId) : NULL;
+    if (!$offer) {
+      throw new NotFoundHttpException();
+    }
+    $this->offer = $offer;
+
+    if (($offer['state'] ?? '') !== 'signed') {
+      $this->messenger()->addWarning($this->t('Only signed offers can be announced.'));
+    }
+
+    return parent::buildForm($form, $form_state);
+  }
+
+  public function getQuestion(): string {
+    return (string) $this->t('Announce @label?', ['@label' => $this->offer['label'] ?? 'swap offer']);
+  }
+
+  public function getDescription(): string {
+    return (string) $this->t('This submits the verified signed transaction to the configured Symbol node through Symbol Engine.');
+  }
+
+  public function getCancelUrl(): Url {
+    return Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $this->offer['id'] ?? 0]);
+  }
+
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
+    $offer_id = (int) $this->offer['id'];
+    if (($this->offer['state'] ?? '') !== 'signed') {
+      $this->messenger()->addError($this->t('Offer must be signed before announcement.'));
+      $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
+      return;
+    }
+
+    try {
+      $result = $this->engineClient->announce((string) $this->offer['intent_hash']);
+      $transaction_hash = (string) ($result['transactionHash'] ?? $this->offer['transaction_hash']);
+      $this->offers->markAnnounced($offer_id, $transaction_hash);
+      $this->messenger()->addStatus($this->t('Transaction announcement was accepted.'));
+    }
+    catch (SymbolEngineException | \RuntimeException $exception) {
+      $this->messenger()->addError($this->t('Transaction announcement failed: @message', [
+        '@message' => $exception->getMessage(),
+      ]));
+    }
+
+    $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
+  }
+
+}

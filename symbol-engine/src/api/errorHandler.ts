@@ -2,6 +2,8 @@ import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import { InvalidStateTransitionError } from '../listener/eventDispatcher.js';
 import { InvalidAnnouncementError } from '../transaction/announceService.js';
+import { InvalidHashLockError } from '../transaction/hashLockService.js';
+import { InvalidSecretLockError } from '../transaction/secretLockService.js';
 
 function hasClientStatusCode(error: FastifyError): error is FastifyError & { statusCode: number } {
   return typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500;
@@ -37,6 +39,20 @@ export function handleApiError(error: FastifyError, _request: FastifyRequest, re
   if (error instanceof InvalidAnnouncementError) {
     return reply.code(error.statusCode).send({
       error: 'invalid_announcement',
+      message: error.message,
+    });
+  }
+
+  if (error instanceof InvalidHashLockError) {
+    return reply.code(error.statusCode).send({
+      error: 'invalid_hash_lock',
+      message: error.message,
+    });
+  }
+
+  if (error instanceof InvalidSecretLockError) {
+    return reply.code(error.statusCode).send({
+      error: 'invalid_secret_lock',
       message: error.message,
     });
   }

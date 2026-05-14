@@ -1,25 +1,22 @@
 import { z } from 'zod';
-import { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import { dispatchBlockchainEvent } from '../listener/eventDispatcher.js';
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
+import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
+import { InvalidAnnouncementError } from './announceService.js';
 
-const announceRequestSchema = z.object({
+const partialAnnouncementRequestSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
 });
 
-export type AnnounceResult = {
-  accepted: boolean;
+export type PartialAnnouncementResult = {
+  accepted: true;
   intentHash: string;
   transactionHash: string;
   nodeResponse: unknown;
 };
 
-export class InvalidAnnouncementError extends Error {
-  public readonly statusCode = 409;
-}
-
-export async function announceVerifiedTransaction(
+export async function announcePartialAggregateBonded(
   input: unknown,
   dependencies: {
     nodeUrl: string | undefined;
@@ -27,23 +24,23 @@ export async function announceVerifiedTransaction(
     events: EventRepository;
     projections: ProjectionRepository;
   },
-): Promise<AnnounceResult> {
-  const request = announceRequestSchema.parse(input);
+): Promise<PartialAnnouncementResult> {
+  const request = partialAnnouncementRequestSchema.parse(input);
 
   if (!dependencies.nodeUrl) {
-    throw new Error('SYMBOL_NODE_URL is required for transaction announcement.');
+    throw new Error('SYMBOL_NODE_URL is required for partial transaction announcement.');
   }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());
-  if (!intent || intent.state !== 'signed' || !intent.signedPayload || !intent.transactionHash) {
-    throw new InvalidAnnouncementError('swap intent must be signed before announcement');
+  if (!intent || intent.aggregateType !== 'aggregate_bonded') {
+    throw new InvalidAnnouncementError('partial announcement requires aggregate bonded intent');
   }
 
-  if (intent.aggregateType !== 'aggregate_complete') {
-    throw new InvalidAnnouncementError('aggregate bonded intent requires partial announcement');
+  if (intent.state !== 'signed' || !intent.signedPayload || !intent.transactionHash) {
+    throw new InvalidAnnouncementError('aggregate bonded intent must be signed before partial announcement');
   }
 
-  const response = await fetch(new URL('/transactions', dependencies.nodeUrl), {
+  const response = await fetch(new URL('/transactions/partial', dependencies.nodeUrl), {
     method: 'PUT',
     headers: {
       'content-type': 'application/json',
@@ -62,14 +59,14 @@ export async function announceVerifiedTransaction(
       statusCode: `NODE_${response.status}`,
       observedAt: new Date().toISOString(),
     }, dependencies);
-    throw new InvalidAnnouncementError('symbol node rejected transaction announcement');
+    throw new InvalidAnnouncementError('symbol node rejected partial transaction announcement');
   }
 
-  await dependencies.swapIntents.markAnnounced(intent.intentHash, nodeResponse);
+  await dependencies.swapIntents.markPartialAnnounced(intent.intentHash, nodeResponse);
   await dispatchBlockchainEvent({
     transactionHash: intent.transactionHash,
     network: intent.network,
-    eventType: 'TransactionAnnounced',
+    eventType: 'PartialTransactionAdded',
     observedAt: new Date().toISOString(),
   }, dependencies);
 

@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Runtime hooks for Symbol Atomic Swap.
+ */
+
+/**
+ * Implements hook_cron().
+ */
+function symbol_atomic_swap_cron(): void {
+  $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+  \Drupal::service('symbol_atomic_swap.offer_expiration_manager')->expireStaleOffers(50);
+
+  $queue = \Drupal::queue('symbol_atomic_swap_projection_sync');
+
+  foreach ($repository->projectionSyncCandidateIds(50) as $offer_id) {
+    $queue->createItem([
+      'offer_id' => $offer_id,
+    ]);
+  }
+}
+
+/**
+ * Implements hook_mail().
+ */
+function symbol_atomic_swap_mail($key, &$message, $params): void {
+  if ($key !== 'offer_notification') {
+    return;
+  }
+
+  $notification = (array) ($params['notification'] ?? []);
+  $type = (string) ($notification['type'] ?? 'notification');
+  $severity = (string) ($notification['severity'] ?? 'status');
+  $offer_id = (int) ($notification['offer_id'] ?? 0);
+  $body = (string) ($notification['message'] ?? '');
+
+  $message['subject'] = 'Symbol swap notification: ' . $type;
+  $message['body'][] = 'Offer ID: ' . $offer_id;
+  $message['body'][] = 'Severity: ' . $severity;
+  $message['body'][] = 'Type: ' . $type;
+  $message['body'][] = '';
+  $message['body'][] = $body;
+}

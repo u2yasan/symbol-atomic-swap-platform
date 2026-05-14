@@ -9,3 +9,9 @@ symbol_atomic_swap.engine_operations:
   description: 'Build, verify, and announce Symbol Engine transactions.'
   route_name: symbol_atomic_swap.engine_operations
   parent: system.admin_config_services
+
+symbol_atomic_swap.offer_list:
+  title: 'Symbol Swap Offers'
+  description: 'Create and manage Symbol atomic swap offers.'
+  route_name: symbol_atomic_swap.offer_list
+  menu_name: main

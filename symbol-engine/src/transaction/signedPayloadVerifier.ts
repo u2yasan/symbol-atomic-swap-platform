@@ -69,9 +69,12 @@ export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | n
   try {
     const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(parsed.data.payload));
     const facade = new SymbolFacade(intent.network);
+    const expectedTransactionType = intent.aggregateType === 'aggregate_complete'
+      ? models.TransactionType.AGGREGATE_COMPLETE
+      : models.TransactionType.AGGREGATE_BONDED;
 
-    if (transaction.type.value !== models.TransactionType.AGGREGATE_COMPLETE.value) {
-      return { accepted: false, reason: 'transaction is not aggregate complete' };
+    if (transaction.type.value !== expectedTransactionType.value) {
+      return { accepted: false, reason: `transaction is not ${intent.aggregateType}` };
     }
 
     if (transaction.network.value !== (intent.network === 'mainnet' ? 104 : 152)) {
@@ -91,9 +94,19 @@ export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | n
       actualSignerSet.add(cosignature.signerPublicKey.toString().toUpperCase());
     }
 
-    for (const expectedSigner of expectedSignerSet) {
-      if (!actualSignerSet.has(expectedSigner)) {
-        return { accepted: false, reason: `missing required signer ${expectedSigner}` };
+    if (intent.aggregateType === 'aggregate_complete') {
+      for (const expectedSigner of expectedSignerSet) {
+        if (!actualSignerSet.has(expectedSigner)) {
+          return { accepted: false, reason: `missing required signer ${expectedSigner}` };
+        }
+      }
+    } else if (transaction.signerPublicKey.toString().toUpperCase() !== intent.requiredCosigners[0]) {
+      return { accepted: false, reason: 'aggregate bonded signer mismatch' };
+    }
+
+    for (const actualSigner of actualSignerSet) {
+      if (!expectedSignerSet.has(actualSigner)) {
+        return { accepted: false, reason: `unexpected signer ${actualSigner}` };
       }
     }
 
@@ -139,7 +152,11 @@ export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | n
 
     const signatureBytes = transaction.signature.bytes;
     const hasSignature = signatureBytes.some((byte: number) => byte !== 0);
-    if (hasSignature && !facade.verifyTransaction(transaction, new Signature(signatureBytes))) {
+    if (!hasSignature) {
+      return { accepted: false, reason: 'transaction signature is missing' };
+    }
+
+    if (!facade.verifyTransaction(transaction, new Signature(signatureBytes))) {
       return { accepted: false, reason: 'transaction signature verification failed' };
     }
 

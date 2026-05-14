@@ -6,6 +6,14 @@ and must not sign Symbol transactions.
 ### Routes
 
 - `GET /symbol-atomic-swap/health`
+- `/symbol-atomic-swap/offers`
+- `/symbol-atomic-swap/offers/add`
+- `/symbol-atomic-swap/offers/{offerId}`
+- `/symbol-atomic-swap/offers/{offerId}/edit`
+- `/symbol-atomic-swap/offers/{offerId}/submit-signed-payload`
+- `/symbol-atomic-swap/offers/{offerId}/announce`
+- `/symbol-atomic-swap/offers/{offerId}/sync-projection`
+- `/symbol-atomic-swap/offers/{offerId}/delete`
 - `GET /symbol-atomic-swap/engine/network`
 - `GET /symbol-atomic-swap/engine/intent/{intentHash}`
 - `GET /symbol-atomic-swap/engine/projection/{network}/{transactionHash}`
@@ -20,6 +28,28 @@ signed payloads for Engine semantic verification, and announce already verified
 transactions. Drupal does not sign and does not accept private key material.
 When an Engine response contains `qrPayload`, Drupal renders it as a QR code in
 the browser without external CDN assets.
+
+The offer UI persists local Aggregate Complete swap offers, calls Symbol Engine
+to build unsigned payloads, stores the resulting intent hash and QR payload, and
+renders the QR payload on the offer view. It can also submit a signed payload to
+Symbol Engine for semantic verification and announce a verified transaction.
+Drupal stores transaction hashes and state transitions, but not signed payload
+bodies. Offer records can be manually synced from Symbol Engine projections for
+confirmed, finalized, failed, or rolled back state. Offer records are local
+projections; blockchain state remains authoritative.
+
+Drupal cron queues non-terminal offers with transaction hashes for automatic
+projection synchronization. The queue worker reads Symbol Engine projection
+state and applies the same finalized-state transition protections as the manual
+sync action.
+
+Drupal cron also expires stale local offers that have not been announced before
+their configured deadline. Announced transactions are not expired locally; they
+must move through Symbol Engine projection state instead.
+
+Offer notifications are stored in Drupal and displayed on the offer view.
+Expiration, confirmed, finalized, failed, and rolled back events create
+deduplicated notifications. Outbound email or webhook delivery is not implemented.
 
 ### Tests
 

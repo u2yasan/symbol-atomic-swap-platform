@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { PrivateKey, utils } from 'symbol-sdk';
+import { SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
+import { buildAggregateBonded } from '../aggregate/aggregateBondedBuilder.js';
 import { buildAggregateComplete } from '../aggregate/aggregateCompleteBuilder.js';
 import type { SwapIntentRecord } from '../repository/types.js';
 import { verifySignedPayload } from './signedPayloadVerifier.js';
@@ -42,6 +45,69 @@ function makeIntent(): SwapIntentRecord {
   };
 }
 
+function makeBondedIntent(): { intent: SwapIntentRecord; initiatorPrivateKey: PrivateKey } {
+  const facade = new SymbolFacade('testnet');
+  const initiator = facade.createAccount(PrivateKey.random());
+  const counterparty = facade.createAccount(PrivateKey.random());
+  const built = buildAggregateBonded({
+    network: 'testnet',
+    deadlineHours: 2,
+    correlationId: 'bonded-0001',
+    hashLock: {
+      mosaicId: '72C0212E67A08BCE',
+      amount: '10000000',
+      duration: 480,
+    },
+    legs: [
+      {
+        signerPublicKey: initiator.publicKey.toString(),
+        recipientAddress: counterparty.address.toString(),
+        mosaicId: '72C0212E67A08BCE',
+        amount: '100',
+      },
+      {
+        signerPublicKey: counterparty.publicKey.toString(),
+        recipientAddress: initiator.address.toString(),
+        mosaicId: '72C0212E67A08BCE',
+        amount: '200',
+      },
+    ],
+  });
+
+  return {
+    initiatorPrivateKey: initiator.keyPair.privateKey,
+    intent: {
+      id: built.intentId,
+      correlationId: built.correlationId,
+      network: built.network,
+      intentHash: built.intentHash,
+      state: 'created',
+      aggregateType: 'aggregate_bonded',
+      unsignedPayload: built.unsignedPayload,
+      qrPayload: built.qrPayload,
+      requiredCosigners: built.requiredCosigners,
+      intent: built.intent,
+      signedPayload: null,
+      transactionHash: null,
+      nodeResponse: null,
+    },
+  };
+}
+
+function signPayload(unsignedPayload: string, privateKey: PrivateKey): string {
+  const facade = new SymbolFacade('testnet');
+  const account = facade.createAccount(privateKey);
+  const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(unsignedPayload));
+  const signedPayloadJson = SymbolTransactionFactory.attachSignature(transaction, account.signTransaction(transaction));
+  const signedPayload = JSON.parse(signedPayloadJson) as { payload?: unknown };
+
+  if (typeof signedPayload.payload !== 'string') {
+    throw new Error('signed payload is missing');
+  }
+
+  return signedPayload.payload.toUpperCase();
+}
+
 test('verifySignedPayload rejects malformed hex', () => {
   const intent = makeIntent();
   const result = verifySignedPayload({
@@ -73,4 +139,28 @@ test('verifySignedPayload rejects signer mismatch', () => {
 
   assert.equal(result.accepted, false);
   assert.match(result.reason, /missing required signer/);
+});
+
+test('verifySignedPayload accepts initiator-signed aggregate bonded payload', () => {
+  const { intent, initiatorPrivateKey } = makeBondedIntent();
+  const payload = signPayload(intent.unsignedPayload, initiatorPrivateKey);
+  const result = verifySignedPayload({
+    payload,
+    intentHash: intent.intentHash,
+  }, intent);
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'semantic_verification_passed');
+  assert.match(result.transactionHash ?? '', /^[0-9A-F]{64}$/);
+});
+
+test('verifySignedPayload rejects unsigned aggregate bonded payload', () => {
+  const { intent } = makeBondedIntent();
+  const result = verifySignedPayload({
+    payload: intent.unsignedPayload,
+    intentHash: intent.intentHash,
+  }, intent);
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, 'transaction signature is missing');
 });

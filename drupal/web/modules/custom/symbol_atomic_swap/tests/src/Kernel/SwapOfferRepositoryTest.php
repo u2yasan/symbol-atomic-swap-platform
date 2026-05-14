@@ -1,0 +1,286 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Drupal\Tests\symbol_atomic_swap\Kernel;
+
+use Drupal\KernelTests\KernelTestBase;
+use Drupal\Core\Queue\DatabaseQueue;
+use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use PHPUnit\Framework\Attributes\Group;
+
+/**
+ * Tests swap offer persistence behavior.
+ */
+#[Group('symbol_atomic_swap')]
+final class SwapOfferRepositoryTest extends KernelTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = ['system', 'symbol_atomic_swap'];
+
+  private SwapOfferRepository $repository;
+
+  protected function setUp(): void {
+    parent::setUp();
+    $schema = $this->container->get('database')->schema();
+    if (!$schema->tableExists('queue')) {
+      $queue = new DatabaseQueue('symbol_atomic_swap_projection_sync', $this->container->get('database'));
+      $schema->createTable('queue', $queue->schemaDefinition());
+    }
+    $this->installSchema('symbol_atomic_swap', ['symbol_atomic_swap_offer', 'symbol_atomic_swap_notification']);
+    $this->repository = $this->container->get('symbol_atomic_swap.offer_repository');
+  }
+
+  /**
+   * Engine projection data updates local offer state without storing payloads.
+   */
+  public function testApplyProjectionUpdatesOfferState(): void {
+    $id = $this->repository->insert($this->offerValues([
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+
+    $this->repository->applyProjection($id, [
+      'transactionHash' => str_repeat('D', 64),
+      'network' => 'testnet',
+      'state' => 'confirmed',
+      'lastEventKey' => 'testnet:' . str_repeat('D', 64) . ':TransactionConfirmed:10:0:',
+      'blockHeight' => 10,
+      'updatedAt' => '2026-05-14T00:00:00.000Z',
+    ]);
+
+    $offer = $this->repository->find($id);
+    $this->assertSame('confirmed', $offer['state']);
+    $this->assertSame('confirmed', $offer['projection_state']);
+    $this->assertSame('10', (string) $offer['block_height']);
+    $this->assertSame('2026-05-14T00:00:00.000Z', $offer['projection_updated_at']);
+    $this->assertSame(str_repeat('D', 64), $offer['transaction_hash']);
+    $this->assertEmpty($offer['finalized_height']);
+  }
+
+  /**
+   * Unknown projection states are rejected.
+   */
+  public function testApplyProjectionRejectsUnknownState(): void {
+    $id = $this->repository->insert($this->offerValues());
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Invalid projection state.');
+
+    $this->repository->applyProjection($id, [
+      'state' => 'completed',
+    ]);
+  }
+
+  /**
+   * Finalized local offers must not be downgraded by stale projection reads.
+   */
+  public function testApplyProjectionRejectsFinalizedDowngrade(): void {
+    $id = $this->repository->insert($this->offerValues([
+      'state' => 'finalized',
+      'projection_state' => 'finalized',
+      'transaction_hash' => str_repeat('D', 64),
+      'block_height' => 10,
+      'finalized_height' => 10,
+    ]));
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Finalized swap offer cannot transition to a non-finalized state.');
+
+    $this->repository->applyProjection($id, [
+      'state' => 'confirmed',
+      'blockHeight' => 10,
+      'updatedAt' => '2026-05-14T00:00:00.000Z',
+    ]);
+  }
+
+  /**
+   * Failed and rolled back offers cannot be promoted to finalized.
+   */
+  public function testApplyProjectionRejectsFailedToFinalized(): void {
+    $id = $this->repository->insert($this->offerValues([
+      'state' => 'failed',
+      'projection_state' => 'failed',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Failed or rolled back swap offer cannot transition to finalized.');
+
+    $this->repository->applyProjection($id, [
+      'state' => 'finalized',
+      'blockHeight' => 10,
+      'finalizedHeight' => 10,
+      'updatedAt' => '2026-05-14T00:00:00.000Z',
+    ]);
+  }
+
+  /**
+   * Cron queues only non-terminal offers that have transaction hashes.
+   */
+  public function testCronQueuesProjectionSyncCandidates(): void {
+    $queued_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-queue-1',
+      'state' => 'confirmed',
+      'transaction_hash' => str_repeat('D', 64),
+      'changed' => 1700000000,
+    ]));
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-queue-finalized',
+      'state' => 'finalized',
+      'transaction_hash' => str_repeat('E', 64),
+      'changed' => 1700000001,
+    ]));
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-queue-missing-hash',
+      'state' => 'confirmed',
+      'transaction_hash' => NULL,
+      'changed' => 1700000002,
+    ]));
+
+    $this->assertSame([$queued_id], $this->repository->projectionSyncCandidateIds());
+
+    \symbol_atomic_swap_cron();
+
+    $queue = \Drupal::queue('symbol_atomic_swap_projection_sync');
+    $this->assertSame(1, $queue->numberOfItems());
+    $item = $queue->claimItem();
+    $this->assertSame(['offer_id' => $queued_id], $item->data);
+  }
+
+  /**
+   * Expiration candidates are limited to pre-announcement stale offers.
+   */
+  public function testExpirationCandidateIds(): void {
+    $expired_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-expired-candidate',
+      'state' => 'qr_generated',
+      'created' => 1700000000,
+      'deadline_hours' => 1,
+    ]));
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-not-expired',
+      'state' => 'qr_generated',
+      'created' => 1700003500,
+      'deadline_hours' => 1,
+    ]));
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-announced-not-local-expiry',
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('D', 64),
+      'created' => 1700000000,
+      'deadline_hours' => 1,
+    ]));
+
+    $this->assertSame([$expired_id], $this->repository->expirationCandidateIds(1700003600));
+  }
+
+  /**
+   * Expiring an offer is a terminal local transition for pre-announcement work.
+   */
+  public function testMarkExpired(): void {
+    $id = $this->repository->insert($this->offerValues([
+      'state' => 'signed',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+
+    $this->assertTrue($this->repository->markExpired($id, 1700003600));
+
+    $offer = $this->repository->find($id);
+    $this->assertSame('expired', $offer['state']);
+    $this->assertSame('1700003600', (string) $offer['expired_at']);
+    $this->assertSame(str_repeat('D', 64), $offer['transaction_hash']);
+  }
+
+  /**
+   * Announced and finalized offers must not be locally expired by Drupal.
+   */
+  public function testMarkExpiredSkipsChainTrackedStates(): void {
+    $id = $this->repository->insert($this->offerValues([
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+
+    $this->assertFalse($this->repository->markExpired($id, 1700003600));
+    $this->assertSame('announced', $this->repository->find($id)['state']);
+  }
+
+  /**
+   * Cron expires stale offers before queueing projection sync candidates.
+   */
+  public function testCronExpiresStaleOffers(): void {
+    $id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-cron-expired',
+      'state' => 'qr_generated',
+      'created' => 100,
+      'deadline_hours' => 1,
+    ]));
+
+    \symbol_atomic_swap_cron();
+
+    $offer = $this->repository->find($id);
+    $this->assertSame('expired', $offer['state']);
+    $this->assertNotEmpty($offer['expired_at']);
+
+    $notifications = \Drupal::service('symbol_atomic_swap.offer_notification_repository')->findByOffer($id);
+    $this->assertCount(1, $notifications);
+    $this->assertSame('offer_expired', $notifications[0]['type']);
+    $this->assertSame('warning', $notifications[0]['severity']);
+  }
+
+  /**
+   * Offer notifications are unique by offer and type.
+   */
+  public function testNotificationCreateOnce(): void {
+    $id = $this->repository->insert($this->offerValues());
+    $notifications = \Drupal::service('symbol_atomic_swap.offer_notification_repository');
+
+    $notifications->createOnce($id, 'offer_confirmed', 'status', 'First message.');
+    $notifications->createOnce($id, 'offer_confirmed', 'status', 'Updated message.');
+
+    $records = $notifications->findByOffer($id);
+    $this->assertCount(1, $records);
+    $this->assertSame('offer_confirmed', $records[0]['type']);
+    $this->assertSame('Updated message.', $records[0]['message']);
+  }
+
+  /**
+   * @param array<string, mixed> $overrides
+   *
+   * @return array<string, mixed>
+   */
+  private function offerValues(array $overrides = []): array {
+    return $overrides + [
+      'uuid' => 'offer-kernel-' . bin2hex(random_bytes(4)),
+      'label' => 'Kernel offer',
+      'state' => 'qr_generated',
+      'network' => 'testnet',
+      'correlation_id' => 'swap-test-kernel',
+      'deadline_hours' => 2,
+      'max_fee' => NULL,
+      'leg1_signer_public_key' => str_repeat('A', 64),
+      'leg1_recipient_address' => 'TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      'leg1_mosaic_id' => '72C0212E67A08BCE',
+      'leg1_amount' => '100',
+      'leg2_signer_public_key' => str_repeat('B', 64),
+      'leg2_recipient_address' => 'TBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+      'leg2_mosaic_id' => '72C0212E67A08BCE',
+      'leg2_amount' => '200',
+      'intent_hash' => str_repeat('C', 64),
+      'unsigned_payload' => 'ABCD',
+      'qr_payload' => '{"type":"symbol-aggregate-complete"}',
+      'transaction_hash' => NULL,
+      'projection_state' => NULL,
+      'block_height' => NULL,
+      'finalized_height' => NULL,
+      'projection_updated_at' => NULL,
+      'expired_at' => NULL,
+      'uid' => 1,
+      'created' => 1700000000,
+      'changed' => 1700000000,
+    ];
+  }
+
+}

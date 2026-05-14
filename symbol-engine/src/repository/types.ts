@@ -1,6 +1,8 @@
 import type { AggregateCompleteBuildRequest } from '../dto/aggregateComplete.js';
+import type { AggregateBondedBuildRequest } from '../dto/aggregateBonded.js';
 
-export type SwapIntentState = 'created' | 'signed' | 'announced' | 'failed';
+export type SwapIntentState = 'created' | 'signed' | 'announced' | 'partial_announced' | 'partial_cosigned' | 'failed';
+export type AggregateType = 'aggregate_complete' | 'aggregate_bonded';
 export type ProjectionState =
   | 'announced'
   | 'unconfirmed'
@@ -11,19 +13,31 @@ export type ProjectionState =
   | 'partial_announced'
   | 'partial_cosigned';
 
-export type NormalizedSwapIntent = AggregateCompleteBuildRequest & {
+export type NormalizedCompleteSwapIntent = AggregateCompleteBuildRequest & {
   aggregateType: 'aggregate_complete';
   requiredCosigners: string[];
 };
 
+export type NormalizedBondedSwapIntent = AggregateBondedBuildRequest & {
+  aggregateType: 'aggregate_bonded';
+  requiredCosigners: string[];
+};
+
+export type NormalizedSwapIntent = NormalizedCompleteSwapIntent | NormalizedBondedSwapIntent;
+
 export type QrPayload = {
-  type: 'symbol-aggregate-complete';
+  type: 'symbol-aggregate-complete' | 'symbol-aggregate-bonded';
   network: 'mainnet' | 'testnet';
   unsignedPayload: string;
   deadline: string;
   requiredCosigners: string[];
   callback: string | null;
   intentHash: string;
+  hashLock?: {
+    mosaicId: string;
+    amount: string;
+    duration: number;
+  };
 };
 
 export type SwapIntentRecord = {
@@ -32,7 +46,7 @@ export type SwapIntentRecord = {
   network: 'mainnet' | 'testnet';
   intentHash: string;
   state: SwapIntentState;
-  aggregateType: 'aggregate_complete';
+  aggregateType: AggregateType;
   unsignedPayload: string;
   qrPayload: QrPayload;
   requiredCosigners: string[];

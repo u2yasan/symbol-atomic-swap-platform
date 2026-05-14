@@ -1,5 +1,5 @@
 import type { Database } from '../db/pool.js';
-import type { QrPayload, SwapIntentRecord, SwapIntentState, NormalizedSwapIntent } from './types.js';
+import type { AggregateType, QrPayload, SwapIntentRecord, SwapIntentState, NormalizedSwapIntent } from './types.js';
 
 type SwapIntentRow = {
   id: string;
@@ -7,7 +7,7 @@ type SwapIntentRow = {
   network: 'mainnet' | 'testnet';
   intent_hash: string;
   state: SwapIntentState;
-  aggregate_type: 'aggregate_complete';
+  aggregate_type: AggregateType;
   unsigned_payload: string;
   qr_payload: QrPayload;
   required_cosigners: string[];
@@ -43,7 +43,7 @@ export class SwapIntentRepository {
     correlationId: string;
     network: 'mainnet' | 'testnet';
     intentHash: string;
-    aggregateType: 'aggregate_complete';
+    aggregateType: AggregateType;
     unsignedPayload: string;
     qrPayload: QrPayload;
     requiredCosigners: string[];
@@ -86,7 +86,7 @@ export class SwapIntentRepository {
     const result = await this.db.query<SwapIntentRow>(
       `SELECT *
        FROM swap_intents
-       WHERE state IN ('signed', 'announced')
+       WHERE state IN ('signed', 'announced', 'partial_announced', 'partial_cosigned')
          AND transaction_hash IS NOT NULL
        ORDER BY updated_at ASC
        LIMIT 500`,
@@ -122,6 +122,38 @@ export class SwapIntentRepository {
 
     if (!result.rows[0]) {
       throw new Error('swap intent must be signed before announcement');
+    }
+
+    return toRecord(result.rows[0]);
+  }
+
+  public async markPartialAnnounced(intentHash: string, nodeResponse: unknown): Promise<SwapIntentRecord> {
+    const result = await this.db.query<SwapIntentRow>(
+      `UPDATE swap_intents
+       SET state = 'partial_announced', node_response = $2, updated_at = now()
+       WHERE intent_hash = $1 AND state = 'signed' AND aggregate_type = 'aggregate_bonded'
+       RETURNING *`,
+      [intentHash, JSON.stringify(nodeResponse)],
+    );
+
+    if (!result.rows[0]) {
+      throw new Error('aggregate bonded intent must be signed before partial announcement');
+    }
+
+    return toRecord(result.rows[0]);
+  }
+
+  public async markPartialCosigned(intentHash: string, nodeResponse: unknown): Promise<SwapIntentRecord> {
+    const result = await this.db.query<SwapIntentRow>(
+      `UPDATE swap_intents
+       SET state = 'partial_cosigned', node_response = $2, updated_at = now()
+       WHERE intent_hash = $1 AND state IN ('partial_announced', 'partial_cosigned') AND aggregate_type = 'aggregate_bonded'
+       RETURNING *`,
+      [intentHash, JSON.stringify(nodeResponse)],
+    );
+
+    if (!result.rows[0]) {
+      throw new Error('aggregate bonded intent must be partial announced before cosignature submission');
     }
 
     return toRecord(result.rows[0]);

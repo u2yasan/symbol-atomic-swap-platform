@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-const publicKeySchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'public key must be 32-byte hex');
-const addressSchema = z.string().min(39).max(46);
-const mosaicIdSchema = z.string().regex(/^[0-9A-Fa-f]{16}$/, 'mosaic id must be 8-byte hex');
-const integerStringSchema = z.string().regex(/^[1-9][0-9]*$/, 'value must be a positive integer string');
+export const publicKeySchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'public key must be 32-byte hex');
+export const addressSchema = z.string().min(39).max(46);
+export const mosaicIdSchema = z.string().regex(/^[0-9A-Fa-f]{16}$/, 'mosaic id must be 8-byte hex');
+export const integerStringSchema = z.string().regex(/^[1-9][0-9]*$/, 'value must be a positive integer string');
 
 export const aggregateTransferLegSchema = z.object({
   signerPublicKey: publicKeySchema,

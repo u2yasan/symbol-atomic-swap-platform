@@ -1,9 +1,19 @@
 import type { FastifyInstance } from 'fastify';
+import { buildAggregateBonded } from '../aggregate/aggregateBondedBuilder.js';
 import { buildAggregateComplete } from '../aggregate/aggregateCompleteBuilder.js';
 import { dispatchBlockchainEvent } from '../listener/eventDispatcher.js';
 import { isTransactionFinalized } from '../monitor/finalizationMonitor.js';
 import { verifySignedPayload } from '../transaction/signedPayloadVerifier.js';
 import { announceVerifiedTransaction } from '../transaction/announceService.js';
+import { announceSignedHashLock, buildHashLockTransaction } from '../transaction/hashLockService.js';
+import { announcePartialAggregateBonded } from '../transaction/partialAnnouncementService.js';
+import { announceAggregateBondedCosignature } from '../transaction/cosignatureService.js';
+import {
+  announceSignedSecretLock,
+  announceSignedSecretProof,
+  buildSecretLockTransaction,
+  buildSecretProofTransaction,
+} from '../transaction/secretLockService.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
@@ -82,6 +92,32 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     return reply.code(201).send(response);
   });
 
+  app.post('/v1/aggregate-bonded/build', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const result = buildAggregateBonded(request.body);
+    await dependencies.repositories.swapIntents.create({
+      id: result.intentId,
+      correlationId: result.correlationId,
+      network: result.network,
+      intentHash: result.intentHash,
+      aggregateType: 'aggregate_bonded',
+      unsignedPayload: result.unsignedPayload,
+      qrPayload: result.qrPayload,
+      requiredCosigners: result.requiredCosigners,
+      intent: result.intent,
+    });
+
+    const { intent: _intent, ...response } = result;
+    return reply.code(201).send(response);
+  });
+
   app.post('/v1/transactions/verify-signed-payload', {
     bodyLimit: LARGE_PAYLOAD_BODY_LIMIT_BYTES,
     config: {
@@ -122,6 +158,119 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
       projections: dependencies.repositories.projections,
     });
     return reply.code(202).send(result);
+  });
+
+  app.post('/v1/transactions/announce-partial', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const result = await announcePartialAggregateBonded(request.body, {
+      nodeUrl: dependencies.nodeUrl,
+      swapIntents: dependencies.repositories.swapIntents,
+      events: dependencies.repositories.events,
+      projections: dependencies.repositories.projections,
+    });
+    return reply.code(202).send(result);
+  });
+
+  app.post('/v1/transactions/cosignature', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const result = await announceAggregateBondedCosignature(request.body, {
+      nodeUrl: dependencies.nodeUrl,
+      swapIntents: dependencies.repositories.swapIntents,
+      events: dependencies.repositories.events,
+      projections: dependencies.repositories.projections,
+    });
+    return reply.code(202).send(result);
+  });
+
+  app.post('/v1/hash-lock/build', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const result = await buildHashLockTransaction(request.body, dependencies.repositories.swapIntents);
+    return reply.code(201).send(result);
+  });
+
+  app.post('/v1/hash-lock/announce', {
+    bodyLimit: LARGE_PAYLOAD_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const result = await announceSignedHashLock(request.body, {
+      nodeUrl: dependencies.nodeUrl,
+      swapIntents: dependencies.repositories.swapIntents,
+    });
+    return reply.code(202).send(result);
+  });
+
+  app.post('/v1/secret-lock/build', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    return reply.code(201).send(buildSecretLockTransaction(request.body));
+  });
+
+  app.post('/v1/secret-lock/announce', {
+    bodyLimit: LARGE_PAYLOAD_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    return reply.code(202).send(await announceSignedSecretLock(request.body, dependencies.nodeUrl));
+  });
+
+  app.post('/v1/secret-proof/build', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    return reply.code(201).send(buildSecretProofTransaction(request.body));
+  });
+
+  app.post('/v1/secret-proof/announce', {
+    bodyLimit: LARGE_PAYLOAD_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    return reply.code(202).send(await announceSignedSecretProof(request.body, dependencies.nodeUrl));
   });
 
   app.post('/v1/events', {

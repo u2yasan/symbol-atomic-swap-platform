@@ -64,13 +64,29 @@ Implemented:
 - event projection idempotency
 - unsafe finalization transition rejection
 - finalization height check
+- Aggregate Bonded unsigned payload build API with hash lock requirements
+- Aggregate Bonded signed payload semantic verification
+- Aggregate Bonded Hash Lock unsigned payload build, semantic verification, and node announcement endpoint
+- Aggregate Bonded partial announcement endpoint and projection event dispatch
+- Aggregate Bonded detached cosignature validation, announcement, and projection event dispatch
+- Secret Lock / Secret Proof unsigned payload build, semantic verification, and node announcement endpoints
 - Drupal client token forwarding
+- Drupal swap offer CRUD UI
+- Drupal swap offer QR generation flow
+- Drupal signed payload submission flow
+- Drupal verified transaction announcement flow
+- Drupal offer projection synchronization
+- automatic Drupal projection synchronization queue/cron
+- Drupal local expiration handling for unannounced offers
+- Drupal user-facing offer notifications
+- Drupal outbound webhook notifications for offer notification events
+- Drupal outbound email notifications for offer notification events
 - Drupal Engine admin lookup and operations forms
 - Drupal QR rendering for Engine `qrPayload`
 - Drupal Kernel/Functional tests for Engine routes and client behavior
 
 Not implemented yet:
 
-- swap creation UI
+- Production hardening and end-to-end testnet validation.
 
-Do not treat this repository as production-ready until the missing items are implemented and tested.
+Do not treat this repository as production-ready until the hardening items are implemented and tested.
