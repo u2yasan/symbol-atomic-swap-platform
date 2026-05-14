@@ -56,6 +56,33 @@ test('protected API routes fail closed without a token', async () => {
   await app.close();
 });
 
+test('protected API routes reject invalid bearer tokens regardless of length', async () => {
+  const app = await makeApp();
+
+  const shortToken = await app.inject({
+    method: 'POST',
+    url: '/protected',
+    headers: {
+      authorization: 'Bearer wrong',
+    },
+    payload: { ok: true },
+  });
+  const sameLengthToken = await app.inject({
+    method: 'POST',
+    url: '/protected',
+    headers: {
+      authorization: `Bearer ${'f'.repeat(token.length)}`,
+    },
+    payload: { ok: true },
+  });
+
+  assert.equal(shortToken.statusCode, 401);
+  assert.equal(shortToken.json().error, 'unauthorized');
+  assert.equal(sameLengthToken.statusCode, 401);
+  assert.equal(sameLengthToken.json().error, 'unauthorized');
+  await app.close();
+});
+
 test('oversized request bodies are rejected before handlers run', async () => {
   const app = await makeApp();
 
