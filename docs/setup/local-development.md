@@ -152,6 +152,7 @@ Current implementation covers:
 - finalization height check
 - Drupal UI for swap creation and operation
 - production fail-fast validation for HTTPS/WSS Symbol endpoints
+- production startup preflight for Symbol node network mismatch
 
 ## Test Commands
 

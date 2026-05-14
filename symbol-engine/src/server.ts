@@ -4,6 +4,7 @@ import { handleApiError } from './api/errorHandler.js';
 import { registerRoutes } from './api/routes.js';
 import { createLoggerOptions, DEFAULT_BODY_LIMIT_BYTES, registerSecurity } from './api/security.js';
 import { loadEnv } from './config/env.js';
+import { runProductionPreflight } from './config/productionPreflight.js';
 import { createDatabase } from './db/pool.js';
 import { runMigrations } from './db/migrations.js';
 import { SwapIntentRepository } from './repository/swapIntentRepository.js';
@@ -13,6 +14,7 @@ import { SymbolListener } from './listener/symbolListener.js';
 import { TransactionReconciler } from './worker/transactionReconciler.js';
 
 const env = loadEnv();
+await runProductionPreflight(env);
 const db = createDatabase(env);
 await runMigrations(db);
 

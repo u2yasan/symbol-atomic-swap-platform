@@ -14,6 +14,11 @@ export type SymbolStatusLookup = {
   raw?: unknown;
 };
 
+export type SymbolNetworkProperties = {
+  networkIdentifier?: string;
+  raw: unknown;
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
 }
@@ -52,6 +57,12 @@ function extractChainFinalizedHeight(payload: unknown): number | null {
   const latestFinalizedBlock = asRecord(record.latestFinalizedBlock);
   const height = asRecord(latestFinalizedBlock.height);
   return readPositiveNumber(record.finalizedHeight, latestFinalizedBlock.height, height.compact) ?? null;
+}
+
+function extractNetworkIdentifier(payload: unknown): string | undefined {
+  const record = asRecord(payload);
+  const network = asRecord(record.network);
+  return readString(network.identifier, record.identifier);
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -126,5 +137,19 @@ export class SymbolRestClient {
     }
 
     return extractChainFinalizedHeight(await readJson(response));
+  }
+
+  public async getNetworkProperties(): Promise<SymbolNetworkProperties> {
+    const response = await this.fetcher(new URL('/network/properties', this.nodeUrl));
+    if (!response.ok) {
+      throw new Error(`network properties lookup failed: ${response.status}`);
+    }
+
+    const raw = await readJson(response);
+    const networkIdentifier = extractNetworkIdentifier(raw);
+    return {
+      raw,
+      ...(networkIdentifier ? { networkIdentifier } : {}),
+    };
   }
 }

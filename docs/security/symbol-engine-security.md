@@ -63,6 +63,8 @@ In production, Symbol node endpoints must use encrypted transport:
 
 Plain HTTP/WebSocket endpoints are acceptable only for non-production local or isolated test environments.
 
+When `SYMBOL_NODE_URL` is configured in production, Symbol Engine must read `/network/properties` during startup and fail before serving traffic if the node network identifier does not match `SYMBOL_NETWORK`.
+
 ## Public Health Route
 
 `GET /health` is public for service monitoring.
