@@ -69,6 +69,7 @@ Implemented:
 - Drupal Engine client fail-closed validation for missing, short, or weak-pattern API tokens
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis
 - Docker Compose healthchecks and readiness-gated service dependencies
+- Symbol Engine production image healthcheck
 - CI production Docker image build check for Symbol Engine
 - CI production Docker image runtime smoke test for Symbol Engine
 - CI Node dependency policy check rejecting floating `latest` and wildcard specs
