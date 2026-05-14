@@ -19,6 +19,7 @@ SYMBOL_ENGINE_LISTENER_ENABLED=false
 SYMBOL_ENGINE_LISTENER_ADDRESSES=
 SYMBOL_ENGINE_RECONCILER_ENABLED=false
 SYMBOL_ENGINE_RECONCILER_INTERVAL_MS=30000
+SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS=false
 SYMBOL_ENGINE_BASE_URL=http://symbol-engine:3000
 SYMBOL_NODE_REQUEST_TIMEOUT_MS=10000
 SYMBOL_NETWORK=testnet
@@ -94,6 +95,8 @@ curl -s \
   -H "Authorization: Bearer $SYMBOL_ENGINE_API_TOKEN" \
   http://127.0.0.1:3000/v1/network
 ```
+
+`/v1/network` returns only `network` by default. Set `SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS=true` only for internal debugging that explicitly needs configured node URLs.
 
 ## Optional Listener
 

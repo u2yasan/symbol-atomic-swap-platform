@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { createApiAuthHook } from './api/auth.js';
 import { handleApiError } from './api/errorHandler.js';
+import { networkResponse } from './api/network.js';
 import { registerRoutes } from './api/routes.js';
 import { createLoggerOptions, DEFAULT_BODY_LIMIT_BYTES, registerSecurity } from './api/security.js';
 import { loadEnv } from './config/env.js';
@@ -49,11 +50,12 @@ app.get('/health', {
 app.addHook('preHandler', createApiAuthHook(env.SYMBOL_ENGINE_API_TOKEN));
 
 app.get('/v1/network', async () => {
-  return {
+  return networkResponse({
     network: env.SYMBOL_NETWORK,
-    nodeUrl: env.SYMBOL_NODE_URL ?? null,
-    wsUrl: env.SYMBOL_WS_URL ?? null,
-  };
+    exposeNodeEndpoints: env.SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS,
+    nodeUrl: env.SYMBOL_NODE_URL,
+    wsUrl: env.SYMBOL_WS_URL,
+  });
 });
 
 await registerRoutes(app, {

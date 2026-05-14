@@ -86,6 +86,8 @@ It must not return:
 - hostnames not needed for health monitoring
 - secrets
 
+`GET /v1/network` is protected, but it must also hide Symbol node REST and WebSocket URLs unless `SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS=true` is explicitly configured for internal operations.
+
 ## Signed Payload Rules
 
 Signed payload acceptance is not proof of successful swap execution.

@@ -57,15 +57,15 @@ GET /v1/network
 Authorization: Bearer <token>
 ```
 
-Returns configured Symbol network and node endpoints.
+Returns the configured Symbol network.
+
+Node endpoints are hidden by default. Set `SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS=true` only when an internal operational client explicitly needs the configured REST and WebSocket URLs.
 
 Example:
 
 ```json
 {
-  "network": "testnet",
-  "nodeUrl": "https://sym-test-01.opening-line.jp:3001",
-  "wsUrl": "wss://sym-test-01.opening-line.jp:3001/ws"
+  "network": "testnet"
 }
 ```
 

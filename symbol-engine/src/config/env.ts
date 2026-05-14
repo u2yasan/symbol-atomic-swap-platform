@@ -59,6 +59,7 @@ const envSchema = z.object({
     .filter((address) => address.length > 0)),
   SYMBOL_ENGINE_RECONCILER_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SYMBOL_ENGINE_RECONCILER_INTERVAL_MS: z.coerce.number().int().min(5000).max(3600000).default(30000),
+  SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SYMBOL_NODE_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
   SYMBOL_NETWORK: z.enum(['mainnet', 'testnet']).default('testnet'),
   SYMBOL_NODE_URL: optionalUrlSchema,
