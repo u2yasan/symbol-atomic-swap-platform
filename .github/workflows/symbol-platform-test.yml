@@ -86,6 +86,9 @@ jobs:
       - name: Build Symbol Engine
         run: docker compose exec -T symbol-engine npm run build
 
+      - name: Build Symbol Engine production image
+        run: make build-symbol-engine-production
+
       - name: Run test suite
         run: make test
 
