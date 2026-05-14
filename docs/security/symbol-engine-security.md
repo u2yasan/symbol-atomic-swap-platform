@@ -81,6 +81,8 @@ Symbol node transport failures must not echo low-level connection errors, hostna
 
 Persisted and returned Symbol node announcement responses must be normalized to public fields only: HTTP `status`, Symbol `code`, and bounded `message`. Raw upstream response bodies must not be stored or returned.
 
+Persisted reconciliation failure responses must not store raw Symbol REST status bodies. Store only stable public failure identifiers such as Symbol status `code`.
+
 Validation error responses must expose only stable public issue fields: `code`, `path`, and `message`. They must not echo rejected request values or serializer-specific internals.
 
 Shutdown must stop background listeners and reconcilers, close the HTTP server, and then close the database pool. The database pool must still be closed if HTTP server close fails. Failed shutdown must be logged and must exit nonzero.

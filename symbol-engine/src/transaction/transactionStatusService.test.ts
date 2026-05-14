@@ -123,7 +123,11 @@ test('reconcileTransactionStatus maps status failure to failed', async () => {
         found: true,
         transactionHash,
         code: 'Failure_Core_Past_Deadline',
-        raw: { code: 'Failure_Core_Past_Deadline' },
+        raw: {
+          code: 'Failure_Core_Past_Deadline',
+          payload: 'A'.repeat(256),
+          url: 'https://node.example.test',
+        },
       }),
       getConfirmedTransaction: async () => ({ found: false, transactionHash }),
       getUnconfirmedTransaction: async () => ({ found: false, transactionHash }),
@@ -133,7 +137,7 @@ test('reconcileTransactionStatus maps status failure to failed', async () => {
   });
 
   assert.equal(result, 'failed');
-  assert.equal(context.failedIntents.length, 1);
+  assert.deepEqual(context.failedIntents, [{ code: 'Failure_Core_Past_Deadline' }]);
   assert.equal(context.projections.get(`testnet:${transactionHash}`)?.state, 'failed');
 });
 

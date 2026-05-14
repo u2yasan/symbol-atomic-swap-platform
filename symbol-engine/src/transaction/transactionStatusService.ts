@@ -23,6 +23,12 @@ export type ReconciliationClient = Pick<SymbolRestClient, 'getFinalizedHeight'> 
   getUnconfirmedTransaction(transactionHash: string): Promise<SymbolTransactionLookup>;
 };
 
+function publicStatusFailureResponse(status: SymbolStatusLookup): { code: string } {
+  return {
+    code: status.code ?? 'unknown_transaction_failure',
+  };
+}
+
 function uniqueCandidates(candidates: ReconciliationCandidate[]): ReconciliationCandidate[] {
   const seen = new Set<string>();
   const unique: ReconciliationCandidate[] = [];
@@ -78,7 +84,7 @@ export async function reconcileTransactionStatus(input: {
   const status = await input.client.getTransactionStatus(input.candidate.transactionHash);
   if (status.found && status.code) {
     if (input.candidate.intent) {
-      await input.repositories.swapIntents.markFailed(input.candidate.intent.intentHash, status.raw ?? { code: status.code });
+      await input.repositories.swapIntents.markFailed(input.candidate.intent.intentHash, publicStatusFailureResponse(status));
     }
     await dispatchBlockchainEvent({
       transactionHash: input.candidate.transactionHash,

@@ -74,6 +74,7 @@ Implemented:
 - announcement APIs return explicit 503 when Symbol node URL is unavailable
 - Symbol node transport failures return generic client-facing messages
 - Symbol node announcement responses are normalized before storage and API return
+- Symbol node reconciliation failures store normalized status codes only
 - validation error responses omit rejected request values and serializer internals
 - signed transaction verification hides decoder and SDK exception details
 - bounded Symbol node announcement HTTP requests with configurable timeout
