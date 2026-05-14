@@ -4,6 +4,7 @@ import { dispatchBlockchainEvent } from '../listener/eventDispatcher.js';
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
+import { putJsonToSymbolNode } from './symbolNodeHttp.js';
 
 const announceRequestSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
@@ -27,6 +28,7 @@ export async function announceVerifiedTransaction(
     swapIntents: SwapIntentRepository;
     events: EventRepository;
     projections: ProjectionRepository;
+    nodeRequestTimeoutMs?: number;
   },
 ): Promise<AnnounceResult> {
   const request = announceRequestSchema.parse(input);
@@ -44,13 +46,9 @@ export async function announceVerifiedTransaction(
     throw new InvalidAnnouncementError('aggregate bonded intent requires partial announcement');
   }
 
-  const response = await fetch(new URL('/transactions', dependencies.nodeUrl), {
-    method: 'PUT',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ payload: intent.signedPayload }),
-  });
+  const response = await putJsonToSymbolNode(dependencies.nodeUrl, '/transactions', {
+    payload: intent.signedPayload,
+  }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 
   const nodeResponse = await response.json().catch(() => ({ status: response.status }));
 

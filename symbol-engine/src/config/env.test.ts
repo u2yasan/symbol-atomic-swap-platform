@@ -17,6 +17,7 @@ test('loadEnvFrom accepts production environment with required secrets', () => {
   assert.equal(env.NODE_ENV, 'production');
   assert.equal(env.SYMBOL_ENGINE_API_TOKEN, validProductionEnv.SYMBOL_ENGINE_API_TOKEN);
   assert.equal(env.SYMBOL_ENGINE_DATABASE_URL, validProductionEnv.SYMBOL_ENGINE_DATABASE_URL);
+  assert.equal(env.SYMBOL_NODE_REQUEST_TIMEOUT_MS, 10000);
 });
 
 test('loadEnvFrom rejects production environment without API token', () => {
@@ -101,8 +102,21 @@ test('loadEnvFrom accepts secure production Symbol endpoints', () => {
     ...validProductionEnv,
     SYMBOL_NODE_URL: 'https://symbol-node.example:3001',
     SYMBOL_WS_URL: 'wss://symbol-node.example:3001/ws',
+    SYMBOL_NODE_REQUEST_TIMEOUT_MS: '15000',
   });
 
   assert.equal(env.SYMBOL_NODE_URL, 'https://symbol-node.example:3001');
   assert.equal(env.SYMBOL_WS_URL, 'wss://symbol-node.example:3001/ws');
+  assert.equal(env.SYMBOL_NODE_REQUEST_TIMEOUT_MS, 15000);
+});
+
+test('loadEnvFrom rejects out-of-range Symbol node request timeout', () => {
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_NODE_REQUEST_TIMEOUT_MS: '999',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /Number must be greater than or equal to 1000/);
+    return true;
+  });
 });

@@ -22,6 +22,7 @@ import { LARGE_PAYLOAD_BODY_LIMIT_BYTES, SMALL_BODY_LIMIT_BYTES } from './securi
 
 export type RouteDependencies = {
   nodeUrl: string | undefined;
+  nodeRequestTimeoutMs: number;
   repositories: {
     swapIntents: SwapIntentRepository;
     events: EventRepository;
@@ -153,6 +154,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announceVerifiedTransaction(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
       events: dependencies.repositories.events,
       projections: dependencies.repositories.projections,
@@ -171,6 +173,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announcePartialAggregateBonded(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
       events: dependencies.repositories.events,
       projections: dependencies.repositories.projections,
@@ -189,6 +192,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announceAggregateBondedCosignature(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
       events: dependencies.repositories.events,
       projections: dependencies.repositories.projections,
@@ -220,6 +224,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announceSignedHashLock(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
     });
     return reply.code(202).send(result);
@@ -246,7 +251,11 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
       },
     },
   }, async (request, reply) => {
-    return reply.code(202).send(await announceSignedSecretLock(request.body, dependencies.nodeUrl));
+    return reply.code(202).send(await announceSignedSecretLock(
+      request.body,
+      dependencies.nodeUrl,
+      dependencies.nodeRequestTimeoutMs,
+    ));
   });
 
   app.post('/v1/secret-proof/build', {
@@ -270,7 +279,11 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
       },
     },
   }, async (request, reply) => {
-    return reply.code(202).send(await announceSignedSecretProof(request.body, dependencies.nodeUrl));
+    return reply.code(202).send(await announceSignedSecretProof(
+      request.body,
+      dependencies.nodeUrl,
+      dependencies.nodeRequestTimeoutMs,
+    ));
   });
 
   app.post('/v1/events', {

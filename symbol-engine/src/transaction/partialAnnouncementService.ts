@@ -5,6 +5,7 @@ import type { ProjectionRepository } from '../repository/projectionRepository.js
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import { InvalidAnnouncementError } from './announceService.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
+import { putJsonToSymbolNode } from './symbolNodeHttp.js';
 
 const partialAnnouncementRequestSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
@@ -24,6 +25,7 @@ export async function announcePartialAggregateBonded(
     swapIntents: SwapIntentRepository;
     events: EventRepository;
     projections: ProjectionRepository;
+    nodeRequestTimeoutMs?: number;
   },
 ): Promise<PartialAnnouncementResult> {
   const request = partialAnnouncementRequestSchema.parse(input);
@@ -41,13 +43,9 @@ export async function announcePartialAggregateBonded(
     throw new InvalidAnnouncementError('aggregate bonded intent must be signed before partial announcement');
   }
 
-  const response = await fetch(new URL('/transactions/partial', dependencies.nodeUrl), {
-    method: 'PUT',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ payload: intent.signedPayload }),
-  });
+  const response = await putJsonToSymbolNode(dependencies.nodeUrl, '/transactions/partial', {
+    payload: intent.signedPayload,
+  }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 
   const nodeResponse = await response.json().catch(() => ({ status: response.status }));
 

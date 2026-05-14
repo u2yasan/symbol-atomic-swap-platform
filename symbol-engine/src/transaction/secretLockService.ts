@@ -4,6 +4,7 @@ import { Address, descriptors, models, SymbolFacade, SymbolTransactionFactory } 
 import { z } from 'zod';
 import { addressSchema, integerStringSchema, mosaicIdSchema, publicKeySchema } from '../dto/aggregateComplete.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
+import { putJsonToSymbolNode } from './symbolNodeHttp.js';
 
 const secretSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'secret must be 32-byte hex');
 const proofSchema = z.string().regex(/^[0-9A-Fa-f]{2,2048}$/, 'proof must be hex');
@@ -328,16 +329,15 @@ async function announceVerifiedPayload(
   payload: string,
   transactionHash: string,
   nodeUrl: string | undefined,
+  nodeRequestTimeoutMs?: number,
 ): Promise<SecretAnnouncementResult> {
   if (!nodeUrl) {
     throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for secret transaction announcement.');
   }
 
-  const response = await fetch(new URL('/transactions', nodeUrl), {
-    method: 'PUT',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ payload }),
-  });
+  const response = await putJsonToSymbolNode(nodeUrl, '/transactions', {
+    payload,
+  }, nodeRequestTimeoutMs ? { timeoutMs: nodeRequestTimeoutMs } : {});
   const nodeResponse = await response.json().catch(() => ({ status: response.status }));
   if (!response.ok) {
     throw new InvalidSecretLockError('symbol node rejected secret transaction announcement');
@@ -350,18 +350,26 @@ async function announceVerifiedPayload(
   };
 }
 
-export async function announceSignedSecretLock(input: unknown, nodeUrl: string | undefined): Promise<SecretAnnouncementResult> {
+export async function announceSignedSecretLock(
+  input: unknown,
+  nodeUrl: string | undefined,
+  nodeRequestTimeoutMs?: number,
+): Promise<SecretAnnouncementResult> {
   const verification = verifySignedSecretLockPayload(input);
   if (!verification.accepted || !verification.payload || !verification.transactionHash) {
     throw new InvalidSecretLockError(verification.reason);
   }
-  return announceVerifiedPayload(verification.payload, verification.transactionHash, nodeUrl);
+  return announceVerifiedPayload(verification.payload, verification.transactionHash, nodeUrl, nodeRequestTimeoutMs);
 }
 
-export async function announceSignedSecretProof(input: unknown, nodeUrl: string | undefined): Promise<SecretAnnouncementResult> {
+export async function announceSignedSecretProof(
+  input: unknown,
+  nodeUrl: string | undefined,
+  nodeRequestTimeoutMs?: number,
+): Promise<SecretAnnouncementResult> {
   const verification = verifySignedSecretProofPayload(input);
   if (!verification.accepted || !verification.payload || !verification.transactionHash) {
     throw new InvalidSecretLockError(verification.reason);
   }
-  return announceVerifiedPayload(verification.payload, verification.transactionHash, nodeUrl);
+  return announceVerifiedPayload(verification.payload, verification.transactionHash, nodeUrl, nodeRequestTimeoutMs);
 }

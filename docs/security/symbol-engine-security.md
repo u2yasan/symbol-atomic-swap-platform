@@ -69,6 +69,8 @@ When the listener is enabled in production, Symbol Engine must open a WebSocket 
 
 Announcement APIs must fail with `503 symbol_node_unavailable` when `SYMBOL_NODE_URL` is not configured. They must not return a generic internal error for missing infrastructure configuration.
 
+Symbol node announcement requests must use a bounded timeout controlled by `SYMBOL_NODE_REQUEST_TIMEOUT_MS`. Timeout or transport failure must return `503 symbol_node_unavailable`.
+
 ## Public Health Route
 
 `GET /health` is public for service monitoring.

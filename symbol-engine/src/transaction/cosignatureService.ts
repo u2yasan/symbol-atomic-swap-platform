@@ -7,6 +7,7 @@ import type { ProjectionRepository } from '../repository/projectionRepository.js
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import { InvalidAnnouncementError } from './announceService.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
+import { putJsonToSymbolNode } from './symbolNodeHttp.js';
 
 const cosignatureAnnouncementSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
@@ -31,6 +32,7 @@ export async function announceAggregateBondedCosignature(
     swapIntents: SwapIntentRepository;
     events: EventRepository;
     projections: ProjectionRepository;
+    nodeRequestTimeoutMs?: number;
   },
 ): Promise<CosignatureAnnouncementResult> {
   const request = cosignatureAnnouncementSchema.parse(input);
@@ -75,13 +77,12 @@ export async function announceAggregateBondedCosignature(
     signerPublicKey,
     version: '0',
   };
-  const response = await fetch(new URL('/transactions/cosignature', dependencies.nodeUrl), {
-    method: 'PUT',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  const response = await putJsonToSymbolNode(
+    dependencies.nodeUrl,
+    '/transactions/cosignature',
+    body,
+    dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {},
+  );
   const nodeResponse = await response.json().catch(() => ({ status: response.status }));
 
   if (!response.ok) {

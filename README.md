@@ -69,6 +69,7 @@ Implemented:
 - production startup preflight rejecting Symbol network mismatch
 - production startup preflight rejecting unreachable Symbol WebSocket listener endpoint
 - announcement APIs return explicit 503 when Symbol node URL is unavailable
+- bounded Symbol node announcement HTTP requests with configurable timeout
 - production Engine API token weak-pattern rejection
 - Drupal Engine client fail-closed validation for missing, short, or weak-pattern API tokens
 - localhost-only default Docker Compose port binding for Drupal, Symbol Engine, PostgreSQL, and Redis

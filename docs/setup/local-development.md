@@ -20,6 +20,7 @@ SYMBOL_ENGINE_LISTENER_ADDRESSES=
 SYMBOL_ENGINE_RECONCILER_ENABLED=false
 SYMBOL_ENGINE_RECONCILER_INTERVAL_MS=30000
 SYMBOL_ENGINE_BASE_URL=http://symbol-engine:3000
+SYMBOL_NODE_REQUEST_TIMEOUT_MS=10000
 SYMBOL_NETWORK=testnet
 SYMBOL_NODE_URL=https://sym-test-01.opening-line.jp:3001
 SYMBOL_WS_URL=wss://sym-test-01.opening-line.jp:3001/ws
@@ -155,6 +156,7 @@ Current implementation covers:
 - production startup preflight for Symbol node network mismatch
 - production startup preflight for Symbol WebSocket listener reachability
 - explicit `503 symbol_node_unavailable` responses for announcement APIs without `SYMBOL_NODE_URL`
+- bounded Symbol node announcement HTTP requests via `SYMBOL_NODE_REQUEST_TIMEOUT_MS`
 
 ## Test Commands
 

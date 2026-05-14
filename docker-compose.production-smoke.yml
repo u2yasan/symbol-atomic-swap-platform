@@ -25,6 +25,7 @@ services:
       SYMBOL_ENGINE_DATABASE_URL: postgresql://drupal:drupal@postgres:5432/drupal
       SYMBOL_ENGINE_LISTENER_ENABLED: "false"
       SYMBOL_ENGINE_RECONCILER_ENABLED: "false"
+      SYMBOL_NODE_REQUEST_TIMEOUT_MS: 10000
       SYMBOL_NETWORK: testnet
     depends_on:
       postgres:

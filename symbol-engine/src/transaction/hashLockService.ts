@@ -5,6 +5,7 @@ import { integerStringSchema, publicKeySchema } from '../dto/aggregateComplete.j
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { NormalizedBondedSwapIntent, SwapIntentRecord } from '../repository/types.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
+import { putJsonToSymbolNode } from './symbolNodeHttp.js';
 
 const intentHashSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/);
 
@@ -219,6 +220,7 @@ export async function announceSignedHashLock(
   dependencies: {
     nodeUrl: string | undefined;
     swapIntents: SwapIntentRepository;
+    nodeRequestTimeoutMs?: number;
   },
 ): Promise<HashLockAnnouncementResult> {
   const request = signedHashLockAnnouncementSchema.parse(input);
@@ -232,13 +234,9 @@ export async function announceSignedHashLock(
     throw new InvalidHashLockError(verification.reason);
   }
 
-  const response = await fetch(new URL('/transactions', dependencies.nodeUrl), {
-    method: 'PUT',
-    headers: {
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ payload: verification.payload }),
-  });
+  const response = await putJsonToSymbolNode(dependencies.nodeUrl, '/transactions', {
+    payload: verification.payload,
+  }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 
   const nodeResponse = await response.json().catch(() => ({ status: response.status }));
   if (!response.ok) {
