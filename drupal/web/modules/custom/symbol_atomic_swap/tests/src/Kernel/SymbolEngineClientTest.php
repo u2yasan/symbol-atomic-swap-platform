@@ -212,7 +212,7 @@ final class SymbolEngineClientTest extends KernelTestBase {
     $stack = HandlerStack::create($mock);
     $stack->push(Middleware::history($history));
 
-    return new SymbolEngineClient(new Client(['handler' => $stack]));
+    return new SymbolEngineClient(new Client(['handler' => $stack]), $this->container->get('config.factory'));
   }
 
 }

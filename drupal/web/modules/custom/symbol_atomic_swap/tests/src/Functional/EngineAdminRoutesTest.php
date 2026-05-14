@@ -37,12 +37,16 @@ final class EngineAdminRoutesTest extends BrowserTestBase {
     $this->drupalGet('/admin/config/services/symbol-atomic-swap/engine/operations');
     $assert_session->statusCodeEquals(403);
 
+    $this->drupalGet('/admin/config/services/symbol-atomic-swap/settings');
+    $assert_session->statusCodeEquals(403);
+
     $account = $this->drupalCreateUser(['administer site configuration']);
     $this->drupalLogin($account);
 
     $this->drupalGet('/admin/config/services/symbol-atomic-swap/engine');
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Symbol Engine read API lookup');
+    $assert_session->pageTextContains('Symbol Engine read API lookup and health dashboard');
+    $assert_session->buttonExists('Read health');
     $assert_session->buttonExists('Read network');
     $assert_session->fieldExists('Intent hash');
     $assert_session->fieldExists('Transaction hash');
@@ -53,6 +57,15 @@ final class EngineAdminRoutesTest extends BrowserTestBase {
     $assert_session->buttonExists('Build unsigned transaction');
     $assert_session->buttonExists('Verify signed payload');
     $assert_session->buttonExists('Announce transaction');
+
+    $this->drupalGet('/admin/config/services/symbol-atomic-swap/settings');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Engine base URL');
+    $assert_session->fieldExists('Engine timeout seconds');
+    $assert_session->pageTextContains('API token state');
+    $assert_session->fieldExists('Notification email recipient');
+    $assert_session->fieldExists('Webhook URL');
+    $assert_session->pageTextContains('Webhook token state');
   }
 
 }

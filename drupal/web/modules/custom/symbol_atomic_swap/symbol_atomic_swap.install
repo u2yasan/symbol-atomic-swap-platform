@@ -263,3 +263,25 @@ function symbol_atomic_swap_update_11004(): void {
     $schema->createTable('symbol_atomic_swap_notification', $module_schema['symbol_atomic_swap_notification']);
   }
 }
+
+/**
+ * Adds default non-secret integration settings.
+ */
+function symbol_atomic_swap_update_11005(): void {
+  $config = \Drupal::configFactory()->getEditable('symbol_atomic_swap.settings');
+  $defaults = [
+    'engine_base_url' => 'http://symbol-engine:3000',
+    'engine_timeout' => 10,
+    'notification_email' => '',
+    'webhook_url' => '',
+    'webhook_timeout' => 3,
+    'mainnet_enabled' => FALSE,
+  ];
+
+  foreach ($defaults as $key => $value) {
+    if ($config->get($key) === NULL) {
+      $config->set($key, $value);
+    }
+  }
+  $config->save();
+}

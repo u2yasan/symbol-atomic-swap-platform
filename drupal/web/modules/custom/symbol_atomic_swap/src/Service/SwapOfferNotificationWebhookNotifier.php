@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_atomic_swap\Service;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
@@ -13,6 +14,7 @@ final class SwapOfferNotificationWebhookNotifier {
   public function __construct(
     private readonly ClientInterface $httpClient,
     private readonly LoggerChannelFactoryInterface $loggerFactory,
+    private readonly ConfigFactoryInterface $configFactory,
   ) {}
 
   /**
@@ -21,7 +23,8 @@ final class SwapOfferNotificationWebhookNotifier {
    * @param array<string, mixed> $notification
    */
   public function notify(array $notification): void {
-    $url = trim((string) getenv('SYMBOL_ATOMIC_SWAP_WEBHOOK_URL'));
+    $config = $this->configFactory->get('symbol_atomic_swap.settings');
+    $url = trim((string) (getenv('SYMBOL_ATOMIC_SWAP_WEBHOOK_URL') ?: $config->get('webhook_url')));
     if ($url === '') {
       return;
     }
@@ -39,7 +42,7 @@ final class SwapOfferNotificationWebhookNotifier {
       $headers['authorization'] = 'Bearer ' . $token;
     }
 
-    $timeout = (float) (getenv('SYMBOL_ATOMIC_SWAP_WEBHOOK_TIMEOUT') ?: 3);
+    $timeout = (float) (getenv('SYMBOL_ATOMIC_SWAP_WEBHOOK_TIMEOUT') ?: ($config->get('webhook_timeout') ?: 3));
     if ($timeout <= 0 || $timeout > 10) {
       $timeout = 3;
     }

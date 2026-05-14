@@ -76,6 +76,31 @@ symbol_atomic_swap.offer_delete:
     _permission: 'administer symbol atomic swap offers'
     offerId: '\d+'
 
+symbol_atomic_swap.notification_list:
+  path: '/symbol-atomic-swap/notifications'
+  defaults:
+    _controller: '\Drupal\symbol_atomic_swap\Controller\NotificationController::list'
+    _title: 'Swap Notifications'
+  requirements:
+    _permission: 'view symbol atomic swap offers'
+
+symbol_atomic_swap.notification_mark_read:
+  path: '/symbol-atomic-swap/notifications/{notificationId}/mark-read'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\NotificationMarkReadForm'
+    _title: 'Mark Notification Read'
+  requirements:
+    _permission: 'operate symbol atomic swap offers'
+    notificationId: '\d+'
+
+symbol_atomic_swap.notification_mark_all_read:
+  path: '/symbol-atomic-swap/notifications/mark-all-read'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\NotificationMarkAllReadForm'
+    _title: 'Mark All Notifications Read'
+  requirements:
+    _permission: 'operate symbol atomic swap offers'
+
 symbol_atomic_swap.engine_network:
   path: '/symbol-atomic-swap/engine/network'
   defaults:
@@ -108,6 +133,14 @@ symbol_atomic_swap.engine_lookup:
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\EngineLookupForm'
     _title: 'Symbol Engine'
+  requirements:
+    _permission: 'administer site configuration'
+
+symbol_atomic_swap.settings:
+  path: '/admin/config/services/symbol-atomic-swap/settings'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SymbolAtomicSwapSettingsForm'
+    _title: 'Symbol Atomic Swap Settings'
   requirements:
     _permission: 'administer site configuration'
 

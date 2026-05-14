@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_atomic_swap\Service;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Language\LanguageManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Mail\MailManagerInterface;
@@ -14,6 +15,7 @@ final class SwapOfferNotificationEmailNotifier {
     private readonly MailManagerInterface $mailManager,
     private readonly LanguageManagerInterface $languageManager,
     private readonly LoggerChannelFactoryInterface $loggerFactory,
+    private readonly ConfigFactoryInterface $configFactory,
   ) {}
 
   /**
@@ -22,7 +24,7 @@ final class SwapOfferNotificationEmailNotifier {
    * @param array<string, mixed> $notification
    */
   public function notify(array $notification): void {
-    $to = trim((string) getenv('SYMBOL_ATOMIC_SWAP_NOTIFICATION_EMAIL'));
+    $to = trim((string) (getenv('SYMBOL_ATOMIC_SWAP_NOTIFICATION_EMAIL') ?: $this->configFactory->get('symbol_atomic_swap.settings')->get('notification_email')));
     if ($to === '') {
       return;
     }

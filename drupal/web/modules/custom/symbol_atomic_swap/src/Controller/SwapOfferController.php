@@ -160,9 +160,18 @@ final class SwapOfferController extends ControllerBase {
           [$this->t('Block height'), (string) ($offer['block_height'] ?: '')],
           [$this->t('Finalized height'), (string) ($offer['finalized_height'] ?: '')],
           [$this->t('Projection updated at'), (string) ($offer['projection_updated_at'] ?: '')],
+          [$this->t('Manual sync allowed'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
+          [$this->t('Automatic sync eligible'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
         ]),
       ],
     ];
+
+    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+      $build['projection']['table']['#rows'][] = [
+        $this->t('Projection sync queued'),
+        $this->offers->isProjectionSyncQueued((int) $offer['id']) ? (string) $this->t('Yes') : (string) $this->t('No'),
+      ];
+    }
 
     if ($qr_payload !== []) {
       $build['qr'] = [
@@ -192,7 +201,7 @@ final class SwapOfferController extends ControllerBase {
     $notification_items = [];
     foreach ($this->notifications->findByOffer((int) $offer['id']) as $notification) {
       $notification_items[] = $this->t('@severity: @message (@created)', [
-        '@severity' => (string) $notification['severity'],
+        '@severity' => $this->notificationLabel($notification),
         '@message' => (string) $notification['message'],
         '@created' => $this->dateFormatter->format((int) $notification['created'], 'short'),
       ]);
@@ -384,6 +393,14 @@ final class SwapOfferController extends ControllerBase {
       return $state . ' [requires sync]';
     }
     return $state;
+  }
+
+  /**
+   * @param array<string, mixed> $notification
+   */
+  private function notificationLabel(array $notification): string {
+    $read_state = empty($notification['read_at']) ? 'unread' : 'read';
+    return (string) $notification['severity'] . ' / ' . $read_state;
   }
 
   /**

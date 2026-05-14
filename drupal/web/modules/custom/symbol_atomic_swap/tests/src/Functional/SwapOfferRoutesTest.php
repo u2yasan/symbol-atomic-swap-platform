@@ -113,8 +113,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Summary');
     $assert_session->pageTextContains('Transfer legs');
     $assert_session->pageTextContains('Projection');
+    $assert_session->pageTextContains('Manual sync allowed');
+    $assert_session->pageTextContains('Automatic sync eligible');
     $assert_session->pageTextContains(str_repeat('C', 64));
     $assert_session->pageTextContains('Swap transaction was confirmed but is not finalized yet.');
+    $assert_session->pageTextContains('status / unread');
     $assert_session->pageTextContains('QR payload');
     $assert_session->pageTextContains('"type": "symbol-aggregate-complete"');
     $assert_session->linkNotExists('Submit signed payload');
@@ -284,6 +287,45 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Offer state');
     $assert_session->pageTextContains('Maximum accepted normalized size');
     $assert_session->buttonExists('Verify signed payload')->hasAttribute('disabled');
+  }
+
+  /**
+   * Notification list supports unread filtering and mark-read operations.
+   */
+  public function testNotificationListAndReadActions(): void {
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-notification-list',
+      'label' => 'Notification list offer',
+    ]));
+    \Drupal::service('symbol_atomic_swap.offer_notification_repository')->createOnce(
+      $id,
+      'offer_failed',
+      'error',
+      'Swap transaction failed on-chain.',
+    );
+
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($operator);
+
+    $assert_session = $this->assertSession();
+    $this->drupalGet('/symbol-atomic-swap/notifications', ['query' => ['unread' => '1']]);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Unread notifications');
+    $assert_session->pageTextContains('Swap transaction failed on-chain.');
+    $assert_session->pageTextContains('Unread');
+    $assert_session->linkExists('Mark read');
+
+    $this->clickLink('Mark read');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Mark notification as read?');
+    $this->submitForm([], 'Confirm');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Notification was marked read.');
+    $assert_session->pageTextContains('Read');
   }
 
   /**

@@ -1,7 +1,13 @@
 symbol_atomic_swap.engine_lookup:
   title: 'Symbol Engine'
-  description: 'Read Symbol Engine network, intent, and projection state.'
+  description: 'Read Symbol Engine health, network, intent, and projection state.'
   route_name: symbol_atomic_swap.engine_lookup
+  parent: system.admin_config_services
+
+symbol_atomic_swap.settings:
+  title: 'Symbol Atomic Swap Settings'
+  description: 'Configure non-secret Symbol Atomic Swap integration settings.'
+  route_name: symbol_atomic_swap.settings
   parent: system.admin_config_services
 
 symbol_atomic_swap.engine_operations:
@@ -14,4 +20,10 @@ symbol_atomic_swap.offer_list:
   title: 'Symbol Swap Offers'
   description: 'Create and manage Symbol atomic swap offers.'
   route_name: symbol_atomic_swap.offer_list
+  menu_name: main
+
+symbol_atomic_swap.notification_list:
+  title: 'Symbol Swap Notifications'
+  description: 'Review Symbol atomic swap notifications.'
+  route_name: symbol_atomic_swap.notification_list
   menu_name: main

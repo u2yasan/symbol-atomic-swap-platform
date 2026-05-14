@@ -218,6 +218,27 @@ final class SwapOfferRepository {
       && in_array((string) ($offer['state'] ?? ''), self::SYNCABLE_STATES, TRUE);
   }
 
+  public function isProjectionSyncQueued(int $offer_id): bool {
+    if (!$this->database->schema()->tableExists('queue')) {
+      return FALSE;
+    }
+
+    $records = $this->database->select('queue', 'q')
+      ->fields('q', ['data'])
+      ->condition('name', 'symbol_atomic_swap_projection_sync')
+      ->execute()
+      ->fetchCol();
+
+    foreach ($records as $record) {
+      $data = @unserialize((string) $record, ['allowed_classes' => FALSE]);
+      if (is_array($data) && (int) ($data['offer_id'] ?? 0) === $offer_id) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
+  }
+
   public function isTerminalState(string $state): bool {
     return in_array($state, self::TERMINAL_STATES, TRUE);
   }

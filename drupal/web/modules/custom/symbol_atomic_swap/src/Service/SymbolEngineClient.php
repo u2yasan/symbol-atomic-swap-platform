@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_atomic_swap\Service;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
@@ -21,6 +22,7 @@ final class SymbolEngineClient {
 
   public function __construct(
     private readonly ClientInterface $httpClient,
+    private readonly ConfigFactoryInterface $configFactory,
   ) {}
 
   public function health(): array {
@@ -64,7 +66,7 @@ final class SymbolEngineClient {
   }
 
   private function baseUrl(): string {
-    $base_url = getenv('SYMBOL_ENGINE_BASE_URL') ?: 'http://symbol-engine:3000';
+    $base_url = getenv('SYMBOL_ENGINE_BASE_URL') ?: (string) ($this->configFactory->get('symbol_atomic_swap.settings')->get('engine_base_url') ?: 'http://symbol-engine:3000');
     return rtrim($base_url, '/');
   }
 
@@ -115,7 +117,7 @@ final class SymbolEngineClient {
   }
 
   private function timeout(): float {
-    $timeout = getenv('SYMBOL_ENGINE_TIMEOUT') ?: '10';
+    $timeout = getenv('SYMBOL_ENGINE_TIMEOUT') ?: (string) ($this->configFactory->get('symbol_atomic_swap.settings')->get('engine_timeout') ?: '10');
     return max(1.0, (float) $timeout);
   }
 

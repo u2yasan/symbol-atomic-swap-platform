@@ -1,7 +1,7 @@
 services:
   symbol_atomic_swap.engine_client:
     class: Drupal\symbol_atomic_swap\Service\SymbolEngineClient
-    arguments: ['@http_client']
+    arguments: ['@http_client', '@config.factory']
 
   symbol_atomic_swap.offer_repository:
     class: Drupal\symbol_atomic_swap\Repository\SwapOfferRepository
@@ -13,11 +13,11 @@ services:
 
   symbol_atomic_swap.offer_notification_webhook_notifier:
     class: Drupal\symbol_atomic_swap\Service\SwapOfferNotificationWebhookNotifier
-    arguments: ['@http_client', '@logger.factory']
+    arguments: ['@http_client', '@logger.factory', '@config.factory']
 
   symbol_atomic_swap.offer_notification_email_notifier:
     class: Drupal\symbol_atomic_swap\Service\SwapOfferNotificationEmailNotifier
-    arguments: ['@plugin.manager.mail', '@language_manager', '@logger.factory']
+    arguments: ['@plugin.manager.mail', '@language_manager', '@logger.factory', '@config.factory']
 
   symbol_atomic_swap.offer_projection_synchronizer:
     class: Drupal\symbol_atomic_swap\Service\SwapOfferProjectionSynchronizer

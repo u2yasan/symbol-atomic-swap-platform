@@ -1,0 +1,22 @@
+symbol_atomic_swap.settings:
+  type: config_object
+  label: 'Symbol Atomic Swap settings'
+  mapping:
+    engine_base_url:
+      type: string
+      label: 'Symbol Engine base URL'
+    engine_timeout:
+      type: integer
+      label: 'Symbol Engine timeout'
+    notification_email:
+      type: string
+      label: 'Notification email recipient'
+    webhook_url:
+      type: string
+      label: 'Notification webhook URL'
+    webhook_timeout:
+      type: integer
+      label: 'Notification webhook timeout'
+    mainnet_enabled:
+      type: boolean
+      label: 'Mainnet UI enabled'

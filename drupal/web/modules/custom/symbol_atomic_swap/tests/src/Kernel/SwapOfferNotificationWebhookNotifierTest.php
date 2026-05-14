@@ -120,6 +120,7 @@ final class SwapOfferNotificationWebhookNotifierTest extends KernelTestBase {
     return new SwapOfferNotificationWebhookNotifier(
       new Client(['handler' => $stack]),
       $this->container->get('logger.factory'),
+      $this->container->get('config.factory'),
     );
   }
 

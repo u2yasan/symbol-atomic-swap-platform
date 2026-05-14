@@ -71,6 +71,7 @@ final class SwapOfferNotificationEmailNotifierTest extends KernelTestBase {
       $mail_manager,
       $this->container->get('language_manager'),
       $this->container->get('logger.factory'),
+      $this->container->get('config.factory'),
     );
 
     $notifier->notify([
@@ -103,6 +104,7 @@ final class SwapOfferNotificationEmailNotifierTest extends KernelTestBase {
       $mail_manager,
       $this->container->get('language_manager'),
       $this->container->get('logger.factory'),
+      $this->container->get('config.factory'),
     );
 
     $notifier->notify([
@@ -127,6 +129,7 @@ final class SwapOfferNotificationEmailNotifierTest extends KernelTestBase {
       $mail_manager,
       $this->container->get('language_manager'),
       $this->container->get('logger.factory'),
+      $this->container->get('config.factory'),
     );
 
     $notifier->notify([

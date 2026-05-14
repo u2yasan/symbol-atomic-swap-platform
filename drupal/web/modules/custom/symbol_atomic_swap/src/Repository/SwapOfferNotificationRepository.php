@@ -68,6 +68,22 @@ final class SwapOfferNotificationRepository {
   /**
    * @return array<int, array<string, mixed>>
    */
+  public function all(int $limit = 100, bool $unread_only = FALSE): array {
+    $query = $this->database->select(self::TABLE, 'n')
+      ->fields('n')
+      ->orderBy('created', 'DESC')
+      ->range(0, $limit);
+
+    if ($unread_only) {
+      $query->isNull('read_at');
+    }
+
+    return $query->execute()->fetchAll(FetchAs::Associative);
+  }
+
+  /**
+   * @return array<int, array<string, mixed>>
+   */
   public function findByOffer(int $offer_id, int $limit = 20): array {
     return $this->database->select(self::TABLE, 'n')
       ->fields('n')
@@ -76,6 +92,29 @@ final class SwapOfferNotificationRepository {
       ->range(0, $limit)
       ->execute()
       ->fetchAll(FetchAs::Associative);
+  }
+
+  public function unreadCount(): int {
+    return (int) $this->database->select(self::TABLE, 'n')
+      ->condition('read_at', NULL, 'IS NULL')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+  }
+
+  public function markRead(int $id): void {
+    $this->database->update(self::TABLE)
+      ->fields(['read_at' => $this->time->getRequestTime()])
+      ->condition('id', $id)
+      ->isNull('read_at')
+      ->execute();
+  }
+
+  public function markAllRead(): void {
+    $this->database->update(self::TABLE)
+      ->fields(['read_at' => $this->time->getRequestTime()])
+      ->isNull('read_at')
+      ->execute();
   }
 
 }

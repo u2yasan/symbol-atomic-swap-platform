@@ -30,7 +30,29 @@ final class EngineLookupForm extends FormBase {
     $form['#tree'] = TRUE;
 
     $form['description'] = [
-      '#markup' => '<p>Symbol Engine read API lookup. This page reads Engine state only.</p>',
+      '#markup' => '<p>Symbol Engine read API lookup and health dashboard. This page reads Engine state only.</p>',
+    ];
+
+    $form['dashboard'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Dashboard'),
+      '#open' => TRUE,
+      'table' => $this->dashboardTable(),
+    ];
+    $form['dashboard']['actions'] = [
+      '#type' => 'actions',
+      'health' => [
+        '#type' => 'submit',
+        '#value' => $this->t('Read health'),
+        '#submit' => ['::submitHealth'],
+        '#limit_validation_errors' => [],
+      ],
+      'network' => [
+        '#type' => 'submit',
+        '#value' => $this->t('Read network'),
+        '#submit' => ['::submitNetwork'],
+        '#limit_validation_errors' => [],
+      ],
     ];
 
     $form['network_status'] = [
@@ -157,6 +179,10 @@ final class EngineLookupForm extends FormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {}
 
+  public function submitHealth(array &$form, FormStateInterface $form_state): void {
+    $this->storeResult($form_state, fn (): array => $this->engineClient->health());
+  }
+
   public function submitNetwork(array &$form, FormStateInterface $form_state): void {
     $this->storeResult($form_state, fn (): array => $this->engineClient->network());
   }
@@ -195,6 +221,17 @@ final class EngineLookupForm extends FormBase {
 
   private function isHash(string $value): bool {
     return preg_match('/^[0-9A-Fa-f]{64}$/', $value) === 1;
+  }
+
+  private function dashboardTable(): array {
+    return [
+      '#type' => 'table',
+      '#rows' => [
+        [$this->t('Health route'), $this->t('Use Read health to verify Drupal to Engine HTTP connectivity.')],
+        [$this->t('Protected API token'), getenv('SYMBOL_ENGINE_API_TOKEN') ? $this->t('Configured in environment') : $this->t('Missing. Protected calls fail closed.')],
+        [$this->t('Network route'), $this->t('Use Read network to verify authenticated Engine access and network identity.')],
+      ],
+    ];
   }
 
 }
