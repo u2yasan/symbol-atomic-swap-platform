@@ -76,6 +76,7 @@ Implemented:
 - CI production Docker image build check for Symbol Engine
 - CI production Docker image runtime smoke test for Symbol Engine
 - CI Node dependency policy check rejecting floating `latest` and wildcard specs
+- CI Docker image policy check rejecting unpinned runtime and build images
 - CI Composer audit check for Drupal locked dependencies
 - CI sensitive file policy check for `.env`, private key, and credential file tracking
 - CI sensitive file policy check for weak Symbol Engine API tokens in runtime configuration
