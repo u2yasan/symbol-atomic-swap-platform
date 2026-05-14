@@ -17,7 +17,7 @@ check-node-dependency-policy:
 audit-drupal-dependencies:
 	@set -eu; \
 	for attempt in 1 2 3; do \
-		if docker run --rm -v "$(PWD)/drupal:/app" -w /app composer:2 composer audit --locked --no-interaction; then \
+		if docker run --rm -v "$(PWD)/drupal:/app" -w /app composer:2@sha256:02062f7719ec9433a9d4256cfba1c792db96dc9db60a4a92e48264c9e166b877 composer audit --locked --no-interaction; then \
 			exit 0; \
 		fi; \
 		if [ "$$attempt" -eq 3 ]; then \

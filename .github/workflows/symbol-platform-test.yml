@@ -39,7 +39,7 @@ jobs:
         run: make check-node-dependency-policy
 
       - name: Install Drupal dependencies
-        run: docker run --rm -v "$PWD/drupal:/app" -w /app composer:2 composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-gd
+        run: docker run --rm -v "$PWD/drupal:/app" -w /app composer:2@sha256:02062f7719ec9433a9d4256cfba1c792db96dc9db60a4a92e48264c9e166b877 composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-gd
 
       - name: Audit Drupal dependencies
         run: make audit-drupal-dependencies
