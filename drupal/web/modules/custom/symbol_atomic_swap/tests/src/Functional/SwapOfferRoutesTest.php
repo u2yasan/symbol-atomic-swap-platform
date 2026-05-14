@@ -137,6 +137,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
    * Signed payload and announce routes require operation permission.
    */
   public function testOfferOperationRoutesRenderForOperators(): void {
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
     $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
     $id = $repository->insert([
       'uuid' => 'offer-operator-uuid',
@@ -163,7 +167,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'finalized_height' => NULL,
       'projection_updated_at' => NULL,
       'expired_at' => NULL,
-      'uid' => 1,
+      'uid' => (int) $operator->id(),
       'created' => 1700000000,
       'changed' => 1700000000,
     ]);
@@ -173,10 +177,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
     $this->assertSession()->statusCodeEquals(403);
 
-    $operator = $this->drupalCreateUser([
-      'view symbol atomic swap offers',
-      'operate symbol atomic swap offers',
-    ]);
     $this->drupalLogin($operator);
 
     $assert_session = $this->assertSession();
@@ -241,6 +241,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $operator = $this->drupalCreateUser([
       'view symbol atomic swap offers',
       'operate symbol atomic swap offers',
+      'administer symbol atomic swap offers',
     ]);
     $this->drupalLogin($operator);
 
@@ -267,18 +268,19 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
    * Signed payload form exposes normalization and blocks terminal offers.
    */
   public function testSignedPayloadFormBlocksTerminalOffers(): void {
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
     $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
     $id = $repository->insert($this->offerValues([
       'uuid' => 'offer-terminal-payload',
       'label' => 'Terminal payload offer',
       'state' => 'finalized',
       'transaction_hash' => str_repeat('D', 64),
+      'uid' => (int) $operator->id(),
     ]));
 
-    $operator = $this->drupalCreateUser([
-      'view symbol atomic swap offers',
-      'operate symbol atomic swap offers',
-    ]);
     $this->drupalLogin($operator);
 
     $assert_session = $this->assertSession();
@@ -293,10 +295,15 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
    * Notification list supports unread filtering and mark-read operations.
    */
   public function testNotificationListAndReadActions(): void {
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
     $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
     $id = $repository->insert($this->offerValues([
       'uuid' => 'offer-notification-list',
       'label' => 'Notification list offer',
+      'uid' => (int) $operator->id(),
     ]));
     \Drupal::service('symbol_atomic_swap.offer_notification_repository')->createOnce(
       $id,
@@ -305,10 +312,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'Swap transaction failed on-chain.',
     );
 
-    $operator = $this->drupalCreateUser([
-      'view symbol atomic swap offers',
-      'operate symbol atomic swap offers',
-    ]);
     $this->drupalLogin($operator);
 
     $assert_session = $this->assertSession();
@@ -326,6 +329,76 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Notification was marked read.');
     $assert_session->pageTextContains('Read');
+  }
+
+  /**
+   * Non-admin users must not access offers owned by another account.
+   */
+  public function testOfferRoutesAreScopedToOwnerForNonAdmins(): void {
+    $owner = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $other = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-owner-scope',
+      'label' => 'Owner scoped offer',
+      'uid' => (int) $owner->id(),
+    ]));
+
+    $assert_session = $this->assertSession();
+    $this->drupalLogin($other);
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextNotContains('Owner scoped offer');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(403);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $assert_session->statusCodeEquals(403);
+
+    $this->drupalLogin($owner);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Owner scoped offer');
+  }
+
+  /**
+   * Transaction history is scoped to owned offers and marks only finalized as completed.
+   */
+  public function testTransactionHistoryIsOwnerScoped(): void {
+    $owner = $this->drupalCreateUser(['view symbol atomic swap offers']);
+    $other = $this->drupalCreateUser(['view symbol atomic swap offers']);
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $repository->insert($this->offerValues([
+      'uuid' => 'offer-history-finalized',
+      'label' => 'Finalized history offer',
+      'state' => 'finalized',
+      'transaction_hash' => str_repeat('D', 64),
+      'projection_state' => 'finalized',
+      'finalized_height' => 20,
+      'uid' => (int) $owner->id(),
+    ]));
+    $repository->insert($this->offerValues([
+      'uuid' => 'offer-history-other',
+      'label' => 'Other history offer',
+      'state' => 'confirmed',
+      'transaction_hash' => str_repeat('E', 64),
+      'projection_state' => 'confirmed',
+      'uid' => (int) $other->id(),
+    ]));
+
+    $this->drupalLogin($owner);
+    $this->drupalGet('/symbol-atomic-swap/transactions');
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Finalized history offer');
+    $assert_session->pageTextContains('Yes');
+    $assert_session->pageTextContains('Copy');
+    $assert_session->pageTextNotContains('Other history offer');
   }
 
   /**

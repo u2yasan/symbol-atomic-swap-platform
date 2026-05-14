@@ -14,3 +14,28 @@
   color: #a51b00;
   font-weight: 600;
 }
+
+.symbol-atomic-swap-copy {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  max-inline-size: 100%;
+}
+
+.symbol-atomic-swap-hash {
+  display: inline-block;
+  max-inline-size: min(72ch, 100%);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.symbol-atomic-swap-copy__button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 48rem) {
+  .symbol-atomic-swap-copy {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

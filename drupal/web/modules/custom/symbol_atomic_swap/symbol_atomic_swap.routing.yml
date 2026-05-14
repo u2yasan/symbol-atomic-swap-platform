@@ -28,7 +28,7 @@ symbol_atomic_swap.offer_view:
     _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::view'
     _title_callback: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::title'
   requirements:
-    _permission: 'view symbol atomic swap offers'
+    _symbol_atomic_swap_offer_access: 'view'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_edit:
@@ -37,7 +37,7 @@ symbol_atomic_swap.offer_edit:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferForm'
     _title: 'Edit Swap Offer'
   requirements:
-    _permission: 'administer symbol atomic swap offers'
+    _symbol_atomic_swap_offer_access: 'admin'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_submit_signed_payload:
@@ -46,7 +46,7 @@ symbol_atomic_swap.offer_submit_signed_payload:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSignedPayloadForm'
     _title: 'Submit Signed Payload'
   requirements:
-    _permission: 'operate symbol atomic swap offers'
+    _symbol_atomic_swap_offer_access: 'operate'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_announce:
@@ -55,7 +55,7 @@ symbol_atomic_swap.offer_announce:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAnnounceForm'
     _title: 'Announce Transaction'
   requirements:
-    _permission: 'operate symbol atomic swap offers'
+    _symbol_atomic_swap_offer_access: 'operate'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_sync_projection:
@@ -64,7 +64,7 @@ symbol_atomic_swap.offer_sync_projection:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSyncProjectionForm'
     _title: 'Sync Projection'
   requirements:
-    _permission: 'operate symbol atomic swap offers'
+    _symbol_atomic_swap_offer_access: 'operate'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_delete:
@@ -73,8 +73,16 @@ symbol_atomic_swap.offer_delete:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferDeleteForm'
     _title: 'Delete Swap Offer'
   requirements:
-    _permission: 'administer symbol atomic swap offers'
+    _symbol_atomic_swap_offer_access: 'admin'
     offerId: '\d+'
+
+symbol_atomic_swap.transaction_history:
+  path: '/symbol-atomic-swap/transactions'
+  defaults:
+    _controller: '\Drupal\symbol_atomic_swap\Controller\TransactionHistoryController::list'
+    _title: 'Swap Transactions'
+  requirements:
+    _permission: 'view symbol atomic swap offers'
 
 symbol_atomic_swap.notification_list:
   path: '/symbol-atomic-swap/notifications'
@@ -90,7 +98,7 @@ symbol_atomic_swap.notification_mark_read:
     _form: '\Drupal\symbol_atomic_swap\Form\NotificationMarkReadForm'
     _title: 'Mark Notification Read'
   requirements:
-    _permission: 'operate symbol atomic swap offers'
+    _symbol_atomic_swap_notification_access: 'mark_read'
     notificationId: '\d+'
 
 symbol_atomic_swap.notification_mark_all_read:
@@ -99,7 +107,7 @@ symbol_atomic_swap.notification_mark_all_read:
     _form: '\Drupal\symbol_atomic_swap\Form\NotificationMarkAllReadForm'
     _title: 'Mark All Notifications Read'
   requirements:
-    _permission: 'operate symbol atomic swap offers'
+    _symbol_atomic_swap_notification_access: 'mark_all_read'
 
 symbol_atomic_swap.engine_network:
   path: '/symbol-atomic-swap/engine/network'

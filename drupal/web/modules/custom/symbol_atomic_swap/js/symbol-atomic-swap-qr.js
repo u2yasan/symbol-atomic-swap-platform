@@ -457,4 +457,23 @@
       once('symbol-atomic-swap-qr', '.symbol-atomic-swap-qr[data-qr-payload]', context).forEach(draw);
     },
   };
+
+  Drupal.behaviors.symbolAtomicSwapCopy = {
+    attach(context) {
+      once('symbol-atomic-swap-copy', '[data-symbol-copy]', context).forEach((button) => {
+        button.addEventListener('click', async (event) => {
+          event.preventDefault();
+          const value = button.getAttribute('data-symbol-copy') || '';
+          if (!value || !navigator.clipboard) {
+            return;
+          }
+          await navigator.clipboard.writeText(value);
+          button.textContent = 'Copied';
+          window.setTimeout(() => {
+            button.textContent = 'Copy';
+          }, 1500);
+        });
+      });
+    },
+  };
 })(Drupal, once);

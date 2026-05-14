@@ -27,3 +27,9 @@ symbol_atomic_swap.notification_list:
   description: 'Review Symbol atomic swap notifications.'
   route_name: symbol_atomic_swap.notification_list
   menu_name: main
+
+symbol_atomic_swap.transaction_history:
+  title: 'Symbol Swap Transactions'
+  description: 'Review Symbol swap transaction history.'
+  route_name: symbol_atomic_swap.transaction_history
+  menu_name: main

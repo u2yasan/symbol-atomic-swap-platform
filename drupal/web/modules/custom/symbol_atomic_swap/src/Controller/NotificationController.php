@@ -30,9 +30,10 @@ final class NotificationController extends ControllerBase {
 
   public function list(): array {
     $unread_only = $this->requestStack->getCurrentRequest()?->query->get('unread') === '1';
+    $owner_id = $this->ownerScope();
     $rows = [];
 
-    foreach ($this->notifications->all(100, $unread_only) as $notification) {
+    foreach ($this->notifications->all(100, $unread_only, $owner_id) as $notification) {
       $offer_id = (int) $notification['offer_id'];
       $operations = [
         Link::fromTextAndUrl($this->t('View offer'), Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]))->toString(),
@@ -60,7 +61,7 @@ final class NotificationController extends ControllerBase {
       'summary' => [
         '#type' => 'item',
         '#title' => $this->t('Unread notifications'),
-        '#markup' => (string) $this->notifications->unreadCount(),
+        '#markup' => (string) $this->notifications->unreadCount($owner_id),
       ],
       'actions' => [
         '#type' => 'actions',
@@ -99,6 +100,12 @@ final class NotificationController extends ControllerBase {
         '#empty' => $this->t('No notifications.'),
       ],
     ];
+  }
+
+  private function ownerScope(): ?int {
+    return $this->currentUser()->hasPermission('administer symbol atomic swap offers')
+      ? NULL
+      : (int) $this->currentUser()->id();
   }
 
 }

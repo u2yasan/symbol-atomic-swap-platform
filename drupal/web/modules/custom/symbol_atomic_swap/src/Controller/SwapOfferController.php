@@ -34,14 +34,15 @@ final class SwapOfferController extends ControllerBase {
   public function list(): array {
     $filters = $this->filtersFromRequest();
     $rows = [];
-    foreach ($this->offers->search($filters) as $offer) {
+    $owner_id = $this->ownerScope();
+    foreach ($this->offers->search($filters, 100, $owner_id) as $offer) {
       $rows[] = [
         Link::fromTextAndUrl((string) $offer['label'], Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
         $this->stateLabel((string) $offer['state']),
         $offer['network'],
         (string) $offer['uid'],
-        $offer['intent_hash'] ?: '',
-        $offer['transaction_hash'] ?: '',
+        ['data' => $this->hashValue((string) ($offer['intent_hash'] ?: ''))],
+        ['data' => $this->hashValue((string) ($offer['transaction_hash'] ?: ''))],
         $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : '',
         [
           'data' => [
@@ -52,9 +53,8 @@ final class SwapOfferController extends ControllerBase {
     }
 
     return [
-      '#cache' => [
-        'max-age' => 0,
-      ],
+      '#cache' => ['max-age' => 0],
+      '#attached' => ['library' => ['symbol_atomic_swap/qr']],
       'filters' => $this->filterForm($filters),
       'actions' => [
         '#type' => 'actions',
@@ -113,8 +113,8 @@ final class SwapOfferController extends ControllerBase {
           [$this->t('Correlation ID'), (string) $offer['correlation_id']],
           [$this->t('Deadline hours'), (string) $offer['deadline_hours']],
           [$this->t('Max fee'), (string) ($offer['max_fee'] ?: '')],
-          [$this->t('Intent hash'), (string) ($offer['intent_hash'] ?: '')],
-          [$this->t('Transaction hash'), (string) ($offer['transaction_hash'] ?: '')],
+          [$this->t('Intent hash'), $this->hashValue((string) ($offer['intent_hash'] ?: ''))],
+          [$this->t('Transaction hash'), $this->hashValue((string) ($offer['transaction_hash'] ?: ''))],
           [$this->t('Created'), $offer['created'] ? $this->dateFormatter->format((int) $offer['created'], 'short') : ''],
           [$this->t('Changed'), $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : ''],
           [$this->t('Expired at'), !empty($offer['expired_at']) ? $this->dateFormatter->format((int) $offer['expired_at'], 'short') : ''],
@@ -136,16 +136,16 @@ final class SwapOfferController extends ControllerBase {
           '#rows' => [
             [
               '1',
-              (string) $offer['leg1_signer_public_key'],
-              (string) $offer['leg1_recipient_address'],
-              (string) $offer['leg1_mosaic_id'],
+              ['data' => $this->hashValue((string) $offer['leg1_signer_public_key'])],
+              ['data' => $this->hashValue((string) $offer['leg1_recipient_address'])],
+              ['data' => $this->hashValue((string) $offer['leg1_mosaic_id'])],
               (string) $offer['leg1_amount'],
             ],
             [
               '2',
-              (string) $offer['leg2_signer_public_key'],
-              (string) $offer['leg2_recipient_address'],
-              (string) $offer['leg2_mosaic_id'],
+              ['data' => $this->hashValue((string) $offer['leg2_signer_public_key'])],
+              ['data' => $this->hashValue((string) $offer['leg2_recipient_address'])],
+              ['data' => $this->hashValue((string) $offer['leg2_mosaic_id'])],
               (string) $offer['leg2_amount'],
             ],
           ],
@@ -310,6 +310,9 @@ final class SwapOfferController extends ControllerBase {
         $filters[$key] = $value;
       }
     }
+    if (!$this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+      unset($filters['owner']);
+    }
 
     return $filters;
   }
@@ -323,12 +326,13 @@ final class SwapOfferController extends ControllerBase {
       '#attributes' => ['class' => ['symbol-atomic-swap-offer-filters']],
       'form' => [
         '#type' => 'inline_template',
-        '#template' => '<form method="get" action="{{ action }}"><label>{{ q_label }} <input name="q" value="{{ q }}" /></label> <label>{{ state_label }} <select name="state"><option value="">{{ any }}</option>{% for value,label in states %}<option value="{{ value }}"{% if value == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label> <label>{{ network_label }} <select name="network"><option value="">{{ any }}</option><option value="testnet"{% if network == "testnet" %} selected{% endif %}>testnet</option><option value="mainnet"{% if network == "mainnet" %} selected{% endif %}>mainnet</option></select></label> <label>{{ owner_label }} <input name="owner" value="{{ owner }}" size="8" /></label> <button class="button" type="submit">{{ apply }}</button> <a class="button" href="{{ action }}">{{ reset }}</a></form>',
+        '#template' => '<form method="get" action="{{ action }}"><label>{{ q_label }} <input name="q" value="{{ q }}" /></label> <label>{{ state_label }} <select name="state"><option value="">{{ any }}</option>{% for value,label in states %}<option value="{{ value }}"{% if value == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label> <label>{{ network_label }} <select name="network"><option value="">{{ any }}</option><option value="testnet"{% if network == "testnet" %} selected{% endif %}>testnet</option><option value="mainnet"{% if network == "mainnet" %} selected{% endif %}>mainnet</option></select></label>{% if show_owner %} <label>{{ owner_label }} <input name="owner" value="{{ owner }}" size="8" /></label>{% endif %} <button class="button" type="submit">{{ apply }}</button> <a class="button" href="{{ action }}">{{ reset }}</a></form>',
         '#context' => [
           'action' => Url::fromRoute('symbol_atomic_swap.offer_list')->toString(),
           'q_label' => $this->t('Search'),
           'state_label' => $this->t('State'),
           'network_label' => $this->t('Network'),
+          'show_owner' => $this->currentUser()->hasPermission('administer symbol atomic swap offers'),
           'owner_label' => $this->t('Owner UID'),
           'apply' => $this->t('Apply'),
           'reset' => $this->t('Reset'),
@@ -336,7 +340,7 @@ final class SwapOfferController extends ControllerBase {
           'q' => $filters['q'] ?? '',
           'state' => $filters['state'] ?? '',
           'network' => $filters['network'] ?? '',
-          'owner' => $filters['owner'] ?? '',
+          'owner' => $this->currentUser()->hasPermission('administer symbol atomic swap offers') ? ($filters['owner'] ?? '') : '',
           'states' => [
             'draft' => 'draft',
             'qr_generated' => 'qr_generated',
@@ -409,12 +413,45 @@ final class SwapOfferController extends ControllerBase {
   private function keyValueTable(array $values): array {
     $rows = [];
     foreach ($values as $row) {
-      $rows[] = [$row[0], $row[1]];
+      $rows[] = [$row[0], is_array($row[1]) ? ['data' => $row[1]] : $row[1]];
     }
 
     return [
       '#type' => 'table',
       '#rows' => $rows,
+    ];
+  }
+
+  private function ownerScope(): ?int {
+    return $this->currentUser()->hasPermission('administer symbol atomic swap offers')
+      ? NULL
+      : (int) $this->currentUser()->id();
+  }
+
+  private function hashValue(string $value): array|string {
+    if ($value === '') {
+      return '';
+    }
+
+    return [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['symbol-atomic-swap-copy']],
+      'value' => [
+        '#type' => 'html_tag',
+        '#tag' => 'code',
+        '#value' => $value,
+        '#attributes' => ['class' => ['symbol-atomic-swap-hash']],
+      ],
+      'copy' => [
+        '#type' => 'html_tag',
+        '#tag' => 'button',
+        '#value' => (string) $this->t('Copy'),
+        '#attributes' => [
+          'type' => 'button',
+          'class' => ['button', 'button--small', 'symbol-atomic-swap-copy__button'],
+          'data-symbol-copy' => $value,
+        ],
+      ],
     ];
   }
 

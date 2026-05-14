@@ -35,7 +35,10 @@ final class NotificationMarkAllReadForm extends ConfirmFormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $this->notifications->markAllRead();
+    $owner_id = $this->currentUser()->hasPermission('administer symbol atomic swap offers')
+      ? NULL
+      : (int) $this->currentUser()->id();
+    $this->notifications->markAllRead($owner_id);
     $this->messenger()->addStatus($this->t('All notifications were marked read.'));
     $form_state->setRedirect('symbol_atomic_swap.notification_list');
   }

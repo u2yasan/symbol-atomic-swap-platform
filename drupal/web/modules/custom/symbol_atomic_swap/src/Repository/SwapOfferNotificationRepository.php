@@ -68,12 +68,16 @@ final class SwapOfferNotificationRepository {
   /**
    * @return array<int, array<string, mixed>>
    */
-  public function all(int $limit = 100, bool $unread_only = FALSE): array {
+  public function all(int $limit = 100, bool $unread_only = FALSE, ?int $owner_id = NULL): array {
     $query = $this->database->select(self::TABLE, 'n')
       ->fields('n')
       ->orderBy('created', 'DESC')
       ->range(0, $limit);
 
+    if ($owner_id !== NULL) {
+      $query->innerJoin('symbol_atomic_swap_offer', 'o', 'o.id = n.offer_id');
+      $query->condition('o.uid', $owner_id);
+    }
     if ($unread_only) {
       $query->isNull('read_at');
     }
@@ -94,12 +98,15 @@ final class SwapOfferNotificationRepository {
       ->fetchAll(FetchAs::Associative);
   }
 
-  public function unreadCount(): int {
-    return (int) $this->database->select(self::TABLE, 'n')
-      ->condition('read_at', NULL, 'IS NULL')
-      ->countQuery()
-      ->execute()
-      ->fetchField();
+  public function unreadCount(?int $owner_id = NULL): int {
+    $query = $this->database->select(self::TABLE, 'n')
+      ->condition('read_at', NULL, 'IS NULL');
+    if ($owner_id !== NULL) {
+      $query->innerJoin('symbol_atomic_swap_offer', 'o', 'o.id = n.offer_id');
+      $query->condition('o.uid', $owner_id);
+    }
+
+    return (int) $query->countQuery()->execute()->fetchField();
   }
 
   public function markRead(int $id): void {
@@ -110,11 +117,40 @@ final class SwapOfferNotificationRepository {
       ->execute();
   }
 
-  public function markAllRead(): void {
+  public function markAllRead(?int $owner_id = NULL): void {
+    if ($owner_id === NULL) {
+      $this->database->update(self::TABLE)
+        ->fields(['read_at' => $this->time->getRequestTime()])
+        ->isNull('read_at')
+        ->execute();
+      return;
+    }
+
+    $ids = $this->database->select(self::TABLE, 'n')
+      ->fields('n', ['id'])
+      ->condition('read_at', NULL, 'IS NULL');
+    $ids->innerJoin('symbol_atomic_swap_offer', 'o', 'o.id = n.offer_id');
+    $ids->condition('o.uid', $owner_id);
+    $notification_ids = array_map('intval', $ids->execute()->fetchCol());
+    if ($notification_ids === []) {
+      return;
+    }
+
     $this->database->update(self::TABLE)
       ->fields(['read_at' => $this->time->getRequestTime()])
-      ->isNull('read_at')
+      ->condition('id', $notification_ids, 'IN')
       ->execute();
+  }
+
+  public function ownerId(int $notification_id): ?int {
+    $query = $this->database->select(self::TABLE, 'n')
+      ->condition('n.id', $notification_id)
+      ->range(0, 1);
+    $query->innerJoin('symbol_atomic_swap_offer', 'o', 'o.id = n.offer_id');
+    $query->fields('o', ['uid']);
+    $owner_id = $query->execute()->fetchField();
+
+    return $owner_id !== FALSE ? (int) $owner_id : NULL;
   }
 
 }

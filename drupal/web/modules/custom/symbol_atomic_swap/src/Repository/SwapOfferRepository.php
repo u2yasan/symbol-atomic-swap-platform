@@ -32,7 +32,7 @@ final class SwapOfferRepository {
    *
    * @return array<int, array<string, mixed>>
    */
-  public function search(array $filters = [], int $limit = 100): array {
+  public function search(array $filters = [], int $limit = 100, ?int $owner_id = NULL): array {
     $query = $this->database->select(self::TABLE, 'o')
       ->fields('o')
       ->orderBy('changed', 'DESC')
@@ -46,6 +46,12 @@ final class SwapOfferRepository {
     }
     if (!empty($filters['owner'])) {
       $query->condition('uid', (int) $filters['owner']);
+    }
+    if ($owner_id !== NULL) {
+      $query->condition('uid', $owner_id);
+    }
+    if (!empty($filters['has_transaction_hash'])) {
+      $query->isNotNull('transaction_hash');
     }
     if (!empty($filters['q'])) {
       $or = $query->orConditionGroup()

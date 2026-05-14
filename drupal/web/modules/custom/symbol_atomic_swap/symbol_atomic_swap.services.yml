@@ -26,3 +26,15 @@ services:
   symbol_atomic_swap.offer_expiration_manager:
     class: Drupal\symbol_atomic_swap\Service\SwapOfferExpirationManager
     arguments: ['@symbol_atomic_swap.offer_repository', '@datetime.time', '@logger.factory', '@symbol_atomic_swap.offer_notification_repository']
+
+  symbol_atomic_swap.offer_access_check:
+    class: Drupal\symbol_atomic_swap\Access\SwapOfferAccessCheck
+    arguments: ['@symbol_atomic_swap.offer_repository']
+    tags:
+      - { name: access_check, applies_to: _symbol_atomic_swap_offer_access }
+
+  symbol_atomic_swap.notification_access_check:
+    class: Drupal\symbol_atomic_swap\Access\SwapNotificationAccessCheck
+    arguments: ['@symbol_atomic_swap.offer_notification_repository']
+    tags:
+      - { name: access_check, applies_to: _symbol_atomic_swap_notification_access }
