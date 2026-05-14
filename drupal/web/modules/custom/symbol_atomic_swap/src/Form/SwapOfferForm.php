@@ -201,8 +201,8 @@ final class SwapOfferForm extends FormBase {
       if (!$this->isHash($signer)) {
         $form_state->setErrorByName("leg_$index][signer_public_key", $this->t('Signer public key must be 64 hex characters.'));
       }
-      if (strlen($address) < 39 || strlen($address) > 46) {
-        $form_state->setErrorByName("leg_$index][recipient_address", $this->t('Recipient address must be 39 to 46 characters.'));
+      if (!$this->isNetworkAddress($address, (string) $form_state->getValue('network'))) {
+        $form_state->setErrorByName("leg_$index][recipient_address", $this->t('Recipient address must be a valid raw Symbol address for the selected network.'));
       }
       if (!$this->isMosaicId($mosaic_id)) {
         $form_state->setErrorByName("leg_$index][mosaic_id", $this->t('Mosaic ID must be 16 hex characters.'));
@@ -280,11 +280,11 @@ final class SwapOfferForm extends FormBase {
       'deadline_hours' => (int) $form_state->getValue('deadline_hours'),
       'max_fee' => $max_fee !== '' ? $max_fee : NULL,
       'leg1_signer_public_key' => strtoupper(trim((string) $leg1['signer_public_key'])),
-      'leg1_recipient_address' => trim((string) $leg1['recipient_address']),
+      'leg1_recipient_address' => strtoupper(trim((string) $leg1['recipient_address'])),
       'leg1_mosaic_id' => strtoupper(trim((string) $leg1['mosaic_id'])),
       'leg1_amount' => trim((string) $leg1['amount']),
       'leg2_signer_public_key' => strtoupper(trim((string) $leg2['signer_public_key'])),
-      'leg2_recipient_address' => trim((string) $leg2['recipient_address']),
+      'leg2_recipient_address' => strtoupper(trim((string) $leg2['recipient_address'])),
       'leg2_mosaic_id' => strtoupper(trim((string) $leg2['mosaic_id'])),
       'leg2_amount' => trim((string) $leg2['amount']),
     ];
@@ -296,6 +296,16 @@ final class SwapOfferForm extends FormBase {
 
   private function isMosaicId(string $value): bool {
     return preg_match('/^[0-9A-Fa-f]{16}$/', $value) === 1;
+  }
+
+  private function isNetworkAddress(string $value, string $network): bool {
+    $value = strtoupper(trim($value));
+    $prefix = match ($network) {
+      'mainnet' => 'N',
+      'testnet' => 'T',
+      default => '',
+    };
+    return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', $value) === 1;
   }
 
   private function isPositiveInteger(string $value): bool {

@@ -76,12 +76,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'correlation_id' => 'ui-distinct-leg-0001',
       'deadline_hours' => '2',
       'max_fee' => '',
-      'leg_1[signer_public_key]' => str_repeat('A', 64),
-      'leg_1[recipient_address]' => 'TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      'leg_1[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
+      'leg_1[recipient_address]' => 'TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI',
       'leg_1[mosaic_id]' => '72C0212E67A08BCE',
       'leg_1[amount]' => '100',
-      'leg_2[signer_public_key]' => str_repeat('B', 64),
-      'leg_2[recipient_address]' => 'TBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+      'leg_2[signer_public_key]' => 'A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0',
+      'leg_2[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
       'leg_2[mosaic_id]' => '72C0212E67A08BCF',
       'leg_2[amount]' => '200',
     ], 'Create and build QR');
@@ -89,7 +89,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextNotContains('Signer public key must be 64 hex characters.');
-    $assert_session->pageTextNotContains('Recipient address must be 39 to 46 characters.');
+    $assert_session->pageTextNotContains('Recipient address must be a valid raw Symbol address for the selected network.');
     $assert_session->pageTextNotContains('Mosaic ID must be 16 hex characters.');
     $assert_session->pageTextNotContains('Amount must be a positive integer.');
 
@@ -97,12 +97,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'q' => 'ui-distinct-leg-0001',
     ]);
     $this->assertCount(1, $records);
-    $this->assertSame(str_repeat('A', 64), $records[0]['leg1_signer_public_key']);
-    $this->assertSame('TAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', $records[0]['leg1_recipient_address']);
+    $this->assertSame('D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737', $records[0]['leg1_signer_public_key']);
+    $this->assertSame('TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI', $records[0]['leg1_recipient_address']);
     $this->assertSame('72C0212E67A08BCE', $records[0]['leg1_mosaic_id']);
     $this->assertSame('100', $records[0]['leg1_amount']);
-    $this->assertSame(str_repeat('B', 64), $records[0]['leg2_signer_public_key']);
-    $this->assertSame('TBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB', $records[0]['leg2_recipient_address']);
+    $this->assertSame('A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0', $records[0]['leg2_signer_public_key']);
+    $this->assertSame('TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY', $records[0]['leg2_recipient_address']);
     $this->assertSame('72C0212E67A08BCF', $records[0]['leg2_mosaic_id']);
     $this->assertSame('200', $records[0]['leg2_amount']);
   }
