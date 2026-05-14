@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Check sensitive file policy
         run: make check-sensitive-files
@@ -40,6 +40,9 @@ jobs:
 
       - name: Check Docker image policy
         run: make check-docker-image-policy
+
+      - name: Check GitHub Actions policy
+        run: make check-github-actions-policy
 
       - name: Install Drupal dependencies
         run: docker run --rm -v "$PWD/drupal:/app" -w /app composer:2@sha256:02062f7719ec9433a9d4256cfba1c792db96dc9db60a4a92e48264c9e166b877 composer install --no-interaction --prefer-dist --no-progress --ignore-platform-req=ext-gd
