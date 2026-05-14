@@ -19,6 +19,7 @@ import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import { intentParamsSchema, projectionParamsSchema } from '../dto/readModels.js';
 import { LARGE_PAYLOAD_BODY_LIMIT_BYTES, SMALL_BODY_LIMIT_BYTES } from './security.js';
+import { intentResponse } from './intentResponse.js';
 
 export type RouteDependencies = {
   nodeUrl: string | undefined;
@@ -52,19 +53,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
       });
     }
 
-    return reply.send({
-      id: intent.id,
-      correlationId: intent.correlationId,
-      network: intent.network,
-      intentHash: intent.intentHash,
-      state: intent.state,
-      aggregateType: intent.aggregateType,
-      unsignedPayload: intent.unsignedPayload,
-      qrPayload: intent.qrPayload,
-      requiredCosigners: intent.requiredCosigners,
-      intent: intent.intent,
-      transactionHash: intent.transactionHash,
-    });
+    return reply.send(intentResponse(intent));
   });
 
   app.post('/v1/aggregate-complete/build', {

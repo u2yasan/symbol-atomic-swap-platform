@@ -85,6 +85,8 @@ Persisted reconciliation failure responses must not store raw Symbol REST status
 
 Symbol REST client DTOs must expose only parsed fields required by callers. Raw upstream response bodies must not be returned from the REST client API.
 
+Intent read responses must be built through an explicit public read model. They must not expose signed payloads or stored node responses.
+
 Validation error responses must expose only stable public issue fields: `code`, `path`, and `message`. They must not echo rejected request values or serializer-specific internals.
 
 Shutdown must stop background listeners and reconcilers, close the HTTP server, and then close the database pool. The database pool must still be closed if HTTP server close fails. Failed shutdown must be logged and must exit nonzero.
