@@ -4,6 +4,8 @@ import { buildAggregateComplete } from '../aggregate/aggregateCompleteBuilder.js
 import { dispatchBlockchainEvent } from '../listener/eventDispatcher.js';
 import { isTransactionFinalized } from '../monitor/finalizationMonitor.js';
 import { verifySignedPayload } from '../transaction/signedPayloadVerifier.js';
+import { verifyCosignature } from '../transaction/cosignatureVerifier.js';
+import { assembleCompleteSignedPayload } from '../transaction/completePayloadAssembler.js';
 import { announceVerifiedTransaction } from '../transaction/announceService.js';
 import { announceSignedHashLock, buildHashLockTransaction } from '../transaction/hashLockService.js';
 import { announcePartialAggregateBonded } from '../transaction/partialAnnouncementService.js';
@@ -128,6 +130,49 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     if (result.accepted && intent && result.transactionHash) {
       const payload = (request.body as { payload: string }).payload;
       await dependencies.repositories.swapIntents.markSigned(intent.intentHash, payload.toUpperCase(), result.transactionHash);
+    }
+    return reply.code(result.accepted ? 200 : 400).send(result);
+  });
+
+  app.post('/v1/transactions/verify-cosignature', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const intentHash = typeof request.body === 'object'
+      && request.body !== null
+      && 'intentHash' in request.body
+      && typeof request.body.intentHash === 'string'
+      ? request.body.intentHash.toUpperCase()
+      : '';
+    const intent = intentHash ? await dependencies.repositories.swapIntents.findByIntentHash(intentHash) : null;
+    const result = verifyCosignature(request.body, intent);
+    return reply.code(result.accepted ? 200 : 400).send(result);
+  });
+
+  app.post('/v1/transactions/assemble-complete-payload', {
+    bodyLimit: LARGE_PAYLOAD_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const intentHash = typeof request.body === 'object'
+      && request.body !== null
+      && 'intentHash' in request.body
+      && typeof request.body.intentHash === 'string'
+      ? request.body.intentHash.toUpperCase()
+      : '';
+    const intent = intentHash ? await dependencies.repositories.swapIntents.findByIntentHash(intentHash) : null;
+    const result = assembleCompleteSignedPayload(request.body, intent);
+    if (result.accepted && intent && result.payload && result.transactionHash) {
+      await dependencies.repositories.swapIntents.markSigned(intent.intentHash, result.payload, result.transactionHash);
     }
     return reply.code(result.accepted ? 200 : 400).send(result);
   });

@@ -211,6 +211,59 @@ function symbol_atomic_swap_schema(): array {
     ],
   ];
 
+  $schema['symbol_atomic_swap_cosignature'] = [
+    'description' => 'Stores externally produced aggregate complete cosignatures for swap offers.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'offer_id' => [
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+      'parent_hash' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'signer_public_key' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ],
+      'signature' => [
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ],
+      'trusted_parent_hash' => [
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'uid' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'created' => [
+        'type' => 'int',
+        'not null' => TRUE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'offer_parent_signer' => ['offer_id', 'parent_hash', 'signer_public_key'],
+    ],
+    'indexes' => [
+      'offer_id' => ['offer_id'],
+      'parent_hash' => ['parent_hash'],
+      'signer_public_key' => ['signer_public_key'],
+    ],
+  ];
+
   return $schema;
 }
 
@@ -330,4 +383,15 @@ function symbol_atomic_swap_update_11006(): void {
   }
 
   $schema->addUniqueKey('symbol_atomic_swap_offer', 'network_correlation_id', ['network', 'correlation_id']);
+}
+
+/**
+ * Adds storage for externally collected cosignatures.
+ */
+function symbol_atomic_swap_update_11007(): void {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->tableExists('symbol_atomic_swap_cosignature')) {
+    $module_schema = symbol_atomic_swap_schema();
+    $schema->createTable('symbol_atomic_swap_cosignature', $module_schema['symbol_atomic_swap_cosignature']);
+  }
 }

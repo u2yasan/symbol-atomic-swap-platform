@@ -7,6 +7,10 @@ services:
     class: Drupal\symbol_atomic_swap\Repository\SwapOfferRepository
     arguments: ['@database']
 
+  symbol_atomic_swap.offer_cosignature_repository:
+    class: Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository
+    arguments: ['@database', '@datetime.time']
+
   symbol_atomic_swap.offer_notification_repository:
     class: Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository
     arguments: ['@database', '@datetime.time', '@symbol_atomic_swap.offer_notification_webhook_notifier', '@symbol_atomic_swap.offer_notification_email_notifier']

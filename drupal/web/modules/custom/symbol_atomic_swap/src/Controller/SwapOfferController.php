@@ -8,6 +8,7 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
+use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -19,6 +20,7 @@ final class SwapOfferController extends ControllerBase {
   public function __construct(
     private readonly SwapOfferRepository $offers,
     private readonly SwapOfferNotificationRepository $notifications,
+    private readonly SwapOfferCosignatureRepository $cosignatures,
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
   ) {}
@@ -27,6 +29,7 @@ final class SwapOfferController extends ControllerBase {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.offer_notification_repository'),
+      $container->get('symbol_atomic_swap.offer_cosignature_repository'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
     );
@@ -220,6 +223,29 @@ final class SwapOfferController extends ControllerBase {
       ];
     }
 
+    $cosignature_rows = [];
+    foreach ($this->cosignatures->findByOffer((int) $offer['id']) as $cosignature) {
+      $cosignature_rows[] = [
+        ['data' => $this->hashValue((string) $cosignature['parent_hash'])],
+        ['data' => $this->hashValue((string) $cosignature['signer_public_key'])],
+        !empty($cosignature['trusted_parent_hash']) ? $this->t('Yes') : $this->t('No'),
+        $cosignature['created'] ? $this->dateFormatter->format((int) $cosignature['created'], 'short') : '',
+      ];
+    }
+    if ($cosignature_rows !== []) {
+      $build['cosignatures'] = [
+        '#type' => 'table',
+        '#header' => [
+          $this->t('Cosignature parent hash'),
+          $this->t('Signer public key'),
+          $this->t('Trusted parent hash'),
+          $this->t('Submitted'),
+        ],
+        '#rows' => $cosignature_rows,
+        '#caption' => $this->t('Stored cosignatures'),
+      ];
+    }
+
     $build['actions'] = [
       '#type' => 'actions',
       'submit_signed_payload' => [
@@ -229,6 +255,22 @@ final class SwapOfferController extends ControllerBase {
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
           && $this->offers->canSubmitSignedPayload($offer),
         '#attributes' => ['class' => ['button', 'button--primary']],
+      ],
+      'submit_cosignature' => [
+        '#type' => 'link',
+        '#title' => $this->t('Submit cosignature JSON'),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_submit_cosignature', ['offerId' => $offer['id']]),
+        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
+          && $this->offers->canSubmitSignedPayload($offer),
+        '#attributes' => ['class' => ['button']],
+      ],
+      'assemble_signed_payload' => [
+        '#type' => 'link',
+        '#title' => $this->t('Assemble signed payload'),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]),
+        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
+          && $this->offers->canSubmitSignedPayload($offer),
+        '#attributes' => ['class' => ['button']],
       ],
       'announce' => [
         '#type' => 'link',
@@ -500,6 +542,8 @@ final class SwapOfferController extends ControllerBase {
     if ($this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
       if ($this->offers->canSubmitSignedPayload($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Submit signed payload'), Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]))->toString();
+        $operations[] = Link::fromTextAndUrl($this->t('Submit cosignature JSON'), Url::fromRoute('symbol_atomic_swap.offer_submit_cosignature', ['offerId' => $offer['id']]))->toString();
+        $operations[] = Link::fromTextAndUrl($this->t('Assemble signed payload'), Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]))->toString();
       }
       if ($this->offers->canAnnounce($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Announce transaction'), Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]))->toString();

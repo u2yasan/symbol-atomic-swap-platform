@@ -343,6 +343,20 @@ The final signed payload must include all required signatures. A payload signed
 by only one party is expected to be rejected by Engine with a missing signer
 reason.
 
+When Symbol Desktop Wallet returns detached cosignature JSON:
+
+1. Open `/symbol-atomic-swap/offers/{offerId}/submit-cosignature`.
+2. Paste the JSON containing `parentHash`, `signature`, and `signerPublicKey`.
+3. Submit and confirm that the cosignature is stored.
+4. Repeat for every non-root cosigner.
+5. Open `/symbol-atomic-swap/offers/{offerId}/assemble-signed-payload`.
+6. Paste the root signed transaction payload HEX.
+7. Submit and confirm that Engine assembles the final signed payload and the
+   offer state becomes `signed`.
+
+Do not paste cosignature JSON into `Signed payload`. `Signed payload` only
+accepts the complete signed transaction payload HEX.
+
 Never paste private keys, mnemonics, wallet passwords, or signing secrets into
 Drupal. The only value returned to Drupal is the signed payload HEX.
 

@@ -58,6 +58,32 @@ final class SymbolEngineClient {
     ]);
   }
 
+  /**
+   * @param array<string, mixed> $cosignature
+   */
+  public function verifyCosignature(string $intent_hash, array $cosignature): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    return $this->request('POST', '/v1/transactions/verify-cosignature', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+      'parentHash' => strtoupper((string) ($cosignature['parentHash'] ?? '')),
+      'signerPublicKey' => strtoupper((string) ($cosignature['signerPublicKey'] ?? '')),
+      'signature' => strtoupper((string) ($cosignature['signature'] ?? '')),
+      'version' => $cosignature['version'] ?? NULL,
+    ]);
+  }
+
+  /**
+   * @param array<int, array<string, string>> $cosignatures
+   */
+  public function assembleCompletePayload(string $intent_hash, string $root_signed_payload, array $cosignatures): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    return $this->request('POST', '/v1/transactions/assemble-complete-payload', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+      'rootSignedPayload' => strtoupper($root_signed_payload),
+      'cosignatures' => $cosignatures,
+    ]);
+  }
+
   public function announce(string $intent_hash): array {
     $this->assertHash($intent_hash, 'intent hash');
     return $this->request('POST', '/v1/transactions/announce', TRUE, [

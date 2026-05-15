@@ -122,6 +122,23 @@ Sign outside Drupal:
 Only the final signed payload HEX returns to Drupal. No signing secret returns to
 Drupal.
 
+When Symbol Desktop Wallet returns detached cosignature JSON instead of a final
+signed payload:
+
+1. Open `/symbol-atomic-swap/offers/{offerId}/submit-cosignature`.
+2. Paste the Desktop Wallet JSON containing `parentHash`, `signature`, and
+   `signerPublicKey`.
+3. Submit it for verification and storage.
+4. Repeat until every non-root cosigner has been collected.
+5. Open `/symbol-atomic-swap/offers/{offerId}/assemble-signed-payload`.
+6. Paste the root signed transaction payload HEX created by the aggregate
+   signer.
+7. Submit. Engine attaches the stored cosignatures, verifies the final payload,
+   and marks the offer `signed` when semantic verification passes.
+
+Do not paste cosignature JSON into `Signed payload`. That field only accepts a
+complete signed transaction payload HEX.
+
 For local iPhone testing, do not expect a phone to open `127.0.0.1` on the Mac.
 Use a Drupal URL that the phone can reach, or copy the payload from the desktop
 browser.
