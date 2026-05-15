@@ -183,6 +183,35 @@ final class SymbolEngineClientTest extends KernelTestBase {
   }
 
   /**
+   * Engine rejection reasons must not be collapsed into a generic client error.
+   */
+  public function testRequestExceptionUsesReasonWhenErrorIsAbsent(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
+
+    $client = $this->client([
+      new Response(400, [], '{"accepted":false,"reason":"unexpected_cosignature_signer"}'),
+    ]);
+
+    $this->expectException(SymbolEngineException::class);
+    $this->expectExceptionMessage('Symbol Engine validation failed. unexpected_cosignature_signer');
+
+    try {
+      $client->verifyCosignature(str_repeat('A', 64), [
+        'parentHash' => str_repeat('B', 64),
+        'signerPublicKey' => str_repeat('C', 64),
+        'signature' => str_repeat('D', 128),
+      ]);
+    }
+    catch (SymbolEngineException $exception) {
+      $this->assertSame(400, $exception->statusCode);
+      $this->assertSame('unexpected_cosignature_signer', $exception->engineError);
+      $this->assertSame('unexpected_cosignature_signer', $exception->details['reason']);
+      throw $exception;
+    }
+  }
+
+  /**
    * Client-side hash validation should reject malformed identifiers early.
    */
   public function testInvalidHashIsRejectedBeforeRequest(): void {

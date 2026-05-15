@@ -54,9 +54,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Offer label');
     $assert_session->fieldExists('Correlation ID');
-    $assert_session->fieldExists('Transfer leg 1 signer public key');
-    $assert_session->fieldExists('Transfer leg 2 signer public key');
-    $assert_session->buttonExists('Create and build QR');
+    $assert_session->fieldExists('Maker public key');
+    $assert_session->fieldExists('Maker recipient address');
+    $assert_session->buttonExists('Create trade offer');
   }
 
   /**
@@ -76,15 +76,13 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'correlation_id' => 'ui-distinct-leg-0001',
       'deadline_hours' => '2',
       'max_fee' => '',
-      'leg_1[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
-      'leg_1[recipient_address]' => 'TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI',
-      'leg_1[mosaic_id]' => '72C0212E67A08BCE',
-      'leg_1[amount]' => '100',
-      'leg_2[signer_public_key]' => 'A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0',
-      'leg_2[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
-      'leg_2[mosaic_id]' => '72C0212E67A08BCF',
-      'leg_2[amount]' => '200',
-    ], 'Create and build QR');
+      'maker_pays[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
+      'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
+      'maker_pays[amount]' => '100',
+      'maker_wants[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
+      'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
+      'maker_wants[amount]' => '200',
+    ], 'Create trade offer');
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
@@ -98,10 +96,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     ]);
     $this->assertCount(1, $records);
     $this->assertSame('D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737', $records[0]['leg1_signer_public_key']);
-    $this->assertSame('TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI', $records[0]['leg1_recipient_address']);
+    $this->assertSame('', $records[0]['leg1_recipient_address']);
     $this->assertSame('72C0212E67A08BCE', $records[0]['leg1_mosaic_id']);
     $this->assertSame('100', $records[0]['leg1_amount']);
-    $this->assertSame('A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0', $records[0]['leg2_signer_public_key']);
+    $this->assertSame('', $records[0]['leg2_signer_public_key']);
     $this->assertSame('TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY', $records[0]['leg2_recipient_address']);
     $this->assertSame('72C0212E67A08BCF', $records[0]['leg2_mosaic_id']);
     $this->assertSame('200', $records[0]['leg2_amount']);
@@ -132,15 +130,13 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'correlation_id' => 'ui-duplicate-correlation',
       'deadline_hours' => '2',
       'max_fee' => '',
-      'leg_1[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
-      'leg_1[recipient_address]' => 'TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI',
-      'leg_1[mosaic_id]' => '72C0212E67A08BCE',
-      'leg_1[amount]' => '100',
-      'leg_2[signer_public_key]' => 'A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0',
-      'leg_2[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
-      'leg_2[mosaic_id]' => '72C0212E67A08BCF',
-      'leg_2[amount]' => '200',
-    ], 'Create and build QR');
+      'maker_pays[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
+      'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
+      'maker_pays[amount]' => '100',
+      'maker_wants[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
+      'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
+      'maker_wants[amount]' => '200',
+    ], 'Create trade offer');
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
@@ -206,7 +202,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Test offer');
     $assert_session->pageTextContains('qr_generated');
     $assert_session->pageTextContains('Summary');
-    $assert_session->pageTextContains('Transfer legs');
+    $assert_session->pageTextContains('Trade terms');
     $assert_session->pageTextContains('Projection');
     $assert_session->pageTextContains('Manual sync allowed');
     $assert_session->pageTextContains('Automatic sync eligible');
@@ -233,7 +229,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/edit');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldValueEquals('Offer label', 'Test offer');
-    $assert_session->buttonExists('Save and rebuild QR');
+    $assert_session->buttonExists('Save offer');
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/delete');
     $assert_session->statusCodeEquals(200);
@@ -283,6 +279,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($viewer);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
     $this->assertSession()->statusCodeEquals(403);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
+    $this->assertSession()->statusCodeEquals(403);
 
     $this->drupalLogin($operator);
 
@@ -290,17 +288,23 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Submit signed payload');
+    $assert_session->linkExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Submit signed payload');
+    $assert_session->linkExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Signed payload');
     $assert_session->buttonExists('Verify signed payload');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Aggregate signer JSON');
+    $assert_session->buttonExists('Build and verify root signed payload');
 
     $repository->markSigned($id, str_repeat('D', 64));
     $this->drupalGet('/symbol-atomic-swap/offers');
@@ -439,7 +443,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
-   * Non-admin users must not access offers owned by another account.
+   * Non-admin users can view public offers but cannot operate another account's offer.
    */
   public function testOfferRoutesAreScopedToOwnerForNonAdmins(): void {
     $owner = $this->drupalCreateUser([
@@ -461,9 +465,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($other);
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextNotContains('Owner scoped offer');
+    $assert_session->pageTextContains('Owner scoped offer');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
-    $assert_session->statusCodeEquals(403);
+    $assert_session->statusCodeEquals(200);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
     $assert_session->statusCodeEquals(403);
 

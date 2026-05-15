@@ -122,6 +122,23 @@ Sign outside Drupal:
 Only the final signed payload HEX returns to Drupal. No signing secret returns to
 Drupal.
 
+For local test signing with Symbol SDK, create the aggregate signer root signed
+payload from the copied `Unsigned payload`:
+
+```sh
+cd symbol-engine
+UNSIGNED_PAYLOAD='PASTE_UNSIGNED_PAYLOAD_HEX' \
+SIGNER_PRIVATE_KEY='PASTE_AGGREGATE_SIGNER_PRIVATE_KEY_HEX' \
+npm run sign:root-payload
+```
+
+Copy only the JSON output `payload` value. Use it as follows:
+
+- paste it into `Submit signed payload` only when the payload already contains
+  every required signature
+- paste it into `Assemble signed payload` as the root signed transaction payload
+  when detached cosignature JSON has been stored separately
+
 When Symbol Desktop Wallet returns detached cosignature JSON instead of a final
 signed payload:
 

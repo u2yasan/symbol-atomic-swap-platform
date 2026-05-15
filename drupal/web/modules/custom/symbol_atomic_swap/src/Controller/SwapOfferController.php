@@ -38,8 +38,7 @@ final class SwapOfferController extends ControllerBase {
   public function list(): array {
     $filters = $this->filtersFromRequest();
     $rows = [];
-    $owner_id = $this->ownerScope();
-    foreach ($this->offers->search($filters, 100, $owner_id) as $offer) {
+    foreach ($this->offers->search($filters, 100, NULL) as $offer) {
       $rows[] = [
         Link::fromTextAndUrl((string) $offer['label'], Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
         $this->stateLabel((string) $offer['state']),
@@ -117,12 +116,12 @@ final class SwapOfferController extends ControllerBase {
       ],
       'legs' => [
         '#type' => 'details',
-        '#title' => $this->t('Transfer legs'),
+        '#title' => $this->t('Trade terms'),
         '#open' => TRUE,
         'table' => [
           '#type' => 'table',
           '#header' => [
-            $this->t('Leg'),
+            $this->t('Side'),
             $this->t('Signer public key'),
             $this->t('Recipient address'),
             $this->t('Mosaic ID'),
@@ -130,15 +129,15 @@ final class SwapOfferController extends ControllerBase {
           ],
           '#rows' => [
             [
-              '1',
+              $this->t('Maker pays'),
               ['data' => $this->hashValue((string) $offer['leg1_signer_public_key'])],
-              ['data' => $this->hashValue((string) $offer['leg1_recipient_address'])],
+              ['data' => $this->hashValue((string) ($offer['leg1_recipient_address'] ?: 'Taker decides on accept'))],
               ['data' => $this->hashValue((string) $offer['leg1_mosaic_id'])],
               (string) $offer['leg1_amount'],
             ],
             [
-              '2',
-              ['data' => $this->hashValue((string) $offer['leg2_signer_public_key'])],
+              $this->t('Maker wants'),
+              ['data' => $this->hashValue((string) ($offer['leg2_signer_public_key'] ?: 'Taker decides on accept'))],
               ['data' => $this->hashValue((string) $offer['leg2_recipient_address'])],
               ['data' => $this->hashValue((string) $offer['leg2_mosaic_id'])],
               (string) $offer['leg2_amount'],
@@ -255,6 +254,22 @@ final class SwapOfferController extends ControllerBase {
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
           && $this->offers->canSubmitSignedPayload($offer),
         '#attributes' => ['class' => ['button', 'button--primary']],
+      ],
+      'accept' => [
+        '#type' => 'link',
+        '#title' => $this->t('Accept offer'),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_accept', ['offerId' => $offer['id']]),
+        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
+          && $this->offers->canAccept($offer),
+        '#attributes' => ['class' => ['button', 'button--primary']],
+      ],
+      'submit_aggregate_signer_json' => [
+        '#type' => 'link',
+        '#title' => $this->t('Submit aggregate signer JSON'),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_submit_aggregate_signer_json', ['offerId' => $offer['id']]),
+        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
+          && $this->offers->canSubmitSignedPayload($offer),
+        '#attributes' => ['class' => ['button']],
       ],
       'submit_cosignature' => [
         '#type' => 'link',
@@ -514,6 +529,7 @@ final class SwapOfferController extends ControllerBase {
           'network' => $filters['network'] ?? '',
           'owner' => $this->currentUser()->hasPermission('administer symbol atomic swap offers') ? ($filters['owner'] ?? '') : '',
           'states' => [
+            'open' => 'open',
             'draft' => 'draft',
             'qr_generated' => 'qr_generated',
             'signed' => 'signed',
@@ -540,8 +556,12 @@ final class SwapOfferController extends ControllerBase {
       Link::fromTextAndUrl($this->t('View'), Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
     ];
     if ($this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
+      if ($this->offers->canAccept($offer)) {
+        $operations[] = Link::fromTextAndUrl($this->t('Accept offer'), Url::fromRoute('symbol_atomic_swap.offer_accept', ['offerId' => $offer['id']]))->toString();
+      }
       if ($this->offers->canSubmitSignedPayload($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Submit signed payload'), Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]))->toString();
+        $operations[] = Link::fromTextAndUrl($this->t('Submit aggregate signer JSON'), Url::fromRoute('symbol_atomic_swap.offer_submit_aggregate_signer_json', ['offerId' => $offer['id']]))->toString();
         $operations[] = Link::fromTextAndUrl($this->t('Submit cosignature JSON'), Url::fromRoute('symbol_atomic_swap.offer_submit_cosignature', ['offerId' => $offer['id']]))->toString();
         $operations[] = Link::fromTextAndUrl($this->t('Assemble signed payload'), Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]))->toString();
       }
@@ -594,12 +614,6 @@ final class SwapOfferController extends ControllerBase {
       '#type' => 'table',
       '#rows' => $rows,
     ];
-  }
-
-  private function ownerScope(): ?int {
-    return $this->currentUser()->hasPermission('administer symbol atomic swap offers')
-      ? NULL
-      : (int) $this->currentUser()->id();
   }
 
   private function hashValue(string $value): array|string {

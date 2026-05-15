@@ -58,12 +58,27 @@ final class SwapOfferAssembleSignedPayloadForm extends FormBase {
       '#title' => $this->t('Stored cosignatures'),
       '#markup' => $this->t('@count cosignature(s) will be attached.', ['@count' => (string) count($stored_cosignatures)]),
     ];
+    if ($stored_cosignatures === []) {
+      $form['missing_cosignatures'] = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['messages', 'messages--warning']],
+        'message' => [
+          '#markup' => $this->t('At least one stored cosignature is required before assembly. Submit detached cosignature JSON from the non-root signer first.'),
+        ],
+        'action' => [
+          '#type' => 'link',
+          '#title' => $this->t('Submit cosignature JSON'),
+          '#url' => Url::fromRoute('symbol_atomic_swap.offer_submit_cosignature', ['offerId' => $offer['id']]),
+          '#attributes' => ['class' => ['button']],
+        ],
+      ];
+    }
     $form['root_signed_payload'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Root signed payload'),
       '#rows' => 10,
       '#required' => TRUE,
-      '#description' => $this->t('Paste the signed transaction payload HEX created by the aggregate signer. Stored cosignatures will be attached and the final payload will be verified.'),
+      '#description' => $this->t('Paste the root signed transaction payload HEX created by the aggregate signer. This is not enough by itself; stored detached cosignatures from non-root signers are also required.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
@@ -131,7 +146,7 @@ final class SwapOfferAssembleSignedPayloadForm extends FormBase {
     }
     catch (SymbolEngineException $exception) {
       $this->messenger()->addError($this->t('Signed payload assembly failed: @reason', [
-        '@reason' => $this->safeRejectionReason($exception->engineError ?? 'symbol_engine_error'),
+        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception)),
       ]));
       $form_state->setRebuild(TRUE);
     }
@@ -148,11 +163,16 @@ final class SwapOfferAssembleSignedPayloadForm extends FormBase {
   }
 
   private function safeRejectionReason(string $reason): string {
-    $reason = strtolower(trim($reason));
-    if ($reason === '' || preg_match('/^[a-z0-9_.:-]{1,120}$/', $reason) !== 1) {
+    $reason = strtolower(trim(preg_replace('/\s+/', ' ', $reason) ?? ''));
+    if ($reason === '' || preg_match('/^[a-z0-9_.: -]{1,120}$/', $reason) !== 1) {
       return 'assembly_failed';
     }
     return $reason;
+  }
+
+  private function engineFailureReason(SymbolEngineException $exception): string {
+    $reason = $exception->details['reason'] ?? $exception->engineError ?? 'symbol_engine_error';
+    return is_string($reason) ? $reason : 'symbol_engine_error';
   }
 
 }

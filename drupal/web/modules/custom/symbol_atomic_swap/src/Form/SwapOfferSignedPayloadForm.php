@@ -149,7 +149,7 @@ final class SwapOfferSignedPayloadForm extends FormBase {
     }
     catch (SymbolEngineException $exception) {
       $this->messenger()->addError($this->t('Signed payload verification failed: @reason', [
-        '@reason' => $this->safeRejectionReason($exception->engineError ?? 'symbol_engine_error'),
+        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception)),
       ]));
       $form_state->setRebuild(TRUE);
     }
@@ -166,11 +166,16 @@ final class SwapOfferSignedPayloadForm extends FormBase {
   }
 
   private function safeRejectionReason(string $reason): string {
-    $reason = strtolower(trim($reason));
-    if ($reason === '' || preg_match('/^[a-z0-9_.:-]{1,80}$/', $reason) !== 1) {
+    $reason = strtolower(trim(preg_replace('/\s+/', ' ', $reason) ?? ''));
+    if ($reason === '' || preg_match('/^[a-z0-9_.: -]{1,120}$/', $reason) !== 1) {
       return 'verification_failed';
     }
     return $reason;
+  }
+
+  private function engineFailureReason(SymbolEngineException $exception): string {
+    $reason = $exception->details['reason'] ?? $exception->engineError ?? 'symbol_engine_error';
+    return is_string($reason) ? $reason : 'symbol_engine_error';
   }
 
 }

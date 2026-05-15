@@ -84,6 +84,20 @@ final class SymbolEngineClient {
     ]);
   }
 
+  /**
+   * @param array<string, mixed> $signature
+   */
+  public function buildRootSignedPayload(string $intent_hash, array $signature): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    return $this->request('POST', '/v1/transactions/root-signed-payload', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+      'parentHash' => strtoupper((string) ($signature['parentHash'] ?? '')),
+      'signerPublicKey' => strtoupper((string) ($signature['signerPublicKey'] ?? '')),
+      'signature' => strtoupper((string) ($signature['signature'] ?? '')),
+      'version' => $signature['version'] ?? NULL,
+    ]);
+  }
+
   public function announce(string $intent_hash): array {
     $this->assertHash($intent_hash, 'intent hash');
     return $this->request('POST', '/v1/transactions/announce', TRUE, [
@@ -201,6 +215,11 @@ final class SymbolEngineClient {
     $engine_message = is_array($decoded) && isset($decoded['message']) && is_string($decoded['message'])
       ? $decoded['message']
       : NULL;
+    $engine_reason = is_array($decoded) && isset($decoded['reason']) && is_string($decoded['reason'])
+      ? $decoded['reason']
+      : NULL;
+    $engine_error ??= $engine_reason;
+    $engine_message ??= $engine_reason;
 
     $message = match ($status_code) {
       400 => 'Symbol Engine validation failed.',

@@ -33,8 +33,9 @@ final class SwapOfferAccessCheck implements AccessInterface {
 
     $owns_offer = (int) ($offer['uid'] ?? 0) === (int) $account->id();
     $allowed = match ($operation) {
-      'view' => $account->hasPermission('view symbol atomic swap offers') && $owns_offer,
+      'view' => $account->hasPermission('view symbol atomic swap offers'),
       'operate' => $account->hasPermission('operate symbol atomic swap offers') && $owns_offer,
+      'accept' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canAccept($offer),
       default => FALSE,
     };
 

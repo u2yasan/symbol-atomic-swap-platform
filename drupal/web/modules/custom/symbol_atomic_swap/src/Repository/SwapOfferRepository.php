@@ -115,7 +115,7 @@ final class SwapOfferRepository {
   public function expirationCandidateIds(int $now, int $limit = 50): array {
     $records = $this->database->select(self::TABLE, 'o')
       ->fields('o', ['id', 'created', 'deadline_hours'])
-      ->condition('state', ['draft', 'qr_generated', 'signed'], 'IN')
+      ->condition('state', ['open', 'draft', 'qr_generated', 'signed'], 'IN')
       ->isNull('expired_at')
       ->orderBy('created', 'ASC')
       ->range(0, max($limit * 10, $limit))
@@ -177,6 +177,23 @@ final class SwapOfferRepository {
     ]);
   }
 
+  /**
+   * @param array<string, mixed> $values
+   */
+  public function accept(int $id, array $values): void {
+    $offer = $this->find($id);
+    if (!$offer) {
+      throw new \InvalidArgumentException('Swap offer not found.');
+    }
+    if (!$this->canAccept($offer)) {
+      throw new \InvalidArgumentException('Only open swap offers can be accepted.');
+    }
+
+    $this->update($id, $values + [
+      'changed' => \Drupal::time()->getRequestTime(),
+    ]);
+  }
+
   public function markAnnounced(int $id, string $transaction_hash): void {
     $offer = $this->find($id);
     if (!$offer) {
@@ -199,7 +216,7 @@ final class SwapOfferRepository {
       throw new \InvalidArgumentException('Swap offer not found.');
     }
 
-    if (!in_array($offer['state'], ['draft', 'qr_generated', 'signed'], TRUE)) {
+    if (!in_array($offer['state'], ['open', 'draft', 'qr_generated', 'signed'], TRUE)) {
       return FALSE;
     }
 
@@ -219,6 +236,15 @@ final class SwapOfferRepository {
     return !empty($offer['intent_hash'])
       && $this->isHash((string) $offer['intent_hash'])
       && in_array((string) ($offer['state'] ?? ''), self::SIGNABLE_STATES, TRUE);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  public function canAccept(array $offer): bool {
+    return in_array((string) ($offer['state'] ?? ''), ['open', 'draft'], TRUE)
+      && empty($offer['intent_hash'])
+      && empty($offer['unsigned_payload']);
   }
 
   /**

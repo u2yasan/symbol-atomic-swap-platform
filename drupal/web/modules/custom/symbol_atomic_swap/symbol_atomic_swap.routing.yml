@@ -50,11 +50,29 @@ symbol_atomic_swap.offer_edit:
     _symbol_atomic_swap_offer_access: 'admin'
     offerId: '\d+'
 
+symbol_atomic_swap.offer_accept:
+  path: '/symbol-atomic-swap/offers/{offerId}/accept'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAcceptForm'
+    _title: 'Accept Swap Offer'
+  requirements:
+    _symbol_atomic_swap_offer_access: 'accept'
+    offerId: '\d+'
+
 symbol_atomic_swap.offer_submit_signed_payload:
   path: '/symbol-atomic-swap/offers/{offerId}/submit-signed-payload'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSignedPayloadForm'
     _title: 'Submit Signed Payload'
+  requirements:
+    _symbol_atomic_swap_offer_access: 'operate'
+    offerId: '\d+'
+
+symbol_atomic_swap.offer_submit_aggregate_signer_json:
+  path: '/symbol-atomic-swap/offers/{offerId}/submit-aggregate-signer-json'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAggregateSignerJsonForm'
+    _title: 'Submit Aggregate Signer JSON'
   requirements:
     _symbol_atomic_swap_offer_access: 'operate'
     offerId: '\d+'

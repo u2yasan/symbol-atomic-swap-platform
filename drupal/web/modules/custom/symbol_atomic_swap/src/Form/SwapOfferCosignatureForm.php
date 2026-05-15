@@ -57,12 +57,17 @@ final class SwapOfferCosignatureForm extends FormBase {
       '#title' => $this->t('Intent hash'),
       '#markup' => $offer['intent_hash'] ?: $this->t('No intent hash has been generated.'),
     ];
+    $form['expected_signer'] = [
+      '#type' => 'item',
+      '#title' => $this->t('Expected cosigner public key'),
+      '#markup' => $this->hashValue((string) $offer['leg2_signer_public_key']),
+    ];
     $form['payload'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Cosignature JSON'),
       '#rows' => 10,
       '#required' => TRUE,
-      '#description' => $this->t('Paste the JSON returned by Symbol Desktop Wallet after cosigning. This stores a verified detached cosignature; it is not the final signed payload.'),
+      '#description' => $this->t('Paste the JSON returned by Symbol Desktop Wallet after cosigning. Wrapped Desktop Wallet copies are normalized; hyphens and whitespace inside parentHash, signerPublicKey, and signature HEX are ignored.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
@@ -104,7 +109,19 @@ final class SwapOfferCosignatureForm extends FormBase {
         $form_state->setErrorByName('payload', $this->t('Cosignature JSON must be an object.'));
         return;
       }
-      $form_state->set('symbol_atomic_swap_cosignature', $decoded);
+      $normalized = $this->normalizeCosignature($decoded);
+      if (!$this->hasRequiredCosignatureFields($normalized)) {
+        $form_state->setErrorByName('payload', $this->t('Cosignature JSON must include parentHash, signerPublicKey, and signature.'));
+        return;
+      }
+      $signer_public_key = strtoupper((string) $normalized['signerPublicKey']);
+      if ($signer_public_key === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
+        $form_state->setErrorByName('payload', $this->t('This JSON is signed by the aggregate signer. Submit cosignature JSON requires the non-root signer public key @key.', [
+          '@key' => strtoupper((string) $this->offer['leg2_signer_public_key']),
+        ]));
+        return;
+      }
+      $form_state->set('symbol_atomic_swap_cosignature', $normalized);
     }
     catch (\JsonException) {
       $form_state->setErrorByName('payload', $this->t('Cosignature JSON is malformed.'));
@@ -148,7 +165,7 @@ final class SwapOfferCosignatureForm extends FormBase {
     }
     catch (SymbolEngineException $exception) {
       $this->messenger()->addError($this->t('Cosignature verification failed: @reason', [
-        '@reason' => $this->safeRejectionReason($exception->engineError ?? 'symbol_engine_error'),
+        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception)),
       ]));
       $form_state->setRebuild(TRUE);
     }
@@ -161,11 +178,60 @@ final class SwapOfferCosignatureForm extends FormBase {
   }
 
   private function safeRejectionReason(string $reason): string {
-    $reason = strtolower(trim($reason));
-    if ($reason === '' || preg_match('/^[a-z0-9_.:-]{1,100}$/', $reason) !== 1) {
+    $reason = strtolower(trim(preg_replace('/\s+/', ' ', $reason) ?? ''));
+    if ($reason === '' || preg_match('/^[a-z0-9_.: -]{1,120}$/', $reason) !== 1) {
       return 'verification_failed';
     }
     return $reason;
+  }
+
+  /**
+   * @param array<string, mixed> $cosignature
+   *
+   * @return array<string, mixed>
+   */
+  private function normalizeCosignature(array $cosignature): array {
+    $normalized = [];
+    foreach ($cosignature as $key => $value) {
+      if (!is_string($key)) {
+        continue;
+      }
+      $canonical_key = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $key) ?? '');
+      $target_key = match ($canonical_key) {
+        'parenthash' => 'parentHash',
+        'signerpublickey' => 'signerPublicKey',
+        'signature' => 'signature',
+        'version' => 'version',
+        default => $key,
+      };
+
+      if (in_array($target_key, ['parentHash', 'signerPublicKey', 'signature'], TRUE) && is_scalar($value)) {
+        $normalized[$target_key] = strtoupper(preg_replace('/[^0-9a-fA-F]/', '', (string) $value) ?? '');
+        continue;
+      }
+
+      $normalized[$target_key] = $value;
+    }
+
+    return $normalized;
+  }
+
+  /**
+   * @param array<string, mixed> $cosignature
+   */
+  private function hasRequiredCosignatureFields(array $cosignature): bool {
+    return isset($cosignature['parentHash'], $cosignature['signerPublicKey'], $cosignature['signature'])
+      && is_string($cosignature['parentHash'])
+      && is_string($cosignature['signerPublicKey'])
+      && is_string($cosignature['signature'])
+      && $cosignature['parentHash'] !== ''
+      && $cosignature['signerPublicKey'] !== ''
+      && $cosignature['signature'] !== '';
+  }
+
+  private function engineFailureReason(SymbolEngineException $exception): string {
+    $reason = $exception->details['reason'] ?? $exception->engineError ?? 'symbol_engine_error';
+    return is_string($reason) ? $reason : 'symbol_engine_error';
   }
 
 }

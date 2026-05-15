@@ -11,7 +11,6 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -19,7 +18,6 @@ final class SwapOfferForm extends FormBase {
 
   public function __construct(
     private readonly SwapOfferRepository $offers,
-    private readonly SymbolEngineClient $engineClient,
     private readonly UuidInterface $uuid,
     private readonly AccountProxyInterface $currentUser,
   ) {}
@@ -27,7 +25,6 @@ final class SwapOfferForm extends FormBase {
   public static function create(ContainerInterface $container): self {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
-      $container->get('symbol_atomic_swap.engine_client'),
       $container->get('uuid'),
       $container->get('current_user'),
     );
@@ -99,12 +96,98 @@ final class SwapOfferForm extends FormBase {
       ],
     ];
 
-    for ($index = 1; $index <= 2; $index++) {
-      $form['leg_' . $index] = [
+    $form['maker_pays'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Maker pays'),
+    ];
+    $form['maker_pays']['signer_public_key'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Maker public key'),
+      '#maxlength' => 64,
+      '#size' => 72,
+      '#required' => TRUE,
+      '#default_value' => $offer['leg1_signer_public_key'] ?? '',
+      '#attributes' => [
+        'pattern' => '[0-9A-Fa-f]{64}',
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+      ],
+    ];
+    $form['maker_pays']['mosaic_id'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mosaic ID'),
+      '#maxlength' => 16,
+      '#size' => 24,
+      '#required' => TRUE,
+      '#default_value' => $offer['leg1_mosaic_id'] ?? '',
+      '#attributes' => [
+        'pattern' => '[0-9A-Fa-f]{16}',
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+      ],
+    ];
+    $form['maker_pays']['amount'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Amount'),
+      '#maxlength' => 32,
+      '#size' => 24,
+      '#required' => TRUE,
+      '#default_value' => $offer['leg1_amount'] ?? '',
+      '#attributes' => [
+        'pattern' => '[1-9][0-9]*',
+        'autocomplete' => 'off',
+      ],
+    ];
+
+    $form['maker_wants'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Maker wants'),
+    ];
+    $form['maker_wants']['recipient_address'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Maker recipient address'),
+      '#maxlength' => 46,
+      '#size' => 52,
+      '#required' => TRUE,
+      '#default_value' => $offer['leg2_recipient_address'] ?? '',
+      '#attributes' => [
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+      ],
+    ];
+    $form['maker_wants']['mosaic_id'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mosaic ID'),
+      '#maxlength' => 16,
+      '#size' => 24,
+      '#required' => TRUE,
+      '#default_value' => $offer['leg2_mosaic_id'] ?? '',
+      '#attributes' => [
+        'pattern' => '[0-9A-Fa-f]{16}',
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+      ],
+    ];
+    $form['maker_wants']['amount'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Amount'),
+      '#maxlength' => 32,
+      '#size' => 24,
+      '#required' => TRUE,
+      '#default_value' => $offer['leg2_amount'] ?? '',
+      '#attributes' => [
+        'pattern' => '[1-9][0-9]*',
+        'autocomplete' => 'off',
+      ],
+    ];
+
+    if ($offer && !$this->offers->canAccept($offer)) {
+      for ($index = 1; $index <= 2; $index++) {
+        $form['leg_' . $index] = [
         '#type' => 'fieldset',
         '#title' => $this->t('Transfer leg @number', ['@number' => $index]),
-      ];
-      $form['leg_' . $index]['signer_public_key'] = [
+        ];
+        $form['leg_' . $index]['signer_public_key'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Transfer leg @number signer public key', ['@number' => $index]),
         '#maxlength' => 64,
@@ -116,8 +199,8 @@ final class SwapOfferForm extends FormBase {
           'autocomplete' => 'off',
           'spellcheck' => 'false',
         ],
-      ];
-      $form['leg_' . $index]['recipient_address'] = [
+        ];
+        $form['leg_' . $index]['recipient_address'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Transfer leg @number recipient address', ['@number' => $index]),
         '#maxlength' => 46,
@@ -128,8 +211,8 @@ final class SwapOfferForm extends FormBase {
           'autocomplete' => 'off',
           'spellcheck' => 'false',
         ],
-      ];
-      $form['leg_' . $index]['mosaic_id'] = [
+        ];
+        $form['leg_' . $index]['mosaic_id'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Transfer leg @number mosaic ID', ['@number' => $index]),
         '#maxlength' => 16,
@@ -141,8 +224,8 @@ final class SwapOfferForm extends FormBase {
           'autocomplete' => 'off',
           'spellcheck' => 'false',
         ],
-      ];
-      $form['leg_' . $index]['amount'] = [
+        ];
+        $form['leg_' . $index]['amount'] = [
         '#type' => 'textfield',
         '#title' => $this->t('Transfer leg @number amount', ['@number' => $index]),
         '#maxlength' => 32,
@@ -153,13 +236,14 @@ final class SwapOfferForm extends FormBase {
           'pattern' => '[1-9][0-9]*',
           'autocomplete' => 'off',
         ],
-      ];
+        ];
+      }
     }
 
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $offer ? $this->t('Save and rebuild QR') : $this->t('Create and build QR'),
+      '#value' => $offer ? $this->t('Save offer') : $this->t('Create trade offer'),
       '#button_type' => 'primary',
     ];
     $form['actions']['cancel'] = [
@@ -195,31 +279,28 @@ final class SwapOfferForm extends FormBase {
       $form_state->setErrorByName('max_fee', $this->t('Max fee must be a positive integer.'));
     }
 
-    $signers = [];
-    for ($index = 1; $index <= 2; $index++) {
-      $leg = (array) $form_state->getValue('leg_' . $index, []);
-      $signer = trim((string) ($leg['signer_public_key'] ?? ''));
-      $address = trim((string) ($leg['recipient_address'] ?? ''));
-      $mosaic_id = trim((string) ($leg['mosaic_id'] ?? ''));
-      $amount = trim((string) ($leg['amount'] ?? ''));
+    $maker_pays = (array) $form_state->getValue('maker_pays', []);
+    $maker_wants = (array) $form_state->getValue('maker_wants', []);
+    $maker_public_key = trim((string) ($maker_pays['signer_public_key'] ?? ''));
+    $maker_recipient_address = trim((string) ($maker_wants['recipient_address'] ?? ''));
 
-      if (!$this->isHash($signer)) {
-        $form_state->setErrorByName("leg_$index][signer_public_key", $this->t('Signer public key must be 64 hex characters.'));
-      }
-      if (!$this->isNetworkAddress($address, (string) $form_state->getValue('network'))) {
-        $form_state->setErrorByName("leg_$index][recipient_address", $this->t('Recipient address must be a valid raw Symbol address for the selected network.'));
-      }
-      if (!$this->isMosaicId($mosaic_id)) {
-        $form_state->setErrorByName("leg_$index][mosaic_id", $this->t('Mosaic ID must be 16 hex characters.'));
-      }
-      if (!$this->isPositiveInteger($amount)) {
-        $form_state->setErrorByName("leg_$index][amount", $this->t('Amount must be a positive integer.'));
-      }
-      $signers[] = strtoupper($signer);
+    if (!$this->isHash($maker_public_key)) {
+      $form_state->setErrorByName('maker_pays][signer_public_key', $this->t('Maker public key must be 64 hex characters.'));
     }
-
-    if (count(array_unique($signers)) !== 2) {
-      $form_state->setErrorByName('leg_2][signer_public_key', $this->t('Signer public keys must be distinct.'));
+    if (!$this->isMosaicId(trim((string) ($maker_pays['mosaic_id'] ?? '')))) {
+      $form_state->setErrorByName('maker_pays][mosaic_id', $this->t('Maker pays mosaic ID must be 16 hex characters.'));
+    }
+    if (!$this->isPositiveInteger(trim((string) ($maker_pays['amount'] ?? '')))) {
+      $form_state->setErrorByName('maker_pays][amount', $this->t('Maker pays amount must be a positive integer.'));
+    }
+    if (!$this->isNetworkAddress($maker_recipient_address, (string) $form_state->getValue('network'))) {
+      $form_state->setErrorByName('maker_wants][recipient_address', $this->t('Maker recipient address must be a valid raw Symbol address for the selected network.'));
+    }
+    if (!$this->isMosaicId(trim((string) ($maker_wants['mosaic_id'] ?? '')))) {
+      $form_state->setErrorByName('maker_wants][mosaic_id', $this->t('Maker wants mosaic ID must be 16 hex characters.'));
+    }
+    if (!$this->isPositiveInteger(trim((string) ($maker_wants['amount'] ?? '')))) {
+      $form_state->setErrorByName('maker_wants][amount', $this->t('Maker wants amount must be a positive integer.'));
     }
   }
 
@@ -231,7 +312,7 @@ final class SwapOfferForm extends FormBase {
 
     if ($offer_id) {
       $this->offers->update((int) $offer_id, $values + [
-        'state' => 'draft',
+        'state' => 'open',
         'intent_hash' => NULL,
         'unsigned_payload' => NULL,
         'qr_payload' => NULL,
@@ -242,40 +323,23 @@ final class SwapOfferForm extends FormBase {
     else {
       $values += [
         'uuid' => $this->uuid->generate(),
-        'state' => 'draft',
+        'state' => 'open',
         'uid' => (int) $this->currentUser->id(),
         'created' => $now,
       ];
       $id = $this->offers->insert($values);
     }
 
-    $offer = $this->offers->find($id);
-    if (!$offer) {
-      throw new \RuntimeException('Swap offer was not saved.');
-    }
-
-    try {
-      $engine_result = $this->engineClient->buildAggregateComplete($this->offers->toEngineBuildPayload($offer));
-      $this->offers->update($id, $this->offers->engineFields($offer, $engine_result) + [
-        'changed' => \Drupal::time()->getRequestTime(),
-      ]);
-      $this->messenger()->addStatus($this->t('Swap offer was saved and QR payload was generated.'));
-      $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $id]);
-    }
-    catch (SymbolEngineException | \RuntimeException $exception) {
-      $this->messenger()->addError($this->t('Swap offer was saved as draft, but Symbol Engine build failed: @message', [
-        '@message' => $exception->getMessage(),
-      ]));
-      $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $id]);
-    }
+    $this->messenger()->addStatus($this->t('Trade offer was saved. It will generate an unsigned payload after a taker accepts it.'));
+    $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $id]);
   }
 
   /**
    * @return array<string, mixed>
    */
   private function offerValues(FormStateInterface $form_state): array {
-    $leg1 = (array) $form_state->getValue('leg_1', []);
-    $leg2 = (array) $form_state->getValue('leg_2', []);
+    $maker_pays = (array) $form_state->getValue('maker_pays', []);
+    $maker_wants = (array) $form_state->getValue('maker_wants', []);
     $max_fee = trim((string) $form_state->getValue('max_fee', ''));
 
     return [
@@ -284,14 +348,14 @@ final class SwapOfferForm extends FormBase {
       'correlation_id' => trim((string) $form_state->getValue('correlation_id')),
       'deadline_hours' => (int) $form_state->getValue('deadline_hours'),
       'max_fee' => $max_fee !== '' ? $max_fee : NULL,
-      'leg1_signer_public_key' => strtoupper(trim((string) $leg1['signer_public_key'])),
-      'leg1_recipient_address' => strtoupper(trim((string) $leg1['recipient_address'])),
-      'leg1_mosaic_id' => strtoupper(trim((string) $leg1['mosaic_id'])),
-      'leg1_amount' => trim((string) $leg1['amount']),
-      'leg2_signer_public_key' => strtoupper(trim((string) $leg2['signer_public_key'])),
-      'leg2_recipient_address' => strtoupper(trim((string) $leg2['recipient_address'])),
-      'leg2_mosaic_id' => strtoupper(trim((string) $leg2['mosaic_id'])),
-      'leg2_amount' => trim((string) $leg2['amount']),
+      'leg1_signer_public_key' => strtoupper(trim((string) $maker_pays['signer_public_key'])),
+      'leg1_recipient_address' => '',
+      'leg1_mosaic_id' => strtoupper(trim((string) $maker_pays['mosaic_id'])),
+      'leg1_amount' => trim((string) $maker_pays['amount']),
+      'leg2_signer_public_key' => '',
+      'leg2_recipient_address' => strtoupper(trim((string) $maker_wants['recipient_address'])),
+      'leg2_mosaic_id' => strtoupper(trim((string) $maker_wants['mosaic_id'])),
+      'leg2_amount' => trim((string) $maker_wants['amount']),
     ];
   }
 

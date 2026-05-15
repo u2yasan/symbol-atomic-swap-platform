@@ -159,28 +159,29 @@ Correlation ID: ui-smoke-0001
 Deadline hours: 2
 Max fee: empty
 
-Transfer leg 1 signer public key:
+Maker public key:
 D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737
-Transfer leg 1 recipient address:
-TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI
-Transfer leg 1 mosaic ID:
+Maker pays mosaic ID:
 72C0212E67A08BCE
-Transfer leg 1 amount:
+Maker pays amount:
 100
 
-Transfer leg 2 signer public key:
-A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0
-Transfer leg 2 recipient address:
+Maker recipient address:
 TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY
-Transfer leg 2 mosaic ID:
-72C0212E67A08BCE
-Transfer leg 2 amount:
+Maker wants mosaic ID:
+72C0212E67A08BCF
+Maker wants amount:
 200
+
+Taker public key, entered later on `Accept offer`:
+A09AA5F47A6759802FF955F8DC2D2A14A5C99D23BE97F864127FF9383455A4F0
+Taker recipient address, entered later on `Accept offer`:
+TCD4NC5VIE2EEB3BCV5JRLBNJXYDW5Q5JK547MI
 ```
 
-These are UI validation fixtures. They are not real wallet instructions.
-They cannot produce a valid signed payload because the matching private keys are
-not part of this procedure.
+These are UI validation fixtures. They are not real wallet instructions. Create
+only stores the maker offer terms; `Accept offer` fills the taker public key and
+taker recipient address, then builds the unsigned payload.
 
 For an end-to-end signing check, replace both signer public keys with public
 keys from disposable testnet accounts that you control in an external Symbol
@@ -268,7 +269,7 @@ Open the created offer detail page:
 Expected sections:
 
 - Summary
-- Transfer legs
+- Trade terms
 - Projection
 - QR payload
 - Public offer JSON
@@ -342,6 +343,21 @@ Use this flow when a real end-to-end signing check is required:
 The final signed payload must include all required signatures. A payload signed
 by only one party is expected to be rejected by Engine with a missing signer
 reason.
+
+For local test signing with Symbol SDK, create the root signed payload from the
+copied `Unsigned payload` and the aggregate signer private key:
+
+```sh
+cd symbol-engine
+UNSIGNED_PAYLOAD='PASTE_UNSIGNED_PAYLOAD_HEX' \
+SIGNER_PRIVATE_KEY='PASTE_AGGREGATE_SIGNER_PRIVATE_KEY_HEX' \
+npm run sign:root-payload
+```
+
+Copy only the JSON output `payload` value. If all required signatures are already
+included, paste it into `Submit signed payload`. If Desktop Wallet detached
+cosignature JSON is being collected separately, paste this `payload` into
+`Assemble signed payload` as the root signed transaction payload HEX.
 
 When Symbol Desktop Wallet returns detached cosignature JSON:
 
