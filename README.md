@@ -14,6 +14,7 @@ The blockchain is the source of truth. Drupal is a projection/cache layer.
 - [Symbol Engine API contract](architecture/symbol-engine-api-contract.md)
 - [Symbol Engine API usage](docs/api/symbol-engine-api.md)
 - [Security requirements](docs/security/symbol-engine-security.md)
+- [Drupal swap runtime procedure](docs/operations/drupal-swap-runtime.md)
 - [Event projection operations](docs/operations/event-projection.md)
 - [Local development](docs/setup/local-development.md)
 
