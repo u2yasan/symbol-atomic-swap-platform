@@ -18,6 +18,12 @@ export type SymbolNetworkProperties = {
   networkIdentifier?: string;
 };
 
+export type SymbolAccountPublicKeyLookup = {
+  found: boolean;
+  address: string;
+  publicKey?: string;
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
 }
@@ -62,6 +68,16 @@ function extractNetworkIdentifier(payload: unknown): string | undefined {
   const record = asRecord(payload);
   const network = asRecord(record.network);
   return readString(network.identifier, record.identifier);
+}
+
+function extractAccountPublicKey(payload: unknown): string | undefined {
+  const record = asRecord(payload);
+  const account = asRecord(record.account);
+  const publicKey = readString(account.publicKey, record.publicKey)?.toUpperCase();
+  if (!publicKey || !/^[0-9A-F]{64}$/.test(publicKey) || /^0+$/.test(publicKey)) {
+    return undefined;
+  }
+  return publicKey;
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -165,6 +181,24 @@ export class SymbolRestClient {
     const networkIdentifier = extractNetworkIdentifier(raw);
     return {
       ...(networkIdentifier ? { networkIdentifier } : {}),
+    };
+  }
+
+  public async getAccountPublicKey(address: string): Promise<SymbolAccountPublicKeyLookup> {
+    const normalizedAddress = address.toUpperCase();
+    const response = await this.request(`/accounts/${normalizedAddress}`);
+    if (response.status === 404) {
+      return { found: false, address: normalizedAddress };
+    }
+    if (!response.ok) {
+      throw new Error(`account lookup failed: ${response.status}`);
+    }
+
+    const publicKey = extractAccountPublicKey(await readJson(response));
+    return {
+      found: Boolean(publicKey),
+      address: normalizedAddress,
+      ...(publicKey ? { publicKey } : {}),
     };
   }
 }

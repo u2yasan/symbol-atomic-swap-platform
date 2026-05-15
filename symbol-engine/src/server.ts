@@ -59,6 +59,7 @@ app.get('/v1/network', async () => {
 });
 
 await registerRoutes(app, {
+  network: env.SYMBOL_NETWORK,
   nodeUrl: env.SYMBOL_NODE_URL,
   nodeRequestTimeoutMs: env.SYMBOL_NODE_REQUEST_TIMEOUT_MS,
   repositories,

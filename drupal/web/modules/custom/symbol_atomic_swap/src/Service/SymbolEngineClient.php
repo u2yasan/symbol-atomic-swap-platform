@@ -50,6 +50,14 @@ final class SymbolEngineClient {
     return $this->request('GET', '/v1/projections/' . $network . '/' . strtoupper($transaction_hash));
   }
 
+  public function accountPublicKey(string $network, string $address): array {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+    $this->assertRawAddress($address, $network);
+    return $this->request('GET', '/v1/accounts/' . $network . '/' . strtoupper($address) . '/public-key');
+  }
+
   public function verifySignedPayload(string $intent_hash, string $payload): array {
     $this->assertHash($intent_hash, 'intent hash');
     return $this->request('POST', '/v1/transactions/verify-signed-payload', TRUE, [
@@ -164,6 +172,17 @@ final class SymbolEngineClient {
   private function assertHash(string $value, string $label): void {
     if (!preg_match('/^[0-9A-Fa-f]{64}$/', $value)) {
       throw new \InvalidArgumentException(sprintf('Invalid %s.', $label));
+    }
+  }
+
+  private function assertRawAddress(string $value, string $network): void {
+    $prefix = match ($network) {
+      'mainnet' => 'N',
+      'testnet' => 'T',
+      default => '',
+    };
+    if ($prefix === '' || preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper($value)) !== 1) {
+      throw new \InvalidArgumentException('Invalid Symbol address.');
     }
   }
 

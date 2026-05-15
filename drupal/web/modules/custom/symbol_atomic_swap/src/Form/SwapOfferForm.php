@@ -9,7 +9,9 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
+use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -21,6 +23,7 @@ final class SwapOfferForm extends FormBase {
     private readonly UuidInterface $uuid,
     private readonly AccountProxyInterface $currentUser,
     private readonly SymbolAddressDeriver $addressDeriver,
+    private readonly SymbolAccountPublicKeyResolverInterface $accountPublicKeyResolver,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -29,6 +32,7 @@ final class SwapOfferForm extends FormBase {
       $container->get('uuid'),
       $container->get('current_user'),
       $container->get('symbol_atomic_swap.address_deriver'),
+      $container->get('symbol_atomic_swap.account_public_key_resolver'),
     );
   }
 
@@ -107,15 +111,28 @@ final class SwapOfferForm extends FormBase {
       '#type' => 'fieldset',
       '#title' => $this->t('Maker pays'),
     ];
+    $form['maker_pays']['address'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Maker address'),
+      '#maxlength' => 46,
+      '#size' => 52,
+      '#required' => TRUE,
+      '#default_value' => $this->defaultMakerAddress($offer),
+      '#attributes' => [
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+        'data-symbol-maker-address' => '1',
+      ],
+    ];
     $form['maker_pays']['signer_public_key'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('Maker public key'),
+      '#title' => $this->t('Resolved maker public key'),
       '#maxlength' => 64,
       '#size' => 72,
-      '#required' => TRUE,
       '#default_value' => $offer['leg1_signer_public_key'] ?? '',
+      '#description' => $this->t('Resolved from Maker address. The account must have sent at least one signed transaction on the selected network.'),
       '#attributes' => [
-        'pattern' => '[0-9A-Fa-f]{64}',
+        'readonly' => 'readonly',
         'autocomplete' => 'off',
         'spellcheck' => 'false',
         'data-symbol-maker-public-key' => '1',
@@ -152,16 +169,22 @@ final class SwapOfferForm extends FormBase {
       '#title' => $this->t('Maker wants'),
     ];
     $form['maker_wants']['recipient_address'] = [
-      '#type' => 'textfield',
+      '#type' => 'hidden',
+      '#default_value' => $this->defaultMakerAddress($offer),
+    ];
+    $form['maker_wants']['recipient_status'] = [
+      '#type' => 'item',
       '#title' => $this->t('Maker recipient address'),
-      '#maxlength' => 46,
-      '#size' => 52,
-      '#default_value' => $this->defaultMakerRecipientAddress($offer),
-      '#description' => $this->t('Derived from Maker public key and network. It is the address where the taker payment will be sent.'),
+      '#markup' => $this->t('Same as Maker address.'),
+      '#description' => $this->t('Taker payment will be sent to Maker address; it is not entered separately.'),
+    ];
+    $form['maker_pays']['address_status'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => '',
       '#attributes' => [
-        'readonly' => 'readonly',
-        'spellcheck' => 'false',
-        'data-symbol-maker-recipient-address' => '1',
+        'data-symbol-maker-address-status' => '1',
+        'aria-live' => 'polite',
       ],
     ];
     $form['maker_wants']['mosaic_id'] = [
@@ -290,17 +313,22 @@ final class SwapOfferForm extends FormBase {
 
     $maker_pays = (array) $form_state->getValue('maker_pays', []);
     $maker_wants = (array) $form_state->getValue('maker_wants', []);
-    $maker_public_key = trim((string) ($maker_pays['signer_public_key'] ?? ''));
+    $maker_address = strtoupper(trim((string) ($maker_pays['address'] ?? '')));
 
-    if (!$this->isHash($maker_public_key)) {
-      $form_state->setErrorByName('maker_pays][signer_public_key', $this->t('Maker public key must be 64 hex characters.'));
+    if (!$this->isNetworkAddress($maker_address, $network)) {
+      $form_state->setErrorByName('maker_pays][address', $this->t('Maker address must be a valid raw Symbol address for the selected network.'));
     }
     else {
       try {
-        $this->addressDeriver->deriveFromPublicKey($maker_public_key, $network);
+        $maker_public_key = $this->resolveMakerPublicKey($maker_address, $network);
+        $form_state->set('symbol_atomic_swap_maker_address', $maker_address);
+        $form_state->set('symbol_atomic_swap_maker_public_key', $maker_public_key);
+      }
+      catch (SymbolEngineException) {
+        $form_state->setErrorByName('maker_pays][address', $this->t('Maker address must have a public key on the selected network. Use an account that has sent at least one signed transaction.'));
       }
       catch (\InvalidArgumentException) {
-        $form_state->setErrorByName('maker_pays][signer_public_key', $this->t('Maker recipient address could not be derived from the public key.'));
+        $form_state->setErrorByName('maker_pays][address', $this->t('Maker address public key could not be verified.'));
       }
     }
     if (!$this->isMosaicId(trim((string) ($maker_pays['mosaic_id'] ?? '')))) {
@@ -355,8 +383,8 @@ final class SwapOfferForm extends FormBase {
     $maker_wants = (array) $form_state->getValue('maker_wants', []);
     $max_fee = trim((string) $form_state->getValue('max_fee', ''));
     $network = (string) $form_state->getValue('network');
-    $maker_public_key = strtoupper(trim((string) $maker_pays['signer_public_key']));
-    $maker_recipient_address = $this->addressDeriver->deriveFromPublicKey($maker_public_key, $network);
+    $maker_address = (string) ($form_state->get('symbol_atomic_swap_maker_address') ?: strtoupper(trim((string) ($maker_pays['address'] ?? ''))));
+    $maker_public_key = (string) ($form_state->get('symbol_atomic_swap_maker_public_key') ?: $this->resolveMakerPublicKey($maker_address, $network));
 
     return [
       'label' => trim((string) $form_state->getValue('label')),
@@ -369,7 +397,7 @@ final class SwapOfferForm extends FormBase {
       'leg1_mosaic_id' => strtoupper(trim((string) $maker_pays['mosaic_id'])),
       'leg1_amount' => trim((string) $maker_pays['amount']),
       'leg2_signer_public_key' => '',
-      'leg2_recipient_address' => $maker_recipient_address,
+      'leg2_recipient_address' => $maker_address,
       'leg2_mosaic_id' => strtoupper(trim((string) $maker_wants['mosaic_id'])),
       'leg2_amount' => trim((string) $maker_wants['amount']),
     ];
@@ -383,14 +411,27 @@ final class SwapOfferForm extends FormBase {
     return preg_match('/^[0-9A-Fa-f]{16}$/', $value) === 1;
   }
 
+  private function isNetworkAddress(string $value, string $network): bool {
+    $prefix = match ($network) {
+      'mainnet' => 'N',
+      'testnet' => 'T',
+      default => '',
+    };
+    return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper(trim($value))) === 1;
+  }
+
   private function isPositiveInteger(string $value): bool {
     return preg_match('/^[1-9][0-9]*$/', $value) === 1;
+  }
+
+  private function resolveMakerPublicKey(string $maker_address, string $network): string {
+    return $this->accountPublicKeyResolver->resolve($network, $maker_address);
   }
 
   /**
    * @param array<string, mixed>|null $offer
    */
-  private function defaultMakerRecipientAddress(?array $offer): string {
+  private function defaultMakerAddress(?array $offer): string {
     if (!$offer) {
       return '';
     }

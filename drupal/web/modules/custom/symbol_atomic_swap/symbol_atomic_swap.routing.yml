@@ -41,15 +41,15 @@ symbol_atomic_swap.offer_qr_payload:
     offerId: '\d+'
     intentHash: '[0-9A-Fa-f]{64}'
 
-symbol_atomic_swap.address_from_public_key:
-  path: '/symbol-atomic-swap/address/{network}/{publicKey}'
+symbol_atomic_swap.public_key_from_address:
+  path: '/symbol-atomic-swap/public-key/{network}/{address}'
   defaults:
-    _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::addressFromPublicKey'
-    _title: 'Symbol address'
+    _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::publicKeyFromAddress'
+    _title: 'Symbol account public key'
   requirements:
     _permission: 'view symbol atomic swap offers'
     network: 'mainnet|testnet'
-    publicKey: '[0-9A-Fa-f]{64}'
+    address: '[NT][A-Z2-7]{38}'
 
 symbol_atomic_swap.offer_edit:
   path: '/symbol-atomic-swap/offers/{offerId}/edit'

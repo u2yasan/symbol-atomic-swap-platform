@@ -62,3 +62,39 @@ test('SymbolRestClient converts transport failure to Symbol node unavailable err
     return true;
   });
 });
+
+test('SymbolRestClient resolves account public key from address', async () => {
+  let requestedUrl = '';
+  const publicKey = 'A'.repeat(64);
+  const client = new SymbolRestClient('https://node.example.test', async (input) => {
+    requestedUrl = String(input);
+    return jsonResponse({
+      account: {
+        address: 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+        publicKey,
+      },
+    });
+  });
+
+  const result = await client.getAccountPublicKey('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
+
+  assert.equal(requestedUrl, 'https://node.example.test/accounts/TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
+  assert.deepEqual(result, {
+    found: true,
+    address: 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+    publicKey,
+  });
+});
+
+test('SymbolRestClient treats unannounced account public key as not found', async () => {
+  const client = new SymbolRestClient('https://node.example.test', async () => jsonResponse({
+    account: {
+      publicKey: '0'.repeat(64),
+    },
+  }));
+
+  assert.deepEqual(await client.getAccountPublicKey('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ'), {
+    found: false,
+    address: 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+  });
+});

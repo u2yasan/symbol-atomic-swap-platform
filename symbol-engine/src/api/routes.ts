@@ -11,6 +11,7 @@ import { announceVerifiedTransaction } from '../transaction/announceService.js';
 import { announceSignedHashLock, buildHashLockTransaction } from '../transaction/hashLockService.js';
 import { announcePartialAggregateBonded } from '../transaction/partialAnnouncementService.js';
 import { announceAggregateBondedCosignature } from '../transaction/cosignatureService.js';
+import { SymbolRestClient } from '../transaction/symbolRestClient.js';
 import {
   announceSignedSecretLock,
   announceSignedSecretProof,
@@ -20,11 +21,12 @@ import {
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
-import { intentParamsSchema, projectionParamsSchema } from '../dto/readModels.js';
+import { accountPublicKeyParamsSchema, intentParamsSchema, projectionParamsSchema } from '../dto/readModels.js';
 import { LARGE_PAYLOAD_BODY_LIMIT_BYTES, SMALL_BODY_LIMIT_BYTES } from './security.js';
 import { intentResponse } from './intentResponse.js';
 
 export type RouteDependencies = {
+  network: 'mainnet' | 'testnet';
   nodeUrl: string | undefined;
   nodeRequestTimeoutMs: number;
   repositories: {
@@ -57,6 +59,33 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     }
 
     return reply.send(intentResponse(intent));
+  });
+
+  app.get('/v1/accounts/:network/:address/public-key', async (request, reply) => {
+    const params = accountPublicKeyParamsSchema.parse(request.params);
+    if (params.network !== dependencies.network) {
+      return reply.code(400).send({
+        error: 'network_mismatch',
+      });
+    }
+    if (!dependencies.nodeUrl) {
+      return reply.code(503).send({
+        error: 'symbol_node_unavailable',
+      });
+    }
+
+    const lookup = await new SymbolRestClient(
+      dependencies.nodeUrl,
+      fetch,
+      dependencies.nodeRequestTimeoutMs,
+    ).getAccountPublicKey(params.address);
+    if (!lookup.found) {
+      return reply.code(404).send({
+        error: 'account_public_key_not_found',
+      });
+    }
+
+    return reply.send(lookup);
   });
 
   app.post('/v1/aggregate-complete/build', {

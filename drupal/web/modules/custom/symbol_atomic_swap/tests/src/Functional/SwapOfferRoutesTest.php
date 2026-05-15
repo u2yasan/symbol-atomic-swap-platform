@@ -29,6 +29,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
    * Offer CRUD routes must require explicit permissions.
    */
   public function testOfferRoutesRequireExplicitPermissions(): void {
+    $this->installAccountPublicKeyResolverStub();
     $assert_session = $this->assertSession();
 
     $this->drupalGet('/symbol-atomic-swap/offers');
@@ -54,19 +55,21 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Offer label');
     $assert_session->fieldExists('Correlation ID');
-    $assert_session->fieldExists('Maker public key');
-    $assert_session->fieldExists('Maker recipient address');
+    $assert_session->fieldExists('Maker address');
+    $assert_session->fieldExists('Resolved maker public key');
+    $assert_session->pageTextContains('Same as Maker address.');
     $assert_session->buttonExists('Create trade offer');
 
-    $this->drupalGet('/symbol-atomic-swap/address/testnet/97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D');
+    $this->drupalGet('/symbol-atomic-swap/public-key/testnet/TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
     $assert_session->statusCodeEquals(200);
-    $this->assertStringContainsString('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', $this->getSession()->getPage()->getContent());
+    $this->assertStringContainsString('97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D', $this->getSession()->getPage()->getContent());
   }
 
   /**
    * Nested transfer leg values must not overwrite each other on submit.
    */
   public function testCreateOfferPreservesDistinctTransferLegValues(): void {
+    $this->installAccountPublicKeyResolverStub();
     $creator = $this->drupalCreateUser([
       'view symbol atomic swap offers',
       'create symbol atomic swap offers',
@@ -80,7 +83,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'correlation_id' => 'ui-distinct-leg-0001',
       'deadline_hours' => '2',
       'max_fee' => '',
-      'maker_pays[signer_public_key]' => '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
+      'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
@@ -112,6 +115,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
    * Correlation IDs must be unique per network.
    */
   public function testCreateOfferRejectsDuplicateNetworkCorrelationId(): void {
+    $this->installAccountPublicKeyResolverStub();
     $creator = $this->drupalCreateUser([
       'view symbol atomic swap offers',
       'create symbol atomic swap offers',
@@ -133,7 +137,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'correlation_id' => 'ui-duplicate-correlation',
       'deadline_hours' => '2',
       'max_fee' => '',
-      'maker_pays[signer_public_key]' => '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
+      'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
@@ -570,6 +574,14 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'created' => 1700000000,
       'changed' => 1700000000,
     ];
+  }
+
+  private function installAccountPublicKeyResolverStub(): void {
+    \Drupal::state()->set('symbol_atomic_swap.account_public_key_test_overrides', [
+      'testnet' => [
+        'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ' => '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
+      ],
+    ]);
   }
 
 }

@@ -11,7 +11,8 @@ use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
+use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -23,7 +24,7 @@ final class SwapOfferController extends ControllerBase {
     private readonly SwapOfferRepository $offers,
     private readonly SwapOfferNotificationRepository $notifications,
     private readonly SwapOfferCosignatureRepository $cosignatures,
-    private readonly SymbolAddressDeriver $addressDeriver,
+    private readonly SymbolAccountPublicKeyResolverInterface $accountPublicKeyResolver,
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
   ) {}
@@ -33,7 +34,7 @@ final class SwapOfferController extends ControllerBase {
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.offer_notification_repository'),
       $container->get('symbol_atomic_swap.offer_cosignature_repository'),
-      $container->get('symbol_atomic_swap.address_deriver'),
+      $container->get('symbol_atomic_swap.account_public_key_resolver'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
     );
@@ -458,16 +459,20 @@ final class SwapOfferController extends ControllerBase {
     ]);
   }
 
-  public function addressFromPublicKey(string $network, string $publicKey): JsonResponse {
+  public function publicKeyFromAddress(string $network, string $address): JsonResponse {
     try {
+      $public_key = $this->accountPublicKeyResolver->resolve($network, $address);
       return new JsonResponse([
         'network' => $network,
-        'publicKey' => strtoupper($publicKey),
-        'address' => $this->addressDeriver->deriveFromPublicKey($publicKey, $network),
+        'address' => strtoupper($address),
+        'publicKey' => $public_key,
       ]);
     }
+    catch (SymbolEngineException $exception) {
+      return new JsonResponse(['error' => $exception->engineError ?? 'symbol_engine_error'], $exception->statusCode ?: 503);
+    }
     catch (\InvalidArgumentException) {
-      return new JsonResponse(['error' => 'invalid_public_key'], 400);
+      return new JsonResponse(['error' => 'account_public_key_not_found'], 404);
     }
   }
 

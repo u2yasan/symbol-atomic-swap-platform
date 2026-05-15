@@ -6,6 +6,10 @@ services:
   symbol_atomic_swap.address_deriver:
     class: Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver
 
+  symbol_atomic_swap.account_public_key_resolver:
+    class: Drupal\symbol_atomic_swap\Service\SymbolEngineAccountPublicKeyResolver
+    arguments: ['@symbol_atomic_swap.engine_client', '@symbol_atomic_swap.address_deriver', '@state']
+
   symbol_atomic_swap.offer_repository:
     class: Drupal\symbol_atomic_swap\Repository\SwapOfferRepository
     arguments: ['@database']
