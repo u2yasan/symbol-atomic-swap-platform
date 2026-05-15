@@ -5,6 +5,27 @@
     return String(value || '').replace(/\s+/g, '').toUpperCase();
   }
 
+  const CURRENCY_MOSAIC_IDS = {
+    mainnet: '6BED913FA20223F8',
+    testnet: '72C0212E67A08BCE',
+  };
+
+  function normalizeHex(value) {
+    return String(value || '').replace(/\s+/g, '').toUpperCase();
+  }
+
+  function updateDefaultMosaics(form, networkValue) {
+    const nextMosaicId = CURRENCY_MOSAIC_IDS[networkValue] || CURRENCY_MOSAIC_IDS.testnet;
+    const knownMosaicIds = Object.values(CURRENCY_MOSAIC_IDS);
+    form.querySelectorAll('[data-symbol-default-mosaic]').forEach((field) => {
+      const current = normalizeHex(field.value);
+      if (!current || knownMosaicIds.includes(current)) {
+        field.value = nextMosaicId;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+  }
+
   Drupal.behaviors.symbolAtomicSwapOfferForm = {
     attach(context) {
       once('symbol-atomic-swap-maker-address', '[data-symbol-maker-address-form]', context).forEach((form) => {
@@ -58,7 +79,11 @@
 
         address.addEventListener('input', update);
         address.addEventListener('change', update);
-        network.addEventListener('change', update);
+        network.addEventListener('change', () => {
+          updateDefaultMosaics(form, network.value);
+          update();
+        });
+        updateDefaultMosaics(form, network.value);
         update();
       });
 

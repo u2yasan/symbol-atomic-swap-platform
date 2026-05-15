@@ -18,6 +18,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class SwapOfferForm extends FormBase {
 
+  private const CURRENCY_MOSAIC_IDS = [
+    'mainnet' => '6BED913FA20223F8',
+    'testnet' => '72C0212E67A08BCE',
+  ];
+
   public function __construct(
     private readonly SwapOfferRepository $offers,
     private readonly UuidInterface $uuid,
@@ -140,11 +145,12 @@ final class SwapOfferForm extends FormBase {
       '#maxlength' => 16,
       '#size' => 24,
       '#required' => TRUE,
-      '#default_value' => $offer['leg1_mosaic_id'] ?? '',
+      '#default_value' => $offer['leg1_mosaic_id'] ?? $this->defaultCurrencyMosaicId($offer),
       '#attributes' => [
         'pattern' => '[0-9A-Fa-f]{16}',
         'autocomplete' => 'off',
         'spellcheck' => 'false',
+        'data-symbol-default-mosaic' => '1',
       ],
     ];
     $form['maker_pays']['amount'] = [
@@ -189,11 +195,12 @@ final class SwapOfferForm extends FormBase {
       '#maxlength' => 16,
       '#size' => 24,
       '#required' => TRUE,
-      '#default_value' => $offer['leg2_mosaic_id'] ?? '',
+      '#default_value' => $offer['leg2_mosaic_id'] ?? $this->defaultCurrencyMosaicId($offer),
       '#attributes' => [
         'pattern' => '[0-9A-Fa-f]{16}',
         'autocomplete' => 'off',
         'spellcheck' => 'false',
+        'data-symbol-default-mosaic' => '1',
       ],
     ];
     $form['maker_wants']['amount'] = [
@@ -424,6 +431,14 @@ final class SwapOfferForm extends FormBase {
 
   private function resolveMakerPublicKey(string $maker_address, string $network): string {
     return $this->accountPublicKeyResolver->resolve($network, $maker_address);
+  }
+
+  /**
+   * @param array<string, mixed>|null $offer
+   */
+  private function defaultCurrencyMosaicId(?array $offer): string {
+    $network = (string) ($offer['network'] ?? 'testnet');
+    return self::CURRENCY_MOSAIC_IDS[$network] ?? self::CURRENCY_MOSAIC_IDS['testnet'];
   }
 
   /**

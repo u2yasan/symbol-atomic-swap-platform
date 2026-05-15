@@ -59,6 +59,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldNotExists('Deadline hours');
     $assert_session->fieldExists('Maker address');
     $assert_session->fieldExists('Resolved maker public key');
+    $assert_session->fieldValueEquals('maker_pays[mosaic_id]', '72C0212E67A08BCE');
+    $assert_session->fieldValueEquals('maker_wants[mosaic_id]', '72C0212E67A08BCE');
     $assert_session->pageTextContains('Same as Maker address.');
     $assert_session->buttonExists('Create trade offer');
 
