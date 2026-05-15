@@ -43,3 +43,37 @@ test('TransactionReconciler skips overlapping runs', async () => {
 
   assert.ok(warnings.includes('transaction reconciler skipped overlapping run'));
 });
+
+test('TransactionReconciler logs run-level lookup failures without throwing', async () => {
+  const errors: string[] = [];
+  const reconciler = new TransactionReconciler({
+    network: 'testnet',
+    nodeUrl: 'http://node.local',
+    intervalMs: 30000,
+    logger: {
+      warn: () => undefined,
+      info: () => undefined,
+      error: (_payload: unknown, message: string) => errors.push(message),
+    } as never,
+    repositories: {
+      swapIntents: {
+        findReconciliationCandidates: async () => [],
+      },
+      projections: {
+        findReconciliationCandidates: async () => [],
+      },
+      events: {},
+    } as never,
+    client: {
+      getFinalizedHeight: async () => {
+        throw new Error('node timeout');
+      },
+    } as never,
+  });
+
+  reconciler.start();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  reconciler.stop();
+
+  assert.ok(errors.includes('transaction reconciler run failed'));
+});

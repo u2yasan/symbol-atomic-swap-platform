@@ -92,6 +92,8 @@ export class TransactionReconciler {
         finalizedHeight,
         summary,
       }, 'transaction reconciler run completed');
+    } catch (error) {
+      this.options.logger.error({ error }, 'transaction reconciler run failed');
     } finally {
       this.running = false;
     }
