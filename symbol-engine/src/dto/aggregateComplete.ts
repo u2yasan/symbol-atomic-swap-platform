@@ -14,7 +14,7 @@ export const aggregateTransferLegSchema = z.object({
 
 export const aggregateCompleteBuildRequestSchema = z.object({
   network: z.enum(['mainnet', 'testnet']),
-  deadlineHours: z.number().int().min(1).max(48),
+  deadlineHours: z.number().int().min(1).max(6),
   maxFee: integerStringSchema.optional(),
   legs: z.array(aggregateTransferLegSchema).length(2),
   correlationId: z.string().min(8).max(128),

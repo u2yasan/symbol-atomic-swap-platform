@@ -168,6 +168,12 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
       'deadline_hours' => 1,
     ]));
     $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-open-no-transaction-deadline-expiry',
+      'state' => 'open',
+      'created' => 1700000000,
+      'deadline_hours' => 1,
+    ]));
+    $this->repository->insert($this->offerValues([
       'uuid' => 'offer-announced-not-local-expiry',
       'state' => 'announced',
       'transaction_hash' => str_repeat('D', 64),

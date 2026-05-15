@@ -106,6 +106,20 @@ final class SwapOfferAcceptForm extends FormBase {
         'aria-live' => 'polite',
       ],
     ];
+    $form['transaction'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Transaction settings'),
+    ];
+    $form['transaction']['deadline_hours'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Transaction deadline hours'),
+      '#default_value' => 2,
+      '#min' => 1,
+      '#max' => 6,
+      '#step' => 1,
+      '#required' => TRUE,
+      '#description' => $this->t('Symbol aggregate complete transactions must be announced within 1 to 6 hours after this payload is generated. The maker offer itself does not expire from this value.'),
+    ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
@@ -128,7 +142,13 @@ final class SwapOfferAcceptForm extends FormBase {
       $form_state->setErrorByName('taker][signer_public_key', $this->t('Only open offers can be accepted.'));
     }
     $taker = (array) $form_state->getValue('taker', []);
+    $transaction = (array) $form_state->getValue('transaction', []);
     $address = strtoupper(trim((string) ($taker['recipient_address'] ?? '')));
+    $deadline_hours = (int) ($transaction['deadline_hours'] ?? 0);
+
+    if ($deadline_hours < 1 || $deadline_hours > 6) {
+      $form_state->setErrorByName('transaction][deadline_hours', $this->t('Transaction deadline hours must be between 1 and 6 for aggregate complete transactions.'));
+    }
 
     if (!$this->isNetworkAddress($address, (string) $this->offer['network'])) {
       $form_state->setErrorByName('taker][recipient_address', $this->t('Taker recipient address must be a valid raw Symbol address for the offer network.'));
@@ -163,6 +183,7 @@ final class SwapOfferAcceptForm extends FormBase {
     $taker_public_key = (string) ($form_state->get('symbol_atomic_swap_taker_public_key') ?: $this->accountPublicKeyResolver->resolve((string) $offer['network'], $taker_address));
 
     $values = [
+      'deadline_hours' => (int) $form_state->getValue(['transaction', 'deadline_hours']),
       'leg1_recipient_address' => $taker_address,
       'leg2_signer_public_key' => $taker_public_key,
       'intent_hash' => NULL,

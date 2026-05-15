@@ -85,15 +85,6 @@ final class SwapOfferForm extends FormBase {
       '#required' => TRUE,
       '#default_value' => $offer['correlation_id'] ?? '',
     ];
-    $form['deadline_hours'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Deadline hours'),
-      '#default_value' => $offer['deadline_hours'] ?? 2,
-      '#min' => 1,
-      '#max' => 48,
-      '#step' => 1,
-      '#required' => TRUE,
-    ];
     $form['max_fee'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Max fee'),
@@ -290,16 +281,12 @@ final class SwapOfferForm extends FormBase {
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     $correlation_id = trim((string) $form_state->getValue('correlation_id', ''));
-    $deadline_hours = (int) $form_state->getValue('deadline_hours', 0);
     $max_fee = trim((string) $form_state->getValue('max_fee', ''));
     $network = (string) $form_state->getValue('network');
     $offer_id = $form_state->getValue('offer_id');
 
     if (strlen($correlation_id) < 8 || strlen($correlation_id) > 128) {
       $form_state->setErrorByName('correlation_id', $this->t('Correlation ID must be 8 to 128 characters.'));
-    }
-    if ($deadline_hours < 1 || $deadline_hours > 48) {
-      $form_state->setErrorByName('deadline_hours', $this->t('Deadline hours must be between 1 and 48.'));
     }
     if ($network === 'mainnet' && !$this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')) {
       $form_state->setErrorByName('network', $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'));
@@ -390,7 +377,7 @@ final class SwapOfferForm extends FormBase {
       'label' => trim((string) $form_state->getValue('label')),
       'network' => $network,
       'correlation_id' => trim((string) $form_state->getValue('correlation_id')),
-      'deadline_hours' => (int) $form_state->getValue('deadline_hours'),
+      'deadline_hours' => 2,
       'max_fee' => $max_fee !== '' ? $max_fee : NULL,
       'leg1_signer_public_key' => $maker_public_key,
       'leg1_recipient_address' => '',

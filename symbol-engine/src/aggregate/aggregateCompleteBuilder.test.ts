@@ -46,6 +46,13 @@ test('buildAggregateComplete rejects same signer', () => {
   }), /distinct signer public keys/);
 });
 
+test('buildAggregateComplete rejects deadlines above Symbol aggregate complete limit', () => {
+  assert.throws(() => buildAggregateComplete({
+    ...validRequest,
+    deadlineHours: 7,
+  }), /Number must be less than or equal to 6/);
+});
+
 test('buildAggregateComplete rejects invalid amount and mosaic id', () => {
   assert.throws(() => buildAggregateComplete({
     ...validRequest,

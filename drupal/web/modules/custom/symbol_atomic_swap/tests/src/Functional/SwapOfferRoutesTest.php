@@ -55,6 +55,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Offer label');
     $assert_session->fieldExists('Correlation ID');
+    $assert_session->fieldNotExists('Deadline hours');
     $assert_session->fieldExists('Maker address');
     $assert_session->fieldExists('Resolved maker public key');
     $assert_session->pageTextContains('Same as Maker address.');
@@ -81,7 +82,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'label' => 'Distinct leg submit offer',
       'network' => 'testnet',
       'correlation_id' => 'ui-distinct-leg-0001',
-      'deadline_hours' => '2',
       'max_fee' => '',
       'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
@@ -139,13 +139,16 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Taker recipient address');
     $assert_session->fieldExists('Resolved taker public key');
+    $assert_session->fieldExists('Transaction deadline hours');
     $assert_session->buttonExists('Accept and build QR');
 
     $this->submitForm([
       'taker[recipient_address]' => 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
+      'transaction[deadline_hours]' => '6',
     ], 'Accept and build QR');
 
     $offer = $repository->find($id);
+    $this->assertSame('6', (string) $offer['deadline_hours']);
     $this->assertSame('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', $offer['leg1_recipient_address']);
     $this->assertSame('D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16', $offer['leg2_signer_public_key']);
   }
@@ -174,7 +177,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'label' => 'Duplicate correlation offer',
       'network' => 'testnet',
       'correlation_id' => 'ui-duplicate-correlation',
-      'deadline_hours' => '2',
       'max_fee' => '',
       'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',

@@ -115,7 +115,7 @@ final class SwapOfferRepository {
   public function expirationCandidateIds(int $now, int $limit = 50): array {
     $records = $this->database->select(self::TABLE, 'o')
       ->fields('o', ['id', 'created', 'deadline_hours'])
-      ->condition('state', ['open', 'draft', 'qr_generated', 'signed'], 'IN')
+      ->condition('state', ['qr_generated', 'root_signed', 'signed'], 'IN')
       ->isNull('expired_at')
       ->orderBy('created', 'ASC')
       ->range(0, max($limit * 10, $limit))

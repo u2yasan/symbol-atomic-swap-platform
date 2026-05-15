@@ -58,8 +58,9 @@ final class EngineOperationsForm extends FormBase {
       '#title' => $this->t('Deadline hours'),
       '#default_value' => 2,
       '#min' => 1,
-      '#max' => 48,
+      '#max' => 6,
       '#step' => 1,
+      '#description' => $this->t('Aggregate complete transactions must use a Symbol transaction deadline between 1 and 6 hours.'),
     ];
     $form['build']['max_fee'] = [
       '#type' => 'textfield',
@@ -235,8 +236,8 @@ final class EngineOperationsForm extends FormBase {
     if (strlen($correlation_id) < 8 || strlen($correlation_id) > 128) {
       $form_state->setErrorByName('build][correlation_id', $this->t('Correlation ID must be 8 to 128 characters.'));
     }
-    if ($deadline_hours < 1 || $deadline_hours > 48) {
-      $form_state->setErrorByName('build][deadline_hours', $this->t('Deadline hours must be between 1 and 48.'));
+    if ($deadline_hours < 1 || $deadline_hours > 6) {
+      $form_state->setErrorByName('build][deadline_hours', $this->t('Deadline hours must be between 1 and 6 for aggregate complete transactions.'));
     }
     if ($max_fee !== '' && !$this->isPositiveInteger($max_fee)) {
       $form_state->setErrorByName('build][max_fee', $this->t('Max fee must be a positive integer.'));
