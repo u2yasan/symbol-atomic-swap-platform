@@ -65,7 +65,10 @@ export class ProjectionRepository {
       `SELECT *
        FROM transaction_projections
        WHERE network = $1
-         AND state IN ('announced', 'unconfirmed', 'confirmed')
+         AND (
+           state IN ('announced', 'unconfirmed', 'confirmed')
+           OR (state = 'failed' AND last_event_key LIKE '%:TransactionFailed:0:0:Success')
+         )
        ORDER BY updated_at ASC
        LIMIT 500`,
       [network],

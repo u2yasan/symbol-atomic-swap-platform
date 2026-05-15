@@ -37,6 +37,8 @@ final class SwapOfferAcceptForm extends FormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state, $offerId = NULL): array {
+    $form['#tree'] = TRUE;
+
     $offer = $offerId !== NULL ? $this->offers->find((int) $offerId) : NULL;
     if (!$offer) {
       throw new NotFoundHttpException();

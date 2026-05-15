@@ -60,7 +60,7 @@ final class SwapOfferCosignatureForm extends FormBase {
     $form['expected_signer'] = [
       '#type' => 'item',
       '#title' => $this->t('Expected cosigner public key'),
-      '#markup' => $this->hashValue((string) $offer['leg2_signer_public_key']),
+      '#markup' => (string) $offer['leg2_signer_public_key'],
     ];
     $form['payload'] = [
       '#type' => 'textarea',

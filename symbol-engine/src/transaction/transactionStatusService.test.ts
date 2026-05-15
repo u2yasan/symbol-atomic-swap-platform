@@ -60,6 +60,26 @@ test('reconcileTransactionStatus maps confirmed REST hit to confirmed projection
   assert.equal(context.projections.get(`testnet:${transactionHash}`)?.state, 'confirmed');
 });
 
+test('reconcileTransactionStatus ignores successful transaction status and confirms by lookup', async () => {
+  const context = repositories();
+  const result = await reconcileTransactionStatus({
+    candidate: { transactionHash, network: 'testnet' },
+    finalizedHeight: null,
+    repositories: context.repositories,
+    client: {
+      getTransactionStatus: async () => ({ found: true, transactionHash, code: 'Success' }),
+      getConfirmedTransaction: async () => ({ found: true, transactionHash, blockHeight: 20 }),
+      getUnconfirmedTransaction: async () => ({ found: false, transactionHash }),
+      getFinalizedHeight: async () => null,
+    },
+    observedAt: '2026-05-13T00:00:00.000Z',
+  });
+
+  assert.equal(result, 'confirmed');
+  assert.equal(context.failedIntents.length, 0);
+  assert.equal(context.projections.get(`testnet:${transactionHash}`)?.state, 'confirmed');
+});
+
 test('reconcileTransactionStatus finalizes confirmed transaction below finalized height', async () => {
   const context = repositories();
   const result = await reconcileTransactionStatus({

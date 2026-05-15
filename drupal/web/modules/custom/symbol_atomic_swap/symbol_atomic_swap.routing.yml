@@ -83,7 +83,7 @@ symbol_atomic_swap.offer_submit_cosignature:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferCosignatureForm'
     _title: 'Submit Cosignature'
   requirements:
-    _symbol_atomic_swap_offer_access: 'operate'
+    _symbol_atomic_swap_offer_access: 'cosign'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_assemble_signed_payload:

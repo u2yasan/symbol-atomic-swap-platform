@@ -29,6 +29,10 @@ function publicStatusFailureResponse(status: SymbolStatusLookup): { code: string
   };
 }
 
+function isFailureStatusCode(code: string | undefined): boolean {
+  return Boolean(code && code.toLowerCase() !== 'success');
+}
+
 function uniqueCandidates(candidates: ReconciliationCandidate[]): ReconciliationCandidate[] {
   const seen = new Set<string>();
   const unique: ReconciliationCandidate[] = [];
@@ -82,7 +86,7 @@ export async function reconcileTransactionStatus(input: {
   const observedAt = input.observedAt ?? new Date().toISOString();
 
   const status = await input.client.getTransactionStatus(input.candidate.transactionHash);
-  if (status.found && status.code) {
+  if (status.found && isFailureStatusCode(status.code)) {
     if (input.candidate.intent) {
       await input.repositories.swapIntents.markFailed(input.candidate.intent.intentHash, publicStatusFailureResponse(status));
     }
