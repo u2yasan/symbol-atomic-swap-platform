@@ -250,9 +250,9 @@ final class SymbolAccountVerificationForm extends FormBase {
       $form_state->setErrorByName('signed_payload', $this->t('Verification challenge expired. Generate a new payload.'));
       return;
     }
-    $payload = strtoupper(trim((string) $form_state->getValue(['challenge', 'signed_payload'])));
+    $payload = $this->signedPayloadValue($form_state);
     if (!preg_match('/^[0-9A-F]+$/', $payload) || strlen($payload) % 2 !== 0) {
-      $form_state->setErrorByName('challenge][signed_payload', $this->t('Signed payload must be even-length hex.'));
+      $form_state->setErrorByName('signed_payload', $this->t('Signed payload must be even-length hex.'));
     }
   }
 
@@ -261,7 +261,7 @@ final class SymbolAccountVerificationForm extends FormBase {
     if (!$challenge) {
       return;
     }
-    $payload = strtoupper(trim((string) $form_state->getValue(['challenge', 'signed_payload'])));
+    $payload = $this->signedPayloadValue($form_state);
 
     try {
       $result = $this->engineClient->verifyAccountVerification(
@@ -302,6 +302,14 @@ final class SymbolAccountVerificationForm extends FormBase {
   private function challenge(): ?array {
     $challenge = $this->tempStoreFactory->get(self::TEMPSTORE_COLLECTION)->get(self::TEMPSTORE_KEY);
     return is_array($challenge) ? $challenge : NULL;
+  }
+
+  private function signedPayloadValue(FormStateInterface $form_state): string {
+    $payload = $form_state->getValue('signed_payload');
+    if ($payload === NULL) {
+      $payload = $form_state->getValue(['challenge', 'signed_payload']);
+    }
+    return strtoupper(preg_replace('/\s+/', '', (string) $payload));
   }
 
   private function challengeMessage(string $network, string $address, int $issued, int $expires): string {
