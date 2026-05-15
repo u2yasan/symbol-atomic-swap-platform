@@ -112,6 +112,45 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
+   * Accepting an offer resolves the taker public key from the taker address.
+   */
+  public function testAcceptOfferResolvesTakerPublicKeyFromAddress(): void {
+    $this->installAccountPublicKeyResolverStub();
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-accept-address',
+      'label' => 'Accept address offer',
+      'state' => 'open',
+      'intent_hash' => NULL,
+      'unsigned_payload' => NULL,
+      'qr_payload' => NULL,
+      'transaction_hash' => NULL,
+      'uid' => (int) $operator->id(),
+    ]));
+
+    $this->drupalLogin($operator);
+
+    $assert_session = $this->assertSession();
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/accept');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Taker recipient address');
+    $assert_session->fieldExists('Resolved taker public key');
+    $assert_session->buttonExists('Accept and build QR');
+
+    $this->submitForm([
+      'taker[recipient_address]' => 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
+    ], 'Accept and build QR');
+
+    $offer = $repository->find($id);
+    $this->assertSame('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', $offer['leg1_recipient_address']);
+    $this->assertSame('D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16', $offer['leg2_signer_public_key']);
+  }
+
+  /**
    * Correlation IDs must be unique per network.
    */
   public function testCreateOfferRejectsDuplicateNetworkCorrelationId(): void {
@@ -580,6 +619,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     \Drupal::state()->set('symbol_atomic_swap.account_public_key_test_overrides', [
       'testnet' => [
         'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ' => '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
+        'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI' => 'D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16',
       ],
     ]);
   }

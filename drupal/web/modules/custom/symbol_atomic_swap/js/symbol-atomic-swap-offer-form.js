@@ -61,6 +61,59 @@
         network.addEventListener('change', update);
         update();
       });
+
+      once('symbol-atomic-swap-taker-address', '[data-symbol-taker-address-form]', context).forEach((form) => {
+        const network = form.getAttribute('data-symbol-taker-network') || 'testnet';
+        const address = form.querySelector('[data-symbol-taker-address]');
+        const publicKey = form.querySelector('[data-symbol-taker-public-key]');
+        const status = form.querySelector('[data-symbol-taker-address-status]');
+        if (!address || !publicKey) {
+          return;
+        }
+
+        let timer = 0;
+        const update = () => {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(async () => {
+            const rawAddress = normalizeAddress(address.value);
+            const expectedPrefix = network === 'mainnet' ? 'N' : 'T';
+            publicKey.value = '';
+            if (status) {
+              status.textContent = '';
+            }
+            if (!new RegExp(`^${expectedPrefix}[A-Z2-7]{38}$`).test(rawAddress)) {
+              return;
+            }
+
+            try {
+              const response = await fetch(Drupal.url(`symbol-atomic-swap/public-key/${network}/${rawAddress}`), {
+                headers: { accept: 'application/json' },
+                credentials: 'same-origin',
+              });
+              if (!response.ok) {
+                if (status) {
+                  status.textContent = Drupal.t('No public key was found for this address on the selected network.');
+                }
+                return;
+              }
+              const result = await response.json();
+              publicKey.value = result.publicKey || '';
+              if (status) {
+                status.textContent = result.publicKey ? Drupal.t('Public key resolved.') : '';
+              }
+            }
+            catch (error) {
+              if (status) {
+                status.textContent = Drupal.t('Public key lookup failed.');
+              }
+            }
+          }, 150);
+        };
+
+        address.addEventListener('input', update);
+        address.addEventListener('change', update);
+        update();
+      });
     },
   };
 })(Drupal, once);

@@ -9,6 +9,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -23,12 +24,14 @@ final class SwapOfferAcceptForm extends FormBase {
   public function __construct(
     private readonly SwapOfferRepository $offers,
     private readonly SymbolEngineClient $engineClient,
+    private readonly SymbolAccountPublicKeyResolverInterface $accountPublicKeyResolver,
   ) {}
 
   public static function create(ContainerInterface $container): self {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_atomic_swap.account_public_key_resolver'),
     );
   }
 
@@ -38,6 +41,7 @@ final class SwapOfferAcceptForm extends FormBase {
 
   public function buildForm(array $form, FormStateInterface $form_state, $offerId = NULL): array {
     $form['#tree'] = TRUE;
+    $form['#attached']['library'][] = 'symbol_atomic_swap/offer_form';
 
     $offer = $offerId !== NULL ? $this->offers->find((int) $offerId) : NULL;
     if (!$offer) {
@@ -62,17 +66,9 @@ final class SwapOfferAcceptForm extends FormBase {
     $form['taker'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Taker details'),
-    ];
-    $form['taker']['signer_public_key'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Taker public key'),
-      '#maxlength' => 64,
-      '#size' => 72,
-      '#required' => TRUE,
       '#attributes' => [
-        'pattern' => '[0-9A-Fa-f]{64}',
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
+        'data-symbol-taker-address-form' => '1',
+        'data-symbol-taker-network' => (string) $offer['network'],
       ],
     ];
     $form['taker']['recipient_address'] = [
@@ -81,10 +77,33 @@ final class SwapOfferAcceptForm extends FormBase {
       '#maxlength' => 46,
       '#size' => 52,
       '#required' => TRUE,
-      '#description' => $this->t('Maker payment will be sent to this address.'),
+      '#description' => $this->t('Maker payment will be sent to this address. The account must have sent at least one signed transaction on the offer network.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
+        'data-symbol-taker-address' => '1',
+      ],
+    ];
+    $form['taker']['signer_public_key'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Resolved taker public key'),
+      '#maxlength' => 64,
+      '#size' => 72,
+      '#description' => $this->t('Resolved from Taker recipient address.'),
+      '#attributes' => [
+        'readonly' => 'readonly',
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+        'data-symbol-taker-public-key' => '1',
+      ],
+    ];
+    $form['taker']['address_status'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => '',
+      '#attributes' => [
+        'data-symbol-taker-address-status' => '1',
+        'aria-live' => 'polite',
       ],
     ];
     $form['actions'] = ['#type' => 'actions'];
@@ -109,17 +128,27 @@ final class SwapOfferAcceptForm extends FormBase {
       $form_state->setErrorByName('taker][signer_public_key', $this->t('Only open offers can be accepted.'));
     }
     $taker = (array) $form_state->getValue('taker', []);
-    $signer = trim((string) ($taker['signer_public_key'] ?? ''));
-    $address = trim((string) ($taker['recipient_address'] ?? ''));
+    $address = strtoupper(trim((string) ($taker['recipient_address'] ?? '')));
 
-    if (!$this->isHash($signer)) {
-      $form_state->setErrorByName('taker][signer_public_key', $this->t('Taker public key must be 64 hex characters.'));
-    }
-    if (strtoupper($signer) === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
-      $form_state->setErrorByName('taker][signer_public_key', $this->t('Taker public key must differ from maker public key.'));
-    }
     if (!$this->isNetworkAddress($address, (string) $this->offer['network'])) {
       $form_state->setErrorByName('taker][recipient_address', $this->t('Taker recipient address must be a valid raw Symbol address for the offer network.'));
+      return;
+    }
+
+    try {
+      $signer = $this->accountPublicKeyResolver->resolve((string) $this->offer['network'], $address);
+      if (strtoupper($signer) === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
+        $form_state->setErrorByName('taker][recipient_address', $this->t('Taker account must differ from maker account.'));
+        return;
+      }
+      $form_state->set('symbol_atomic_swap_taker_address', $address);
+      $form_state->set('symbol_atomic_swap_taker_public_key', $signer);
+    }
+    catch (SymbolEngineException) {
+      $form_state->setErrorByName('taker][recipient_address', $this->t('Taker recipient address must have a public key on the offer network. Use an account that has sent at least one signed transaction.'));
+    }
+    catch (\InvalidArgumentException) {
+      $form_state->setErrorByName('taker][recipient_address', $this->t('Taker public key could not be verified.'));
     }
   }
 
@@ -130,10 +159,12 @@ final class SwapOfferAcceptForm extends FormBase {
       throw new NotFoundHttpException();
     }
     $taker = (array) $form_state->getValue('taker', []);
+    $taker_address = (string) ($form_state->get('symbol_atomic_swap_taker_address') ?: strtoupper(trim((string) ($taker['recipient_address'] ?? ''))));
+    $taker_public_key = (string) ($form_state->get('symbol_atomic_swap_taker_public_key') ?: $this->accountPublicKeyResolver->resolve((string) $offer['network'], $taker_address));
 
     $values = [
-      'leg1_recipient_address' => strtoupper(trim((string) $taker['recipient_address'])),
-      'leg2_signer_public_key' => strtoupper(trim((string) $taker['signer_public_key'])),
+      'leg1_recipient_address' => $taker_address,
+      'leg2_signer_public_key' => $taker_public_key,
       'intent_hash' => NULL,
       'unsigned_payload' => NULL,
       'qr_payload' => NULL,
@@ -159,10 +190,6 @@ final class SwapOfferAcceptForm extends FormBase {
     }
 
     $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
-  }
-
-  private function isHash(string $value): bool {
-    return preg_match('/^[0-9A-Fa-f]{64}$/', $value) === 1;
   }
 
   private function isNetworkAddress(string $value, string $network): bool {
