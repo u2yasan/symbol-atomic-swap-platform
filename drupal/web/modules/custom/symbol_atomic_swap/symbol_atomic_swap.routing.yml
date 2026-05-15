@@ -75,7 +75,7 @@ symbol_atomic_swap.offer_submit_signed_payload:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSignedPayloadForm'
     _title: 'Submit Signed Payload'
   requirements:
-    _symbol_atomic_swap_offer_access: 'operate'
+    _symbol_atomic_swap_offer_access: 'sign'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_sign_with_sss:
@@ -84,7 +84,7 @@ symbol_atomic_swap.offer_sign_with_sss:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSssSignForm'
     _title: 'Sign with SSS'
   requirements:
-    _symbol_atomic_swap_offer_access: 'operate'
+    _symbol_atomic_swap_offer_access: 'sign'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_submit_aggregate_signer_json:
@@ -93,7 +93,7 @@ symbol_atomic_swap.offer_submit_aggregate_signer_json:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAggregateSignerJsonForm'
     _title: 'Submit Aggregate Signer JSON'
   requirements:
-    _symbol_atomic_swap_offer_access: 'operate'
+    _symbol_atomic_swap_offer_access: 'sign'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_submit_cosignature:
@@ -120,7 +120,7 @@ symbol_atomic_swap.offer_assemble_signed_payload:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAssembleSignedPayloadForm'
     _title: 'Assemble Signed Payload'
   requirements:
-    _symbol_atomic_swap_offer_access: 'operate'
+    _symbol_atomic_swap_offer_access: 'sign'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_announce:

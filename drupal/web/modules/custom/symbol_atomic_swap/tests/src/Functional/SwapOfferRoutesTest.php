@@ -328,12 +328,37 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->assertSession()->statusCodeEquals(403);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
     $this->assertSession()->statusCodeEquals(403);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/assemble-signed-payload');
+    $this->assertSession()->statusCodeEquals(403);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
     $this->assertSession()->statusCodeEquals(403);
 
-    $this->drupalLogin($operator);
+    $non_owner_operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($non_owner_operator);
 
     $assert_session = $this->assertSession();
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Signed payload');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Unsigned payload sent to SSS');
+    $assert_session->fieldExists('Signed payload');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Aggregate signer JSON');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/assemble-signed-payload');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Root signed payload');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Cosignature JSON');
+
+    $this->drupalLogin($operator);
+
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Submit signed payload');
@@ -442,7 +467,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
-   * Signed payload form exposes normalization and blocks terminal offers.
+   * Signed payload route blocks terminal offers.
    */
   public function testSignedPayloadFormBlocksTerminalOffers(): void {
     $operator = $this->drupalCreateUser([
@@ -462,10 +487,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $assert_session = $this->assertSession();
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
-    $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Offer state');
-    $assert_session->pageTextContains('Maximum accepted normalized size');
-    $assert_session->buttonExists('Verify signed payload')->hasAttribute('disabled');
+    $assert_session->statusCodeEquals(403);
   }
 
   /**
@@ -509,7 +531,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
-   * Non-admin users can view public offers but cannot operate another account's offer.
+   * Non-admin users can view public offers but cannot owner-operate another account's offer.
    */
   public function testOfferRoutesAreScopedToOwnerForNonAdmins(): void {
     $owner = $this->drupalCreateUser([
@@ -524,6 +546,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $id = $repository->insert($this->offerValues([
       'uuid' => 'offer-owner-scope',
       'label' => 'Owner scoped offer',
+      'state' => 'signed',
+      'transaction_hash' => str_repeat('D', 64),
       'uid' => (int) $owner->id(),
     ]));
 
@@ -535,6 +559,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $assert_session->statusCodeEquals(200);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/announce');
     $assert_session->statusCodeEquals(403);
 
     $this->drupalLogin($owner);

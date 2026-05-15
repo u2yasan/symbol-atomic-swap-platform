@@ -36,6 +36,7 @@ final class SwapOfferAccessCheck implements AccessInterface {
       'view' => $account->hasPermission('view symbol atomic swap offers'),
       'operate' => $account->hasPermission('operate symbol atomic swap offers') && $owns_offer,
       'accept' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canAccept($offer),
+      'sign' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canSubmitSignedPayload($offer),
       'cosign' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canSubmitSignedPayload($offer),
       default => FALSE,
     };
