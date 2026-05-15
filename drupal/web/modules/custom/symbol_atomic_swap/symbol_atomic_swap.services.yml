@@ -3,6 +3,9 @@ services:
     class: Drupal\symbol_atomic_swap\Service\SymbolEngineClient
     arguments: ['@http_client', '@config.factory']
 
+  symbol_atomic_swap.address_deriver:
+    class: Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver
+
   symbol_atomic_swap.offer_repository:
     class: Drupal\symbol_atomic_swap\Repository\SwapOfferRepository
     arguments: ['@database']

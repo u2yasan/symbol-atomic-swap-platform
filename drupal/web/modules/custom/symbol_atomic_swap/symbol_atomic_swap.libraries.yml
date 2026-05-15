@@ -16,3 +16,11 @@ sss_sign:
   dependencies:
     - core/drupal
     - core/once
+
+offer_form:
+  version: 1.x
+  js:
+    js/symbol-atomic-swap-offer-form.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

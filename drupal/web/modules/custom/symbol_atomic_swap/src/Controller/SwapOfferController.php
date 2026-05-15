@@ -11,7 +11,9 @@ use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -21,6 +23,7 @@ final class SwapOfferController extends ControllerBase {
     private readonly SwapOfferRepository $offers,
     private readonly SwapOfferNotificationRepository $notifications,
     private readonly SwapOfferCosignatureRepository $cosignatures,
+    private readonly SymbolAddressDeriver $addressDeriver,
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
   ) {}
@@ -30,6 +33,7 @@ final class SwapOfferController extends ControllerBase {
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.offer_notification_repository'),
       $container->get('symbol_atomic_swap.offer_cosignature_repository'),
+      $container->get('symbol_atomic_swap.address_deriver'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
     );
@@ -452,6 +456,19 @@ final class SwapOfferController extends ControllerBase {
     return (string) $this->t('QR payload for @label', [
       '@label' => (string) $this->loadOffer((int) $offerId)['label'],
     ]);
+  }
+
+  public function addressFromPublicKey(string $network, string $publicKey): JsonResponse {
+    try {
+      return new JsonResponse([
+        'network' => $network,
+        'publicKey' => strtoupper($publicKey),
+        'address' => $this->addressDeriver->deriveFromPublicKey($publicKey, $network),
+      ]);
+    }
+    catch (\InvalidArgumentException) {
+      return new JsonResponse(['error' => 'invalid_public_key'], 400);
+    }
   }
 
   /**

@@ -57,6 +57,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Maker public key');
     $assert_session->fieldExists('Maker recipient address');
     $assert_session->buttonExists('Create trade offer');
+
+    $this->drupalGet('/symbol-atomic-swap/address/testnet/97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D');
+    $assert_session->statusCodeEquals(200);
+    $this->assertStringContainsString('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', $this->getSession()->getPage()->getContent());
   }
 
   /**
@@ -76,10 +80,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'correlation_id' => 'ui-distinct-leg-0001',
       'deadline_hours' => '2',
       'max_fee' => '',
-      'maker_pays[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
+      'maker_pays[signer_public_key]' => '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',
-      'maker_wants[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
       'maker_wants[amount]' => '200',
     ], 'Create trade offer');
@@ -95,12 +98,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'q' => 'ui-distinct-leg-0001',
     ]);
     $this->assertCount(1, $records);
-    $this->assertSame('D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737', $records[0]['leg1_signer_public_key']);
+    $this->assertSame('97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D', $records[0]['leg1_signer_public_key']);
     $this->assertSame('', $records[0]['leg1_recipient_address']);
     $this->assertSame('72C0212E67A08BCE', $records[0]['leg1_mosaic_id']);
     $this->assertSame('100', $records[0]['leg1_amount']);
     $this->assertSame('', $records[0]['leg2_signer_public_key']);
-    $this->assertSame('TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY', $records[0]['leg2_recipient_address']);
+    $this->assertSame('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', $records[0]['leg2_recipient_address']);
     $this->assertSame('72C0212E67A08BCF', $records[0]['leg2_mosaic_id']);
     $this->assertSame('200', $records[0]['leg2_amount']);
   }
@@ -130,10 +133,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'correlation_id' => 'ui-duplicate-correlation',
       'deadline_hours' => '2',
       'max_fee' => '',
-      'maker_pays[signer_public_key]' => 'D04AB232742BB4AB3A1368BD4615E4E6D0224AB71A016BAF8520A332C9778737',
+      'maker_pays[signer_public_key]' => '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',
-      'maker_wants[recipient_address]' => 'TCOUCADEQEZXJBPY2E54DIWVKGQQUGNAJTZ6VXY',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
       'maker_wants[amount]' => '200',
     ], 'Create trade offer');
