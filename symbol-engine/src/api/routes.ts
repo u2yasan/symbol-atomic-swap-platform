@@ -11,6 +11,7 @@ import { announceVerifiedTransaction } from '../transaction/announceService.js';
 import { announceSignedHashLock, buildHashLockTransaction } from '../transaction/hashLockService.js';
 import { announcePartialAggregateBonded } from '../transaction/partialAnnouncementService.js';
 import { announceAggregateBondedCosignature } from '../transaction/cosignatureService.js';
+import { buildAccountVerificationPayload, verifyAccountVerificationPayload } from '../transaction/accountVerificationService.js';
 import { SymbolRestClient } from '../transaction/symbolRestClient.js';
 import {
   announceSignedSecretLock,
@@ -138,6 +139,32 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
 
     const { intent: _intent, ...response } = result;
     return reply.code(201).send(response);
+  });
+
+  app.post('/v1/account-verification/build', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const result = buildAccountVerificationPayload(request.body);
+    return reply.code(201).send(result);
+  });
+
+  app.post('/v1/account-verification/verify', {
+    bodyLimit: LARGE_PAYLOAD_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    const result = verifyAccountVerificationPayload(request.body);
+    return reply.code(result.accepted ? 200 : 400).send(result);
   });
 
   app.post('/v1/transactions/verify-signed-payload', {

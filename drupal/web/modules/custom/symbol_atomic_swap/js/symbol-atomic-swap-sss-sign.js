@@ -78,7 +78,7 @@
             }
             payloadField.value = signedPayload;
             payloadField.dispatchEvent(new Event('input', { bubbles: true }));
-            setStatus(container, Drupal.t('SSS signed payload was copied into the form. Verify it before announcing.'), false);
+            setStatus(container, Drupal.t('SSS signed payload was copied into the form. Submit it to verify.'), false);
           }
           catch (error) {
             setStatus(container, Drupal.t('SSS signature request was cancelled or failed.'), true);

@@ -51,6 +51,14 @@ symbol_atomic_swap.public_key_from_address:
     network: 'mainnet|testnet'
     address: '[NT][A-Z2-7]{38}'
 
+symbol_atomic_swap.account_verification:
+  path: '/symbol-atomic-swap/account'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SymbolAccountVerificationForm'
+    _title: 'My Symbol Account'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+
 symbol_atomic_swap.offer_edit:
   path: '/symbol-atomic-swap/offers/{offerId}/edit'
   defaults:

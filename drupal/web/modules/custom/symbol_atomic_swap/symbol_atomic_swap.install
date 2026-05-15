@@ -279,6 +279,13 @@ function symbol_atomic_swap_schema(): array {
 }
 
 /**
+ * Implements hook_install().
+ */
+function symbol_atomic_swap_install(): void {
+  symbol_atomic_swap_ensure_user_account_fields();
+}
+
+/**
  * Creates the swap offer table for existing installations.
  */
 function symbol_atomic_swap_update_11001(): void {
@@ -428,5 +435,77 @@ function symbol_atomic_swap_update_11008(): void {
   }
   if (!$schema->indexExists('symbol_atomic_swap_offer', 'root_transaction_hash')) {
     $schema->addIndex('symbol_atomic_swap_offer', 'root_transaction_hash', ['root_transaction_hash'], symbol_atomic_swap_schema()['symbol_atomic_swap_offer']);
+  }
+}
+
+/**
+ * Adds Symbol account verification fields to Drupal users.
+ */
+function symbol_atomic_swap_update_11009(): void {
+  symbol_atomic_swap_ensure_user_account_fields();
+}
+
+/**
+ * Ensures configurable user fields used for Symbol account verification exist.
+ */
+function symbol_atomic_swap_ensure_user_account_fields(): void {
+  $fields = [
+    'field_symbol_network' => [
+      'type' => 'string',
+      'label' => 'Symbol network',
+      'settings' => ['max_length' => 16],
+    ],
+    'field_symbol_address' => [
+      'type' => 'string',
+      'label' => 'Symbol address',
+      'settings' => ['max_length' => 46],
+    ],
+    'field_symbol_public_key' => [
+      'type' => 'string',
+      'label' => 'Symbol public key',
+      'settings' => ['max_length' => 64],
+    ],
+    'field_symbol_address_verified' => [
+      'type' => 'boolean',
+      'label' => 'Symbol address verified',
+      'settings' => [],
+    ],
+    'field_symbol_address_verified_at' => [
+      'type' => 'timestamp',
+      'label' => 'Symbol address verified at',
+      'settings' => [],
+    ],
+    'field_symbol_verification_method' => [
+      'type' => 'string',
+      'label' => 'Symbol verification method',
+      'settings' => ['max_length' => 64],
+    ],
+    'field_symbol_challenge_hash' => [
+      'type' => 'string',
+      'label' => 'Symbol verification challenge hash',
+      'settings' => ['max_length' => 64],
+    ],
+  ];
+
+  foreach ($fields as $field_name => $definition) {
+    if (!\Drupal\field\Entity\FieldStorageConfig::loadByName('user', $field_name)) {
+      \Drupal\field\Entity\FieldStorageConfig::create([
+        'field_name' => $field_name,
+        'entity_type' => 'user',
+        'type' => $definition['type'],
+        'settings' => $definition['settings'],
+        'cardinality' => 1,
+      ])->save();
+    }
+
+    if (!\Drupal\field\Entity\FieldConfig::loadByName('user', 'user', $field_name)) {
+      \Drupal\field\Entity\FieldConfig::create([
+        'field_name' => $field_name,
+        'entity_type' => 'user',
+        'bundle' => 'user',
+        'label' => $definition['label'],
+        'required' => FALSE,
+      ])->save();
+    }
   }
 }

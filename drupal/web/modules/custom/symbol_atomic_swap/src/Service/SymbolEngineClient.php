@@ -58,6 +58,39 @@ final class SymbolEngineClient {
     return $this->request('GET', '/v1/accounts/' . $network . '/' . strtoupper($address) . '/public-key');
   }
 
+  public function buildAccountVerification(string $network, string $address, string $signer_public_key, string $challenge): array {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+    $this->assertRawAddress($address, $network);
+    $this->assertPublicKey($signer_public_key);
+    return $this->request('POST', '/v1/account-verification/build', TRUE, [
+      'network' => $network,
+      'address' => strtoupper($address),
+      'signerPublicKey' => strtoupper($signer_public_key),
+      'challenge' => $challenge,
+      'deadlineHours' => 1,
+    ]);
+  }
+
+  public function verifyAccountVerification(string $network, string $address, string $signer_public_key, string $challenge, string $payload): array {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+    $this->assertRawAddress($address, $network);
+    $this->assertPublicKey($signer_public_key);
+    if (!preg_match('/^[0-9A-Fa-f]+$/', $payload) || strlen($payload) % 2 !== 0) {
+      throw new \InvalidArgumentException('Invalid signed payload.');
+    }
+    return $this->request('POST', '/v1/account-verification/verify', TRUE, [
+      'network' => $network,
+      'address' => strtoupper($address),
+      'signerPublicKey' => strtoupper($signer_public_key),
+      'challenge' => $challenge,
+      'payload' => strtoupper($payload),
+    ]);
+  }
+
   public function verifySignedPayload(string $intent_hash, string $payload): array {
     $this->assertHash($intent_hash, 'intent hash');
     return $this->request('POST', '/v1/transactions/verify-signed-payload', TRUE, [
@@ -180,6 +213,12 @@ final class SymbolEngineClient {
   private function assertHash(string $value, string $label): void {
     if (!preg_match('/^[0-9A-Fa-f]{64}$/', $value)) {
       throw new \InvalidArgumentException(sprintf('Invalid %s.', $label));
+    }
+  }
+
+  private function assertPublicKey(string $value): void {
+    if (!preg_match('/^[0-9A-Fa-f]{64}$/', $value)) {
+      throw new \InvalidArgumentException('Invalid public key.');
     }
   }
 

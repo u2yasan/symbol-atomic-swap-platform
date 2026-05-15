@@ -22,6 +22,12 @@ symbol_atomic_swap.offer_list:
   route_name: symbol_atomic_swap.offer_list
   menu_name: main
 
+symbol_atomic_swap.account_verification:
+  title: 'My Symbol Account'
+  description: 'Register and verify your Symbol account address.'
+  route_name: symbol_atomic_swap.account_verification
+  menu_name: main
+
 symbol_atomic_swap.notification_list:
   title: 'Symbol Swap Notifications'
   description: 'Review Symbol atomic swap notifications.'
