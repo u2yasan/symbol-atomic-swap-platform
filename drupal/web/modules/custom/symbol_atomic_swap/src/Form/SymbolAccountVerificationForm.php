@@ -54,6 +54,7 @@ final class SymbolAccountVerificationForm extends FormBase {
     $account = $this->loadUser();
     $challenge = $this->challenge();
 
+    $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     if ($challenge) {
       $form['#attributes']['data-symbol-sss-container'] = '1';
@@ -130,7 +131,29 @@ final class SymbolAccountVerificationForm extends FormBase {
             'spellcheck' => 'false',
           ],
         ],
+        'manual' => [
+          '#type' => 'details',
+          '#title' => $this->t('Manual signing without SSS'),
+          '#open' => TRUE,
+          'notice' => [
+            '#type' => 'item',
+            '#markup' => $this->t('Copy this zero-fee verification payload, sign it with a Symbol wallet or tool that can sign raw transaction payloads, then paste the signed payload below. Do not announce this transaction.'),
+          ],
+          'copy' => [
+            '#type' => 'container',
+            'label' => [
+              '#type' => 'html_tag',
+              '#tag' => 'strong',
+              '#value' => (string) $this->t('Copy unsigned verification payload'),
+            ],
+            'value' => $this->copyValue((string) $challenge['unsignedPayload']),
+          ],
+        ],
         'sss' => [
+          '#type' => 'details',
+          '#title' => $this->t('Browser signing with SSS'),
+          '#open' => FALSE,
+          'controls' => [
           '#type' => 'container',
           '#attributes' => ['class' => ['symbol-atomic-swap-sss-sign']],
           'install' => [
@@ -157,6 +180,7 @@ final class SymbolAccountVerificationForm extends FormBase {
               'data-symbol-sss-status' => '1',
               'aria-live' => 'polite',
             ],
+          ],
           ],
         ],
         'signed_payload' => [
@@ -354,6 +378,29 @@ final class SymbolAccountVerificationForm extends FormBase {
 
   private function plainValue(string $value): string {
     return $value !== '' ? $value : (string) $this->t('Not set');
+  }
+
+  private function copyValue(string $value): array {
+    return [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['symbol-atomic-swap-copy']],
+      'value' => [
+        '#type' => 'html_tag',
+        '#tag' => 'code',
+        '#value' => $value,
+        '#attributes' => ['class' => ['symbol-atomic-swap-long-value']],
+      ],
+      'copy' => [
+        '#type' => 'html_tag',
+        '#tag' => 'button',
+        '#value' => (string) $this->t('Copy'),
+        '#attributes' => [
+          'type' => 'button',
+          'class' => ['button', 'button--small', 'symbol-atomic-swap-copy__button'],
+          'data-symbol-copy' => $value,
+        ],
+      ],
+    ];
   }
 
   private function challengeMessage(string $network, string $address, int $issued, int $expires): string {
