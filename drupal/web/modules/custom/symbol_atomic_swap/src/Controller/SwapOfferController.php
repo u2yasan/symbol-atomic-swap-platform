@@ -231,7 +231,7 @@ final class SwapOfferController extends ControllerBase {
     foreach ($this->cosignatures->findByOffer((int) $offer['id']) as $cosignature) {
       $cosignature_rows[] = [
         ['data' => $this->hashValue((string) $cosignature['parent_hash'])],
-        ['data' => $this->hashValue((string) $cosignature['signer_public_key'])],
+        ['data' => $this->addressValue((string) $cosignature['signer_public_key'], (string) $offer['network'])],
         !empty($cosignature['trusted_parent_hash']) ? $this->t('Yes') : $this->t('No'),
         $cosignature['created'] ? $this->dateFormatter->format((int) $cosignature['created'], 'short') : '',
       ];
@@ -241,7 +241,7 @@ final class SwapOfferController extends ControllerBase {
         '#type' => 'table',
         '#header' => [
           $this->t('Cosignature parent hash'),
-          $this->t('Signer public key'),
+          $this->t('Signer address'),
           $this->t('Trusted parent hash'),
           $this->t('Submitted'),
         ],
