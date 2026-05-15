@@ -78,12 +78,17 @@ final class SwapOfferForm extends FormBase {
         'data-symbol-maker-network' => '1',
       ],
     ];
-    $form['correlation_id'] = [
+    $form['correlation_id'] = $offer ? [
       '#type' => 'textfield',
       '#title' => $this->t('Correlation ID'),
       '#maxlength' => 128,
-      '#required' => TRUE,
-      '#default_value' => $offer['correlation_id'] ?? '',
+      '#default_value' => (string) $offer['correlation_id'],
+      '#disabled' => TRUE,
+      '#description' => $this->t('Generated automatically when the offer was created.'),
+    ] : [
+      '#type' => 'item',
+      '#title' => $this->t('Correlation ID'),
+      '#markup' => $this->t('Generated automatically when the offer is saved.'),
     ];
     $form['max_fee'] = [
       '#type' => 'textfield',
@@ -280,19 +285,21 @@ final class SwapOfferForm extends FormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    $correlation_id = trim((string) $form_state->getValue('correlation_id', ''));
     $max_fee = trim((string) $form_state->getValue('max_fee', ''));
     $network = (string) $form_state->getValue('network');
     $offer_id = $form_state->getValue('offer_id');
-
-    if (strlen($correlation_id) < 8 || strlen($correlation_id) > 128) {
-      $form_state->setErrorByName('correlation_id', $this->t('Correlation ID must be 8 to 128 characters.'));
-    }
     if ($network === 'mainnet' && !$this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')) {
       $form_state->setErrorByName('network', $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'));
     }
-    if ($correlation_id !== '' && $this->offers->existsByNetworkCorrelationId($network, $correlation_id, $offer_id ? (int) $offer_id : NULL)) {
-      $form_state->setErrorByName('correlation_id', $this->t('Correlation ID is already used for this network.'));
+    if ($offer_id) {
+      $offer = $this->offers->find((int) $offer_id);
+      $correlation_id = (string) ($offer['correlation_id'] ?? '');
+      if ($correlation_id !== '' && $this->offers->existsByNetworkCorrelationId($network, $correlation_id, (int) $offer_id)) {
+        $form_state->setErrorByName('network', $this->t('Generated correlation ID is already used for this network.'));
+      }
+    }
+    else {
+      $form_state->set('symbol_atomic_swap_correlation_id', $this->offers->nextCorrelationId($network));
     }
     if ($max_fee !== '' && !$this->isPositiveInteger($max_fee)) {
       $form_state->setErrorByName('max_fee', $this->t('Max fee must be a positive integer.'));
@@ -370,13 +377,17 @@ final class SwapOfferForm extends FormBase {
     $maker_wants = (array) $form_state->getValue('maker_wants', []);
     $max_fee = trim((string) $form_state->getValue('max_fee', ''));
     $network = (string) $form_state->getValue('network');
+    $offer_id = $form_state->getValue('offer_id');
     $maker_address = (string) ($form_state->get('symbol_atomic_swap_maker_address') ?: strtoupper(trim((string) ($maker_pays['address'] ?? ''))));
     $maker_public_key = (string) ($form_state->get('symbol_atomic_swap_maker_public_key') ?: $this->resolveMakerPublicKey($maker_address, $network));
+    $correlation_id = $offer_id
+      ? (string) ($this->offers->find((int) $offer_id)['correlation_id'] ?? '')
+      : (string) ($form_state->get('symbol_atomic_swap_correlation_id') ?: $this->offers->nextCorrelationId($network));
 
     return [
       'label' => trim((string) $form_state->getValue('label')),
       'network' => $network,
-      'correlation_id' => trim((string) $form_state->getValue('correlation_id')),
+      'correlation_id' => $correlation_id,
       'deadline_hours' => 2,
       'max_fee' => $max_fee !== '' ? $max_fee : NULL,
       'leg1_signer_public_key' => $maker_public_key,

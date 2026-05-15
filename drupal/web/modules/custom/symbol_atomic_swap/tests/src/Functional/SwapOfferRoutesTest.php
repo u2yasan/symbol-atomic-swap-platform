@@ -54,7 +54,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/add');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Offer label');
-    $assert_session->fieldExists('Correlation ID');
+    $assert_session->fieldNotExists('Correlation ID');
+    $assert_session->pageTextContains('Generated automatically when the offer is saved.');
     $assert_session->fieldNotExists('Deadline hours');
     $assert_session->fieldExists('Maker address');
     $assert_session->fieldExists('Resolved maker public key');
@@ -81,7 +82,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->submitForm([
       'label' => 'Distinct leg submit offer',
       'network' => 'testnet',
-      'correlation_id' => 'ui-distinct-leg-0001',
       'max_fee' => '',
       'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
@@ -98,9 +98,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextNotContains('Amount must be a positive integer.');
 
     $records = \Drupal::service('symbol_atomic_swap.offer_repository')->search([
-      'q' => 'ui-distinct-leg-0001',
+      'q' => 'Distinct leg submit offer',
     ]);
     $this->assertCount(1, $records);
+    $this->assertSame('swap-testnet-000001', $records[0]['correlation_id']);
     $this->assertSame('97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D', $records[0]['leg1_signer_public_key']);
     $this->assertSame('', $records[0]['leg1_recipient_address']);
     $this->assertSame('72C0212E67A08BCE', $records[0]['leg1_mosaic_id']);
@@ -154,9 +155,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
-   * Correlation IDs must be unique per network.
+   * Correlation IDs are automatically numbered per network.
    */
-  public function testCreateOfferRejectsDuplicateNetworkCorrelationId(): void {
+  public function testCreateOfferGeneratesNextNetworkCorrelationId(): void {
     $this->installAccountPublicKeyResolverStub();
     $creator = $this->drupalCreateUser([
       'view symbol atomic swap offers',
@@ -168,15 +169,14 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'uuid' => 'offer-duplicate-correlation',
       'label' => 'Existing correlation offer',
       'network' => 'testnet',
-      'correlation_id' => 'ui-duplicate-correlation',
+      'correlation_id' => 'swap-testnet-000001',
       'uid' => (int) $creator->id(),
     ]));
 
     $this->drupalGet('/symbol-atomic-swap/offers/add');
     $this->submitForm([
-      'label' => 'Duplicate correlation offer',
+      'label' => 'Auto correlation offer',
       'network' => 'testnet',
-      'correlation_id' => 'ui-duplicate-correlation',
       'max_fee' => '',
       'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
@@ -187,12 +187,13 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Correlation ID is already used for this network.');
+    $assert_session->pageTextContains('Trade offer was saved.');
 
     $records = \Drupal::service('symbol_atomic_swap.offer_repository')->search([
-      'q' => 'ui-duplicate-correlation',
+      'q' => 'Auto correlation offer',
     ]);
     $this->assertCount(1, $records);
+    $this->assertSame('swap-testnet-000002', $records[0]['correlation_id']);
   }
 
 

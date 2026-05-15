@@ -311,6 +311,30 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
     ]));
   }
 
+  /**
+   * Generated correlation IDs are sequential within a network.
+   */
+  public function testNextCorrelationId(): void {
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-next-correlation-1',
+      'network' => 'testnet',
+      'correlation_id' => 'swap-testnet-000001',
+    ]));
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-next-correlation-mainnet',
+      'network' => 'mainnet',
+      'correlation_id' => 'swap-mainnet-000001',
+    ]));
+    $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-next-correlation-custom',
+      'network' => 'testnet',
+      'correlation_id' => 'custom-correlation',
+    ]));
+
+    $this->assertSame('swap-testnet-000002', $this->repository->nextCorrelationId('testnet'));
+    $this->assertSame('swap-mainnet-000002', $this->repository->nextCorrelationId('mainnet'));
+  }
+
 
   /**
    * @param array<string, mixed> $overrides

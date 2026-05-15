@@ -95,6 +95,33 @@ final class SwapOfferRepository {
     return $query->execute()->fetchField() !== FALSE;
   }
 
+  public function nextCorrelationId(string $network): string {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+
+    $prefix = 'swap-' . $network . '-';
+    $records = $this->database->select(self::TABLE, 'o')
+      ->fields('o', ['correlation_id'])
+      ->condition('network', $network)
+      ->condition('correlation_id', $this->database->escapeLike($prefix) . '%', 'LIKE')
+      ->execute()
+      ->fetchCol();
+
+    $max = 0;
+    foreach ($records as $record) {
+      if (preg_match('/^' . preg_quote($prefix, '/') . '([0-9]{6})$/', (string) $record, $matches) === 1) {
+        $max = max($max, (int) $matches[1]);
+      }
+    }
+
+    do {
+      $candidate = $prefix . str_pad((string) ++$max, 6, '0', STR_PAD_LEFT);
+    } while ($this->existsByNetworkCorrelationId($network, $candidate));
+
+    return $candidate;
+  }
+
   /**
    * @return int[]
    */
