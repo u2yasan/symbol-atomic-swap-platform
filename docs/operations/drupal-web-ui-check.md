@@ -179,6 +179,13 @@ Transfer leg 2 amount:
 ```
 
 These are UI validation fixtures. They are not real wallet instructions.
+They cannot produce a valid signed payload because the matching private keys are
+not part of this procedure.
+
+For an end-to-end signing check, replace both signer public keys with public
+keys from disposable testnet accounts that you control in an external Symbol
+wallet or signing tool. Keep all private keys, mnemonics, and wallet passwords
+outside Drupal.
 
 ## 1. Anonymous Access
 
@@ -307,6 +314,33 @@ Expected:
 - admin can view, edit, operate, and delete any offer
 
 ## 6. Signed Payload Form
+
+### 6.1 Produce a Signed Payload
+
+Drupal does not sign. It only builds an unsigned Aggregate Complete payload and
+verifies a signed payload returned by an external signer.
+
+Use this flow when a real end-to-end signing check is required:
+
+1. Create the offer with real disposable testnet signer public keys.
+2. Open the offer detail page.
+3. Scan the displayed QR with a Symbol-compatible wallet or signing tool.
+4. If the signer cannot consume the full QR JSON directly, open `QR payload`
+   and copy the `unsignedPayload` value into the signing tool.
+5. Verify the transaction details in the signer:
+   - network is `testnet`
+   - transaction type is Aggregate Complete
+   - transfer signer public keys match the two offer legs
+   - recipients, mosaic IDs, and amounts match the offer
+6. Sign with each required testnet account listed in `requiredCosigners`.
+7. Export or copy the final signed transaction payload as even-length HEX.
+
+The final signed payload must include all required signatures. A payload signed
+by only one party is expected to be rejected by Engine with a missing signer
+reason.
+
+Never paste private keys, mnemonics, wallet passwords, or signing secrets into
+Drupal. The only value returned to Drupal is the signed payload HEX.
 
 Login as the offer owner with operate permission.
 
