@@ -137,7 +137,7 @@ final class SymbolAccountVerificationForm extends FormBase {
           '#open' => TRUE,
           'notice' => [
             '#type' => 'item',
-            '#markup' => $this->t('Copy this zero-fee verification payload, sign it with a Symbol wallet or tool that can sign raw transaction payloads, then paste the signed payload below. Do not announce this transaction.'),
+            '#markup' => $this->t('Copy this zero-fee verification payload, sign it with Symbol CLI or an SDK tool that can sign raw transaction payloads, then paste the signed payload below. Do not announce this transaction.'),
           ],
           'copy' => [
             '#type' => 'container',
