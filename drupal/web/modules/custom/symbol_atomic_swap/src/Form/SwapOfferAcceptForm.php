@@ -84,19 +84,6 @@ final class SwapOfferAcceptForm extends FormBase {
         'data-symbol-taker-address' => '1',
       ],
     ];
-    $form['taker']['signer_public_key'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Resolved taker public key'),
-      '#maxlength' => 64,
-      '#size' => 72,
-      '#description' => $this->t('Resolved from Taker recipient address.'),
-      '#attributes' => [
-        'readonly' => 'readonly',
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-        'data-symbol-taker-public-key' => '1',
-      ],
-    ];
     $form['taker']['address_status'] = [
       '#type' => 'html_tag',
       '#tag' => 'div',

@@ -141,7 +141,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/accept');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Taker recipient address');
-    $assert_session->fieldExists('Resolved taker public key');
+    $assert_session->fieldNotExists('Resolved taker public key');
     $assert_session->fieldExists('Transaction deadline hours');
     $assert_session->buttonExists('Accept and build QR');
 
