@@ -46,6 +46,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'view symbol atomic swap offers',
       'create symbol atomic swap offers',
     ]);
+    $this->verifySymbolAccount($creator);
     $this->drupalLogin($creator);
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
@@ -58,7 +59,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Generated automatically when the offer is saved.');
     $assert_session->fieldNotExists('Deadline hours');
     $assert_session->fieldNotExists('Max fee');
-    $assert_session->fieldExists('Maker address');
+    $assert_session->fieldNotExists('Maker address');
+    $assert_session->pageTextContains('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
+    $assert_session->pageTextContains('Uses the verified address from My Symbol Account.');
     $assert_session->fieldNotExists('Resolved maker public key');
     $assert_session->fieldValueEquals('maker_pays[mosaic_id]', '72C0212E67A08BCE');
     $assert_session->fieldValueEquals('maker_wants[mosaic_id]', '72C0212E67A08BCE');
@@ -79,13 +82,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'view symbol atomic swap offers',
       'create symbol atomic swap offers',
     ]);
+    $this->verifySymbolAccount($creator);
     $this->drupalLogin($creator);
 
     $this->drupalGet('/symbol-atomic-swap/offers/add');
     $this->submitForm([
       'label' => 'Distinct leg submit offer',
-      'network' => 'testnet',
-      'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
@@ -165,6 +167,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'view symbol atomic swap offers',
       'create symbol atomic swap offers',
     ]);
+    $this->verifySymbolAccount($creator);
     $this->drupalLogin($creator);
 
     \Drupal::service('symbol_atomic_swap.offer_repository')->insert($this->offerValues([
@@ -178,8 +181,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/add');
     $this->submitForm([
       'label' => 'Auto correlation offer',
-      'network' => 'testnet',
-      'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
@@ -657,6 +658,17 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
         'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI' => 'D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16',
       ],
     ]);
+  }
+
+  private function verifySymbolAccount($account): void {
+    $account->set('field_symbol_network', 'testnet');
+    $account->set('field_symbol_address', 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
+    $account->set('field_symbol_public_key', '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D');
+    $account->set('field_symbol_address_verified', TRUE);
+    $account->set('field_symbol_address_verified_at', 1700000000);
+    $account->set('field_symbol_verification_method', 'on_chain_transfer');
+    $account->set('field_symbol_challenge_hash', str_repeat('A', 64));
+    $account->save();
   }
 
 }

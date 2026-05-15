@@ -72,7 +72,8 @@ test('on-chain account verification accepts a confirmed transfer to the site add
   const facade = new SymbolFacade('testnet');
   const privateKey = PrivateKey.random();
   const account = facade.createAccount(privateKey);
-  const siteAddress = facade.createAccount(PrivateKey.random()).address.toString();
+  const siteAccount = facade.createAccount(PrivateKey.random());
+  const siteAddress = siteAccount.address.toString();
   const challenge = 'symbol-atomic-swap:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   const transactionHash = 'A'.repeat(64);
   const restClient = {
@@ -91,6 +92,46 @@ test('on-chain account verification accepts a confirmed transfer to the site add
               type: 0,
               payload: utils.uint8ToHex(new TextEncoder().encode(challenge)),
             },
+          },
+        },
+      };
+    },
+  };
+
+  const result = await verifyOnChainAccountVerificationTransaction({
+    network: 'testnet',
+    address: account.address.toString(),
+    signerPublicKey: account.publicKey.toString(),
+    recipientAddress: siteAddress,
+    challenge,
+    transactionHash,
+  }, restClient as never);
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'account_on_chain_verification_passed');
+});
+
+test('on-chain account verification accepts Symbol REST hex address and string message format', async () => {
+  const facade = new SymbolFacade('testnet');
+  const privateKey = PrivateKey.random();
+  const account = facade.createAccount(privateKey);
+  const siteAccount = facade.createAccount(PrivateKey.random());
+  const siteAddress = siteAccount.address.toString();
+  const challenge = 'symbol-atomic-swap:63aca4971990ea9062ce9d661ea157226bd47d530e76360df7c0344e37594bc7';
+  const transactionHash = 'C'.repeat(64);
+  const restClient = {
+    async getConfirmedTransactionDetails() {
+      return {
+        found: true,
+        transactionHash,
+        raw: {
+          meta: { hash: transactionHash },
+          transaction: {
+            type: 16724,
+            network: 152,
+            signerPublicKey: account.publicKey.toString(),
+            recipientAddress: utils.uint8ToHex(siteAccount.address.bytes).toUpperCase(),
+            message: '00' + utils.uint8ToHex(new TextEncoder().encode(challenge)),
           },
         },
       };

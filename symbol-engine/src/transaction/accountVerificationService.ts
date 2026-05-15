@@ -84,6 +84,37 @@ function networkIdentifier(network: 'mainnet' | 'testnet'): string {
   return network === 'mainnet' ? '104' : '152';
 }
 
+function normalizeRestAddress(value: string, network: 'mainnet' | 'testnet'): string {
+  const normalized = value.toUpperCase();
+  const prefix = network === 'mainnet' ? 'N' : 'T';
+  if (new RegExp(`^${prefix}[A-Z2-7]{38}$`).test(normalized)) {
+    return normalized;
+  }
+  if (/^[0-9A-F]{48}$/.test(normalized)) {
+    return new Address(utils.hexToUint8(normalized)).toString();
+  }
+  return normalized;
+}
+
+function extractRestPlainMessage(value: unknown): string | null {
+  if (typeof value === 'string') {
+    if (!/^[0-9A-Fa-f]*$/.test(value) || value.length % 2 !== 0) {
+      return null;
+    }
+    if (value === '' || value.startsWith('00')) {
+      return decodePlainMessage(value);
+    }
+    return null;
+  }
+
+  const message = asRecord(value);
+  if (message.type !== 0) {
+    return null;
+  }
+  const payload = readRestString(message.payload) ?? '';
+  return decodePlainMessage(payload);
+}
+
 export function buildAccountVerificationPayload(input: unknown): AccountVerificationBuildResult {
   const request = accountVerificationBuildSchema.parse(input);
   const facade = new SymbolFacade(request.network);
@@ -202,14 +233,11 @@ export async function verifyOnChainAccountVerificationTransaction(
     const meta = asRecord(root.meta);
     const transaction = asRecord(root.transaction);
     const signerPublicKey = readRestString(transaction.signerPublicKey)?.toUpperCase() ?? '';
-    const recipientAddress = readRestString(transaction.recipientAddress)?.toUpperCase() ?? '';
+    const recipientAddress = normalizeRestAddress(readRestString(transaction.recipientAddress) ?? '', request.network);
     const type = transaction.type;
     const network = transaction.network;
     const hash = readRestString(meta.hash, root.hash, lookup.transactionHash)?.toUpperCase() ?? '';
-    const message = asRecord(transaction.message);
-    const messageType = message.type;
-    const messagePayload = readRestString(message.payload) ?? '';
-    const plainMessage = decodePlainMessage(messagePayload);
+    const plainMessage = extractRestPlainMessage(transaction.message);
     const facade = new SymbolFacade(request.network);
 
     if (hash !== request.transactionHash.toUpperCase()) {
@@ -230,7 +258,7 @@ export async function verifyOnChainAccountVerificationTransaction(
     if (recipientAddress !== request.recipientAddress.toUpperCase()) {
       return { accepted: false, reason: 'recipient address mismatch' };
     }
-    if (messageType !== 0) {
+    if (plainMessage === null) {
       return { accepted: false, reason: 'verification message must be plain text' };
     }
     if (plainMessage !== request.challenge) {

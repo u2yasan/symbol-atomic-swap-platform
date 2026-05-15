@@ -55,6 +55,7 @@ final class SwapOfferForm extends FormBase {
     if ($offerId && !$offer) {
       throw new NotFoundHttpException();
     }
+    $verified_symbol_account = $offer ? NULL : $this->verifiedSymbolAccount();
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -68,21 +69,39 @@ final class SwapOfferForm extends FormBase {
       '#required' => TRUE,
       '#default_value' => $offer['label'] ?? '',
     ];
-    $form['network'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Network'),
-      '#options' => [
-        'testnet' => $this->t('Testnet'),
-        'mainnet' => $this->t('Mainnet'),
-      ],
-      '#default_value' => $offer['network'] ?? 'testnet',
-      '#description' => $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')
-        ? $this->t('Mainnet operations are enabled. Verify all transaction terms before building QR payloads.')
-        : $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'),
-      '#attributes' => [
-        'data-symbol-maker-network' => '1',
-      ],
-    ];
+    if (!$offer) {
+      $network = (string) ($verified_symbol_account['network'] ?? 'testnet');
+      $form['network_display'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Network'),
+        '#markup' => $this->plainValue($network),
+        '#description' => $this->t('Uses the network registered in My Symbol Account.'),
+      ];
+      $form['network'] = [
+        '#type' => 'hidden',
+        '#value' => $network,
+        '#attributes' => [
+          'data-symbol-maker-network' => '1',
+        ],
+      ];
+    }
+    else {
+      $form['network'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Network'),
+        '#options' => [
+          'testnet' => $this->t('Testnet'),
+          'mainnet' => $this->t('Mainnet'),
+        ],
+        '#default_value' => $offer['network'] ?? 'testnet',
+        '#description' => $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')
+          ? $this->t('Mainnet operations are enabled. Verify all transaction terms before building QR payloads.')
+          : $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'),
+        '#attributes' => [
+          'data-symbol-maker-network' => '1',
+        ],
+      ];
+    }
     $form['correlation_id'] = $offer ? [
       '#type' => 'textfield',
       '#title' => $this->t('Correlation ID'),
@@ -99,19 +118,43 @@ final class SwapOfferForm extends FormBase {
       '#type' => 'fieldset',
       '#title' => $this->t('Maker pays'),
     ];
-    $form['maker_pays']['address'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Maker address'),
-      '#maxlength' => 46,
-      '#size' => 52,
-      '#required' => TRUE,
-      '#default_value' => $this->defaultMakerAddress($offer),
-      '#attributes' => [
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-        'data-symbol-maker-address' => '1',
-      ],
-    ];
+    if (!$offer) {
+      $maker_address = (string) ($verified_symbol_account['address'] ?? '');
+      $form['maker_pays']['address_display'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Maker address'),
+        '#markup' => $this->plainValue($maker_address),
+        '#description' => $this->t('Uses the verified address from My Symbol Account. Remove and re-register that account to change it.'),
+      ];
+      $form['maker_pays']['address'] = [
+        '#type' => 'hidden',
+        '#value' => $maker_address,
+        '#attributes' => [
+          'data-symbol-maker-address' => '1',
+        ],
+      ];
+      if (!$verified_symbol_account) {
+        $form['maker_pays']['account_required'] = [
+          '#type' => 'item',
+          '#markup' => $this->t('Register and verify My Symbol Account before creating a swap offer.'),
+        ];
+      }
+    }
+    else {
+      $form['maker_pays']['address'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Maker address'),
+        '#maxlength' => 46,
+        '#size' => 52,
+        '#required' => TRUE,
+        '#default_value' => $this->defaultMakerAddress($offer),
+        '#attributes' => [
+          'autocomplete' => 'off',
+          'spellcheck' => 'false',
+          'data-symbol-maker-address' => '1',
+        ],
+      ];
+    }
     $form['maker_pays']['mosaic_id'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Mosaic ID'),
@@ -284,10 +327,24 @@ final class SwapOfferForm extends FormBase {
     $maker_wants = (array) $form_state->getValue('maker_wants', []);
     $maker_address = strtoupper(trim((string) ($maker_pays['address'] ?? '')));
 
+    if (!$offer_id) {
+      $verified_symbol_account = $this->verifiedSymbolAccount();
+      if (!$verified_symbol_account) {
+        $form_state->setErrorByName('maker_pays][address', $this->t('Register and verify My Symbol Account before creating a swap offer.'));
+        return;
+      }
+      $maker_address = (string) $verified_symbol_account['address'];
+      if ($network !== (string) $verified_symbol_account['network']) {
+        $form_state->setErrorByName('network', $this->t('Offer network must match My Symbol Account network.'));
+      }
+      $form_state->set('symbol_atomic_swap_maker_address', $maker_address);
+      $form_state->set('symbol_atomic_swap_maker_public_key', (string) $verified_symbol_account['public_key']);
+    }
+
     if (!$this->isNetworkAddress($maker_address, $network)) {
       $form_state->setErrorByName('maker_pays][address', $this->t('Maker address must be a valid raw Symbol address for the selected network.'));
     }
-    else {
+    elseif ($offer_id) {
       try {
         $maker_public_key = $this->resolveMakerPublicKey($maker_address, $network);
         $form_state->set('symbol_atomic_swap_maker_address', $maker_address);
@@ -425,6 +482,35 @@ final class SwapOfferForm extends FormBase {
     catch (\InvalidArgumentException) {
       return (string) ($offer['leg2_recipient_address'] ?? '');
     }
+  }
+
+  private function plainValue(string $value): string {
+    return $value !== '' ? $value : (string) $this->t('Not set');
+  }
+
+  /**
+   * @return array{network: string, address: string, public_key: string}|null
+   */
+  private function verifiedSymbolAccount(): ?array {
+    $account = \Drupal::entityTypeManager()->getStorage('user')->load((int) $this->currentUser->id());
+    if (!$account || !(bool) ($account->get('field_symbol_address_verified')->value ?? FALSE)) {
+      return NULL;
+    }
+
+    $network = (string) ($account->get('field_symbol_network')->value ?? '');
+    $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
+    $public_key = strtoupper((string) ($account->get('field_symbol_public_key')->value ?? ''));
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)
+      || !$this->isNetworkAddress($address, $network)
+      || !preg_match('/^[0-9A-F]{64}$/', $public_key)) {
+      return NULL;
+    }
+
+    return [
+      'network' => $network,
+      'address' => $address,
+      'public_key' => $public_key,
+    ];
   }
 
 }
