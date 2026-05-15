@@ -252,6 +252,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('qr_generated');
     $assert_session->pageTextContains('Summary');
     $assert_session->pageTextContains('Trade terms');
+    $assert_session->pageTextContains('Signer address');
     $assert_session->pageTextContains('Projection');
     $assert_session->pageTextContains('Manual sync allowed');
     $assert_session->pageTextContains('Automatic sync eligible');

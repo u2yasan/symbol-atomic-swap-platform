@@ -13,6 +13,7 @@ use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
+use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -25,6 +26,7 @@ final class SwapOfferController extends ControllerBase {
     private readonly SwapOfferNotificationRepository $notifications,
     private readonly SwapOfferCosignatureRepository $cosignatures,
     private readonly SymbolAccountPublicKeyResolverInterface $accountPublicKeyResolver,
+    private readonly SymbolAddressDeriver $addressDeriver,
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
   ) {}
@@ -35,6 +37,7 @@ final class SwapOfferController extends ControllerBase {
       $container->get('symbol_atomic_swap.offer_notification_repository'),
       $container->get('symbol_atomic_swap.offer_cosignature_repository'),
       $container->get('symbol_atomic_swap.account_public_key_resolver'),
+      $container->get('symbol_atomic_swap.address_deriver'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
     );
@@ -108,10 +111,6 @@ final class SwapOfferController extends ControllerBase {
         'table' => $this->keyValueTable([
           [$this->t('State'), $this->stateLabel((string) $offer['state'])],
           [$this->t('Network'), (string) $offer['network']],
-          [$this->t('Owner UID'), (string) $offer['uid']],
-          [$this->t('Correlation ID'), (string) $offer['correlation_id']],
-          [$this->t('Deadline hours'), (string) $offer['deadline_hours']],
-          [$this->t('Max fee'), (string) ($offer['max_fee'] ?: '')],
           [$this->t('Intent hash'), $this->hashValue((string) ($offer['intent_hash'] ?: ''))],
           [$this->t('Root transaction hash'), $this->hashValue((string) ($offer['root_transaction_hash'] ?? ''))],
           [$this->t('Transaction hash'), $this->hashValue((string) ($offer['transaction_hash'] ?: ''))],
@@ -128,7 +127,7 @@ final class SwapOfferController extends ControllerBase {
           '#type' => 'table',
           '#header' => [
             $this->t('Side'),
-            $this->t('Signer public key'),
+            $this->t('Signer address'),
             $this->t('Recipient address'),
             $this->t('Mosaic ID'),
             $this->t('Amount'),
@@ -136,14 +135,14 @@ final class SwapOfferController extends ControllerBase {
           '#rows' => [
             [
               $this->t('Maker pays'),
-              ['data' => $this->hashValue((string) $offer['leg1_signer_public_key'])],
+              ['data' => $this->addressValue((string) $offer['leg1_signer_public_key'], (string) $offer['network'])],
               ['data' => $this->hashValue((string) ($offer['leg1_recipient_address'] ?: 'Taker decides on accept'))],
               ['data' => $this->hashValue((string) $offer['leg1_mosaic_id'])],
               (string) $offer['leg1_amount'],
             ],
             [
               $this->t('Maker wants'),
-              ['data' => $this->hashValue((string) ($offer['leg2_signer_public_key'] ?: 'Taker decides on accept'))],
+              ['data' => $this->addressValue((string) $offer['leg2_signer_public_key'], (string) $offer['network'])],
               ['data' => $this->hashValue((string) $offer['leg2_recipient_address'])],
               ['data' => $this->hashValue((string) $offer['leg2_mosaic_id'])],
               (string) $offer['leg2_amount'],
@@ -664,6 +663,20 @@ final class SwapOfferController extends ControllerBase {
     }
 
     return $this->copyValue($value, ['symbol-atomic-swap-hash']);
+  }
+
+  private function addressValue(string $public_key, string $network): array|string {
+    $public_key = strtoupper(trim($public_key));
+    if ($public_key === '') {
+      return (string) $this->t('Taker decides on accept');
+    }
+
+    try {
+      return $this->hashValue($this->addressDeriver->deriveFromPublicKey($public_key, $network));
+    }
+    catch (\InvalidArgumentException) {
+      return '';
+    }
   }
 
   /**
