@@ -415,10 +415,6 @@ final class SwapOfferRepository {
       ],
     ];
 
-    if (!empty($offer['max_fee'])) {
-      $payload['maxFee'] = (string) $offer['max_fee'];
-    }
-
     return $payload;
   }
 

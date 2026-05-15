@@ -62,18 +62,6 @@ final class EngineOperationsForm extends FormBase {
       '#step' => 1,
       '#description' => $this->t('Aggregate complete transactions must use a Symbol transaction deadline between 1 and 6 hours.'),
     ];
-    $form['build']['max_fee'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Max fee'),
-      '#maxlength' => 32,
-      '#size' => 24,
-      '#description' => $this->t('Optional positive integer. Leave empty to use Engine default.'),
-      '#attributes' => [
-        'pattern' => '[1-9][0-9]*',
-        'autocomplete' => 'off',
-      ],
-    ];
-
     for ($index = 0; $index < 2; $index++) {
       $leg_key = 'leg_' . ($index + 1);
       $form['build'][$leg_key] = [
@@ -231,7 +219,6 @@ final class EngineOperationsForm extends FormBase {
     $build = (array) $form_state->getValue('build', []);
     $correlation_id = trim((string) ($build['correlation_id'] ?? ''));
     $deadline_hours = (int) ($build['deadline_hours'] ?? 0);
-    $max_fee = trim((string) ($build['max_fee'] ?? ''));
 
     if (strlen($correlation_id) < 8 || strlen($correlation_id) > 128) {
       $form_state->setErrorByName('build][correlation_id', $this->t('Correlation ID must be 8 to 128 characters.'));
@@ -239,10 +226,6 @@ final class EngineOperationsForm extends FormBase {
     if ($deadline_hours < 1 || $deadline_hours > 6) {
       $form_state->setErrorByName('build][deadline_hours', $this->t('Deadline hours must be between 1 and 6 for aggregate complete transactions.'));
     }
-    if ($max_fee !== '' && !$this->isPositiveInteger($max_fee)) {
-      $form_state->setErrorByName('build][max_fee', $this->t('Max fee must be a positive integer.'));
-    }
-
     $signers = [];
     for ($index = 1; $index <= 2; $index++) {
       $leg_key = 'leg_' . $index;
@@ -302,11 +285,6 @@ final class EngineOperationsForm extends FormBase {
       'deadlineHours' => (int) $build['deadline_hours'],
       'legs' => [],
     ];
-
-    $max_fee = trim((string) ($build['max_fee'] ?? ''));
-    if ($max_fee !== '') {
-      $payload['maxFee'] = $max_fee;
-    }
 
     for ($index = 1; $index <= 2; $index++) {
       $leg = (array) $build['leg_' . $index];

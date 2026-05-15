@@ -57,8 +57,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldNotExists('Correlation ID');
     $assert_session->pageTextContains('Generated automatically when the offer is saved.');
     $assert_session->fieldNotExists('Deadline hours');
+    $assert_session->fieldNotExists('Max fee');
     $assert_session->fieldExists('Maker address');
-    $assert_session->fieldExists('Resolved maker public key');
+    $assert_session->fieldNotExists('Resolved maker public key');
     $assert_session->fieldValueEquals('maker_pays[mosaic_id]', '72C0212E67A08BCE');
     $assert_session->fieldValueEquals('maker_wants[mosaic_id]', '72C0212E67A08BCE');
     $assert_session->pageTextContains('Same as Maker address.');
@@ -84,7 +85,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->submitForm([
       'label' => 'Distinct leg submit offer',
       'network' => 'testnet',
-      'max_fee' => '',
       'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',
@@ -179,7 +179,6 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->submitForm([
       'label' => 'Auto correlation offer',
       'network' => 'testnet',
-      'max_fee' => '',
       'maker_pays[address]' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
       'maker_pays[amount]' => '100',

@@ -31,9 +31,8 @@
       once('symbol-atomic-swap-maker-address', '[data-symbol-maker-address-form]', context).forEach((form) => {
         const network = form.querySelector('[data-symbol-maker-network]');
         const address = form.querySelector('[data-symbol-maker-address]');
-        const publicKey = form.querySelector('[data-symbol-maker-public-key]');
         const status = form.querySelector('[data-symbol-maker-address-status]');
-        if (!network || !address || !publicKey) {
+        if (!network || !address) {
           return;
         }
 
@@ -43,7 +42,6 @@
           timer = window.setTimeout(async () => {
             const rawAddress = normalizeAddress(address.value);
             const expectedPrefix = network.value === 'mainnet' ? 'N' : 'T';
-            publicKey.value = '';
             if (status) {
               status.textContent = '';
             }
@@ -64,9 +62,8 @@
                 return;
               }
               const result = await response.json();
-              publicKey.value = result.publicKey || '';
               if (status) {
-                status.textContent = result.publicKey ? Drupal.t('Public key resolved.') : '';
+                status.textContent = result.publicKey ? Drupal.t('Account verified.') : '';
               }
             }
             catch (error) {

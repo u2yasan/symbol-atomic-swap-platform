@@ -95,19 +95,6 @@ final class SwapOfferForm extends FormBase {
       '#title' => $this->t('Correlation ID'),
       '#markup' => $this->t('Generated automatically when the offer is saved.'),
     ];
-    $form['max_fee'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Max fee'),
-      '#maxlength' => 32,
-      '#size' => 24,
-      '#default_value' => $offer['max_fee'] ?? '',
-      '#description' => $this->t('Optional positive integer. Leave empty to use Engine default.'),
-      '#attributes' => [
-        'pattern' => '[1-9][0-9]*',
-        'autocomplete' => 'off',
-      ],
-    ];
-
     $form['maker_pays'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Maker pays'),
@@ -123,20 +110,6 @@ final class SwapOfferForm extends FormBase {
         'autocomplete' => 'off',
         'spellcheck' => 'false',
         'data-symbol-maker-address' => '1',
-      ],
-    ];
-    $form['maker_pays']['signer_public_key'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Resolved maker public key'),
-      '#maxlength' => 64,
-      '#size' => 72,
-      '#default_value' => $offer['leg1_signer_public_key'] ?? '',
-      '#description' => $this->t('Resolved from Maker address. The account must have sent at least one signed transaction on the selected network.'),
-      '#attributes' => [
-        'readonly' => 'readonly',
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-        'data-symbol-maker-public-key' => '1',
       ],
     ];
     $form['maker_pays']['mosaic_id'] = [
@@ -292,7 +265,6 @@ final class SwapOfferForm extends FormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    $max_fee = trim((string) $form_state->getValue('max_fee', ''));
     $network = (string) $form_state->getValue('network');
     $offer_id = $form_state->getValue('offer_id');
     if ($network === 'mainnet' && !$this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')) {
@@ -308,10 +280,6 @@ final class SwapOfferForm extends FormBase {
     else {
       $form_state->set('symbol_atomic_swap_correlation_id', $this->offers->nextCorrelationId($network));
     }
-    if ($max_fee !== '' && !$this->isPositiveInteger($max_fee)) {
-      $form_state->setErrorByName('max_fee', $this->t('Max fee must be a positive integer.'));
-    }
-
     $maker_pays = (array) $form_state->getValue('maker_pays', []);
     $maker_wants = (array) $form_state->getValue('maker_wants', []);
     $maker_address = strtoupper(trim((string) ($maker_pays['address'] ?? '')));
@@ -382,7 +350,6 @@ final class SwapOfferForm extends FormBase {
   private function offerValues(FormStateInterface $form_state): array {
     $maker_pays = (array) $form_state->getValue('maker_pays', []);
     $maker_wants = (array) $form_state->getValue('maker_wants', []);
-    $max_fee = trim((string) $form_state->getValue('max_fee', ''));
     $network = (string) $form_state->getValue('network');
     $offer_id = $form_state->getValue('offer_id');
     $maker_address = (string) ($form_state->get('symbol_atomic_swap_maker_address') ?: strtoupper(trim((string) ($maker_pays['address'] ?? ''))));
@@ -396,7 +363,7 @@ final class SwapOfferForm extends FormBase {
       'network' => $network,
       'correlation_id' => $correlation_id,
       'deadline_hours' => 2,
-      'max_fee' => $max_fee !== '' ? $max_fee : NULL,
+      'max_fee' => NULL,
       'leg1_signer_public_key' => $maker_public_key,
       'leg1_recipient_address' => '',
       'leg1_mosaic_id' => strtoupper(trim((string) $maker_pays['mosaic_id'])),
