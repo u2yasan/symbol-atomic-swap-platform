@@ -71,29 +71,43 @@ final class SymbolAccountVerificationForm extends FormBase {
         : $this->t('Not verified.'),
     ];
 
-    $form['network'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Symbol network'),
-      '#options' => [
-        'testnet' => $this->t('Testnet'),
-        'mainnet' => $this->t('Mainnet'),
-      ],
-      '#default_value' => $account->get('field_symbol_network')->value ?: 'testnet',
-      '#required' => TRUE,
-    ];
-    $form['address'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Symbol address'),
-      '#maxlength' => 46,
-      '#size' => 52,
-      '#default_value' => $account->get('field_symbol_address')->value ?? '',
-      '#required' => TRUE,
-      '#description' => $this->t('The account must have sent at least one signed transaction so its public key is available on Symbol.'),
-      '#attributes' => [
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-      ],
-    ];
+    if ($verified) {
+      $form['network'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Symbol network'),
+        '#markup' => $this->plainValue((string) ($account->get('field_symbol_network')->value ?? '')),
+      ];
+      $form['address'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Symbol address'),
+        '#markup' => $this->plainValue((string) ($account->get('field_symbol_address')->value ?? '')),
+      ];
+    }
+    else {
+      $form['network'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Symbol network'),
+        '#options' => [
+          'testnet' => $this->t('Testnet'),
+          'mainnet' => $this->t('Mainnet'),
+        ],
+        '#default_value' => $account->get('field_symbol_network')->value ?: 'testnet',
+        '#required' => TRUE,
+      ];
+      $form['address'] = [
+        '#type' => 'textfield',
+        '#title' => $this->t('Symbol address'),
+        '#maxlength' => 46,
+        '#size' => 52,
+        '#default_value' => $account->get('field_symbol_address')->value ?? '',
+        '#required' => TRUE,
+        '#description' => $this->t('The account must have sent at least one signed transaction so its public key is available on Symbol.'),
+        '#attributes' => [
+          'autocomplete' => 'off',
+          'spellcheck' => 'false',
+        ],
+      ];
+    }
 
     if ($challenge) {
       $expires = (int) $challenge['expires'];
@@ -158,14 +172,25 @@ final class SymbolAccountVerificationForm extends FormBase {
     }
 
     $form['actions'] = ['#type' => 'actions'];
-    $form['actions']['generate'] = [
-      '#type' => 'submit',
-      '#value' => $challenge ? $this->t('Regenerate verification payload') : $this->t('Generate verification payload'),
-      '#button_type' => $challenge ? 'secondary' : 'primary',
-      '#validate' => ['::validateGenerate'],
-      '#submit' => ['::submitGenerate'],
-    ];
-    if ($challenge) {
+    if ($verified) {
+      $form['actions']['remove'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Remove registered Symbol account'),
+        '#validate' => [],
+        '#submit' => ['::submitRemove'],
+        '#attributes' => ['class' => ['button', 'button--danger']],
+      ];
+    }
+    else {
+      $form['actions']['generate'] = [
+        '#type' => 'submit',
+        '#value' => $challenge ? $this->t('Regenerate verification payload') : $this->t('Generate verification payload'),
+        '#button_type' => $challenge ? 'secondary' : 'primary',
+        '#validate' => ['::validateGenerate'],
+        '#submit' => ['::submitGenerate'],
+      ];
+    }
+    if (!$verified && $challenge) {
       $form['actions']['verify'] = [
         '#type' => 'submit',
         '#value' => $this->t('Verify signed payload'),
@@ -240,6 +265,21 @@ final class SymbolAccountVerificationForm extends FormBase {
     $form_state->setRebuild();
   }
 
+  public function submitRemove(array &$form, FormStateInterface $form_state): void {
+    $this->saveUserFields([
+      'field_symbol_network' => NULL,
+      'field_symbol_address' => NULL,
+      'field_symbol_public_key' => NULL,
+      'field_symbol_address_verified' => FALSE,
+      'field_symbol_address_verified_at' => NULL,
+      'field_symbol_verification_method' => NULL,
+      'field_symbol_challenge_hash' => NULL,
+    ]);
+    $this->tempStoreFactory->get(self::TEMPSTORE_COLLECTION)->delete(self::TEMPSTORE_KEY);
+    $this->messenger()->addStatus($this->t('Registered Symbol account was removed. You can register a new address.'));
+    $form_state->setRebuild();
+  }
+
   public function validateVerify(array &$form, FormStateInterface $form_state): void {
     $challenge = $this->challenge();
     if (!$challenge) {
@@ -310,6 +350,10 @@ final class SymbolAccountVerificationForm extends FormBase {
       $payload = $form_state->getValue(['challenge', 'signed_payload']);
     }
     return strtoupper(preg_replace('/\s+/', '', (string) $payload));
+  }
+
+  private function plainValue(string $value): string {
+    return $value !== '' ? $value : (string) $this->t('Not set');
   }
 
   private function challengeMessage(string $network, string $address, int $issued, int $expires): string {

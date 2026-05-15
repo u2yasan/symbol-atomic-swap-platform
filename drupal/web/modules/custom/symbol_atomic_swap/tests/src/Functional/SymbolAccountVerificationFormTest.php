@@ -50,4 +50,33 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $assert_session->buttonExists('Generate verification payload');
   }
 
+  public function testVerifiedAccountIsDisplayedReadOnlyUntilRemoved(): void {
+    $account = $this->drupalCreateUser();
+    $account->set('field_symbol_network', 'testnet');
+    $account->set('field_symbol_address', 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
+    $account->set('field_symbol_public_key', '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D');
+    $account->set('field_symbol_address_verified', TRUE);
+    $account->set('field_symbol_address_verified_at', 1700000000);
+    $account->set('field_symbol_verification_method', 'sss_zero_fee_transfer');
+    $account->set('field_symbol_challenge_hash', str_repeat('A', 64));
+    $account->save();
+
+    $this->drupalLogin($account);
+    $this->drupalGet('/symbol-atomic-swap/account');
+
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Verified at');
+    $assert_session->pageTextContains('testnet');
+    $assert_session->pageTextContains('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
+    $assert_session->fieldNotExists('Symbol address');
+    $assert_session->buttonNotExists('Generate verification payload');
+    $assert_session->buttonExists('Remove registered Symbol account');
+
+    $this->submitForm([], 'Remove registered Symbol account');
+    $assert_session->pageTextContains('Registered Symbol account was removed.');
+    $assert_session->fieldExists('Symbol address');
+    $assert_session->buttonExists('Generate verification payload');
+  }
+
 }
