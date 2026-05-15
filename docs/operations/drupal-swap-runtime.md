@@ -101,10 +101,14 @@ Open the offer detail page:
 
 Sign outside Drupal:
 
-1. Scan the displayed QR with a Symbol-compatible wallet or signing tool.
-2. If the signer cannot consume the QR JSON directly, open `QR payload` and copy
-   the `unsignedPayload` value.
-3. Verify the transaction details in the signer before signing:
+1. Scan the displayed QR with a phone or signing device.
+2. The QR opens a Drupal payload page URL.
+3. On the payload page, copy either `QR scan text` for a compatible signing
+   tool, or copy `Unsigned payload` for a signer that accepts raw transaction
+   payload HEX.
+4. If the signer cannot consume the payload page, open `QR payload` on the offer
+   detail page and copy the `unsignedPayload` value.
+5. Verify the transaction details in the signer before signing:
    - network
    - Aggregate Complete transaction type
    - signer public keys
@@ -112,11 +116,15 @@ Sign outside Drupal:
    - mosaic IDs
    - amounts
    - max fee when explicitly set
-4. Sign with every account listed in `requiredCosigners`.
-5. Export the final signed transaction payload as even-length HEX.
+6. Sign with every account listed in `requiredCosigners`.
+7. Export the final signed transaction payload as even-length HEX.
 
 Only the final signed payload HEX returns to Drupal. No signing secret returns to
 Drupal.
+
+For local iPhone testing, do not expect a phone to open `127.0.0.1` on the Mac.
+Use a Drupal URL that the phone can reach, or copy the payload from the desktop
+browser.
 
 ## 3. Verify Signed Payload
 
@@ -241,7 +249,7 @@ Confirm:
 | Build failed and offer is `draft` | Fix inputs or Engine availability, then edit and rebuild. |
 | Duplicate correlation ID | Use a new correlation ID for that network. |
 | QR cannot be scanned | Hard reload the browser and confirm the QR payload is visible. |
-| Signer cannot parse QR JSON | Copy `unsignedPayload` from `QR payload` into the signer. |
+| Signer cannot parse QR URL | Open the URL and copy `Unsigned payload`, or copy `unsignedPayload` from `QR payload`. |
 | Verify failed | Do not announce. Re-sign from the current unsigned payload. |
 | Announce failed because of funds | Fund the signer accounts, then rebuild/sign if deadline expired. |
 | Announce failed because node is unavailable | Restore `SYMBOL_NODE_URL`, then retry while deadline is valid. |

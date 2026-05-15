@@ -324,16 +324,20 @@ Use this flow when a real end-to-end signing check is required:
 
 1. Create the offer with real disposable testnet signer public keys.
 2. Open the offer detail page.
-3. Scan the displayed QR with a Symbol-compatible wallet or signing tool.
-4. If the signer cannot consume the full QR JSON directly, open `QR payload`
-   and copy the `unsignedPayload` value into the signing tool.
-5. Verify the transaction details in the signer:
+3. Scan the displayed QR with a phone or signing device.
+4. The QR opens a Drupal payload page URL.
+5. On the payload page, copy either `QR scan text` for a compatible signing
+   tool, or copy `Unsigned payload` for a signer that accepts raw transaction
+   payload HEX.
+6. If the signer cannot consume the payload page, open `QR payload` on the offer
+   detail page and copy the `unsignedPayload` value into the signing tool.
+7. Verify the transaction details in the signer:
    - network is `testnet`
    - transaction type is Aggregate Complete
    - transfer signer public keys match the two offer legs
    - recipients, mosaic IDs, and amounts match the offer
-6. Sign with each required testnet account listed in `requiredCosigners`.
-7. Export or copy the final signed transaction payload as even-length HEX.
+8. Sign with each required testnet account listed in `requiredCosigners`.
+9. Export or copy the final signed transaction payload as even-length HEX.
 
 The final signed payload must include all required signatures. A payload signed
 by only one party is expected to be rejected by Engine with a missing signer
@@ -341,6 +345,9 @@ reason.
 
 Never paste private keys, mnemonics, wallet passwords, or signing secrets into
 Drupal. The only value returned to Drupal is the signed payload HEX.
+
+For local iPhone testing, `127.0.0.1` points to the phone, not the Mac. Use a
+Drupal URL reachable from the phone or copy the payload from the desktop browser.
 
 Login as the offer owner with operate permission.
 

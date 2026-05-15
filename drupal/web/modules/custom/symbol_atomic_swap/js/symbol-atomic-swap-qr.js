@@ -424,6 +424,22 @@
     return best.modules;
   }
 
+  function base64Url(bytes) {
+    let binary = '';
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.slice(offset, offset + 0x8000));
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function scanText(payload) {
+    const trimmed = payload.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      return 'symbol-swap:v1:' + base64Url(Array.from(new TextEncoder().encode(payload)));
+    }
+    return payload;
+  }
+
   function draw(container) {
     const payload = container.getAttribute('data-qr-payload');
     if (!payload) {
@@ -431,7 +447,7 @@
     }
 
     try {
-      const modules = encode(payload);
+      const modules = encode(scanText(payload));
       const quiet = 4;
       const scale = Math.max(2, Math.floor(520 / (modules.length + quiet * 2)));
       const size = (modules.length + quiet * 2) * scale;

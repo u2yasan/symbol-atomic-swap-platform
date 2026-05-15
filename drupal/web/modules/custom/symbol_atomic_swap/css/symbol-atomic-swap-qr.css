@@ -29,6 +29,15 @@
   word-break: break-word;
 }
 
+.symbol-atomic-swap-long-value {
+  display: inline-block;
+  max-block-size: 12rem;
+  max-inline-size: min(96ch, 100%);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .symbol-atomic-swap-copy__button {
   flex: 0 0 auto;
 }

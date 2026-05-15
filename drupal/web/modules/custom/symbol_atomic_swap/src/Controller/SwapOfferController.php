@@ -12,6 +12,7 @@ use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class SwapOfferController extends ControllerBase {
 
@@ -86,16 +87,7 @@ final class SwapOfferController extends ControllerBase {
 
   public function view($offerId): array {
     $offer = $this->loadOffer((int) $offerId);
-    $qr_payload = [];
-    if (!empty($offer['qr_payload'])) {
-      try {
-        $decoded = json_decode((string) $offer['qr_payload'], TRUE, 512, JSON_THROW_ON_ERROR);
-        $qr_payload = is_array($decoded) ? $decoded : [];
-      }
-      catch (\JsonException) {
-        $qr_payload = [];
-      }
-    }
+    $qr_payload = $this->decodedQrPayload($offer);
 
     $build = [
       '#cache' => [
@@ -174,11 +166,24 @@ final class SwapOfferController extends ControllerBase {
     }
 
     if ($qr_payload !== []) {
+      $qr_url = Url::fromRoute('symbol_atomic_swap.offer_qr_payload', [
+        'offerId' => $offer['id'],
+        'intentHash' => $offer['intent_hash'],
+      ], ['absolute' => TRUE])->toString();
       $build['qr'] = [
         '#type' => 'container',
         '#attributes' => [
           'class' => ['symbol-atomic-swap-qr'],
-          'data-qr-payload' => json_encode($qr_payload, JSON_UNESCAPED_SLASHES),
+          'data-qr-payload' => $qr_url,
+        ],
+        'url' => [
+          '#type' => 'container',
+          'label' => [
+            '#type' => 'html_tag',
+            '#tag' => 'strong',
+            '#value' => (string) $this->t('QR URL'),
+          ],
+          'value' => $this->copyValue($qr_url),
         ],
       ];
       $build['qr_payload'] = [
@@ -269,8 +274,111 @@ final class SwapOfferController extends ControllerBase {
     return $build;
   }
 
+  public function qrPayload($offerId, string $intentHash): array {
+    $offer = $this->loadOffer((int) $offerId);
+    if (strtoupper($intentHash) !== strtoupper((string) ($offer['intent_hash'] ?? ''))) {
+      throw new NotFoundHttpException();
+    }
+
+    $qr_payload = $this->decodedQrPayload($offer);
+    if ($qr_payload === []) {
+      throw new NotFoundHttpException();
+    }
+
+    $raw_json = json_encode($qr_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if (!is_string($raw_json)) {
+      throw new NotFoundHttpException();
+    }
+    $scan_text = $this->qrScanText($raw_json);
+    $unsigned_payload = is_string($qr_payload['unsignedPayload'] ?? NULL) ? $qr_payload['unsignedPayload'] : '';
+
+    return [
+      '#cache' => ['max-age' => 0],
+      '#attached' => ['library' => ['symbol_atomic_swap/qr']],
+      'summary' => [
+        '#type' => 'details',
+        '#title' => $this->t('Summary'),
+        '#open' => TRUE,
+        'table' => $this->keyValueTable([
+          [$this->t('Offer'), (string) $offer['label']],
+          [$this->t('Network'), (string) $offer['network']],
+          [$this->t('Intent hash'), $this->hashValue((string) $offer['intent_hash'])],
+        ]),
+      ],
+      'scan_text' => [
+        '#type' => 'details',
+        '#title' => $this->t('QR scan text'),
+        '#open' => TRUE,
+        'copy' => [
+          '#type' => 'container',
+          'label' => [
+            '#type' => 'html_tag',
+            '#tag' => 'strong',
+            '#value' => (string) $this->t('Copy QR scan text'),
+          ],
+          'value' => $this->copyValue($scan_text),
+        ],
+        'payload' => [
+          '#type' => 'textarea',
+          '#title' => $this->t('QR scan text'),
+          '#value' => $scan_text,
+          '#rows' => 6,
+          '#attributes' => [
+            'readonly' => 'readonly',
+            'spellcheck' => 'false',
+          ],
+        ],
+      ],
+      'unsigned_payload' => array_filter([
+        '#type' => 'details',
+        '#title' => $this->t('Unsigned payload'),
+        '#open' => TRUE,
+        'copy' => $unsigned_payload !== '' ? [
+          '#type' => 'container',
+          'label' => [
+            '#type' => 'html_tag',
+            '#tag' => 'strong',
+            '#value' => (string) $this->t('Copy unsigned payload'),
+          ],
+          'value' => $this->copyValue($unsigned_payload),
+        ] : NULL,
+        'payload' => [
+          '#type' => 'textarea',
+          '#title' => $this->t('Unsigned payload'),
+          '#value' => $unsigned_payload,
+          '#rows' => 8,
+          '#attributes' => [
+            'readonly' => 'readonly',
+            'spellcheck' => 'false',
+          ],
+        ],
+      ]),
+      'raw_json' => [
+        '#type' => 'details',
+        '#title' => $this->t('QR payload JSON'),
+        '#open' => FALSE,
+        'payload' => [
+          '#type' => 'textarea',
+          '#title' => $this->t('QR payload JSON'),
+          '#value' => $raw_json,
+          '#rows' => 16,
+          '#attributes' => [
+            'readonly' => 'readonly',
+            'spellcheck' => 'false',
+          ],
+        ],
+      ],
+    ];
+  }
+
   public function title($offerId): string {
     return (string) $this->loadOffer((int) $offerId)['label'];
+  }
+
+  public function qrPayloadTitle($offerId, string $intentHash = ''): string {
+    return (string) $this->t('QR payload for @label', [
+      '@label' => (string) $this->loadOffer((int) $offerId)['label'],
+    ]);
   }
 
   /**
@@ -279,7 +387,7 @@ final class SwapOfferController extends ControllerBase {
   private function loadOffer(int $offerId): array {
     $offer = $this->offers->find($offerId);
     if (!$offer) {
-      throw $this->createNotFoundException();
+      throw new NotFoundHttpException();
     }
     return $offer;
   }
@@ -292,6 +400,28 @@ final class SwapOfferController extends ControllerBase {
   private function publicOfferDebugData(array $offer): array {
     unset($offer['signed_payload'], $offer['node_response']);
     return $offer;
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   *
+   * @return array<string, mixed>
+   */
+  private function decodedQrPayload(array $offer): array {
+    if (empty($offer['qr_payload'])) {
+      return [];
+    }
+    try {
+      $decoded = json_decode((string) $offer['qr_payload'], TRUE, 512, JSON_THROW_ON_ERROR);
+      return is_array($decoded) ? $decoded : [];
+    }
+    catch (\JsonException) {
+      return [];
+    }
+  }
+
+  private function qrScanText(string $raw_json): string {
+    return 'symbol-swap:v1:' . rtrim(strtr(base64_encode($raw_json), '+/', '-_'), '=');
   }
 
   /**
@@ -433,6 +563,17 @@ final class SwapOfferController extends ControllerBase {
       return '';
     }
 
+    return $this->copyValue($value, ['symbol-atomic-swap-hash']);
+  }
+
+  /**
+   * @param string[] $value_classes
+   */
+  private function copyValue(string $value, array $value_classes = ['symbol-atomic-swap-long-value']): array|string {
+    if ($value === '') {
+      return '';
+    }
+
     return [
       '#type' => 'container',
       '#attributes' => ['class' => ['symbol-atomic-swap-copy']],
@@ -440,7 +581,7 @@ final class SwapOfferController extends ControllerBase {
         '#type' => 'html_tag',
         '#tag' => 'code',
         '#value' => $value,
-        '#attributes' => ['class' => ['symbol-atomic-swap-hash']],
+        '#attributes' => ['class' => $value_classes],
       ],
       'copy' => [
         '#type' => 'html_tag',

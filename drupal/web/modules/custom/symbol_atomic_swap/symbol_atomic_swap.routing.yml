@@ -31,6 +31,16 @@ symbol_atomic_swap.offer_view:
     _symbol_atomic_swap_offer_access: 'view'
     offerId: '\d+'
 
+symbol_atomic_swap.offer_qr_payload:
+  path: '/symbol-atomic-swap/offers/{offerId}/qr-payload/{intentHash}'
+  defaults:
+    _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::qrPayload'
+    _title_callback: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::qrPayloadTitle'
+  requirements:
+    _access: 'TRUE'
+    offerId: '\d+'
+    intentHash: '[0-9A-Fa-f]{64}'
+
 symbol_atomic_swap.offer_edit:
   path: '/symbol-atomic-swap/offers/{offerId}/edit'
   defaults:

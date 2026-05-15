@@ -214,9 +214,21 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Swap transaction was confirmed but is not finalized yet.');
     $assert_session->pageTextContains('status / unread');
     $assert_session->pageTextContains('QR payload');
+    $assert_session->pageTextContains('QR URL');
     $assert_session->pageTextContains('"type": "symbol-aggregate-complete"');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->pageTextContains('Public offer JSON');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('C', 64));
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('QR payload for Test offer');
+    $assert_session->pageTextContains('QR scan text');
+    $assert_session->pageTextContains('symbol-swap:v1:');
+    $assert_session->pageTextContains('Unsigned payload');
+    $assert_session->pageTextContains('QR payload JSON');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('D', 64));
+    $assert_session->statusCodeEquals(404);
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/edit');
     $assert_session->statusCodeEquals(200);
