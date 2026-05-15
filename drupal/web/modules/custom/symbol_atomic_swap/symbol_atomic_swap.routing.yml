@@ -68,6 +68,15 @@ symbol_atomic_swap.offer_submit_signed_payload:
     _symbol_atomic_swap_offer_access: 'operate'
     offerId: '\d+'
 
+symbol_atomic_swap.offer_sign_with_sss:
+  path: '/symbol-atomic-swap/offers/{offerId}/sign-with-sss'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSssSignForm'
+    _title: 'Sign with SSS'
+  requirements:
+    _symbol_atomic_swap_offer_access: 'operate'
+    offerId: '\d+'
+
 symbol_atomic_swap.offer_submit_aggregate_signer_json:
   path: '/symbol-atomic-swap/offers/{offerId}/submit-aggregate-signer-json'
   defaults:
@@ -82,6 +91,15 @@ symbol_atomic_swap.offer_submit_cosignature:
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferCosignatureForm'
     _title: 'Submit Cosignature'
+  requirements:
+    _symbol_atomic_swap_offer_access: 'cosign'
+    offerId: '\d+'
+
+symbol_atomic_swap.offer_cosign_with_sss:
+  path: '/symbol-atomic-swap/offers/{offerId}/cosign-with-sss'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSssCosignForm'
+    _title: 'Cosign with SSS'
   requirements:
     _symbol_atomic_swap_offer_access: 'cosign'
     offerId: '\d+'

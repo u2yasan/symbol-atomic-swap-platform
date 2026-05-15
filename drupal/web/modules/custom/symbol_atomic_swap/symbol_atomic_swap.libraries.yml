@@ -8,3 +8,11 @@ qr:
   dependencies:
     - core/drupal
     - core/once
+
+sss_sign:
+  version: 1.x
+  js:
+    js/symbol-atomic-swap-sss-sign.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
