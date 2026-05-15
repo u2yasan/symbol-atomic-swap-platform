@@ -52,6 +52,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $unsigned_payload;
+    $form['#attributes']['data-symbol-sss-required-signer'] = (string) $offer['leg2_signer_public_key'];
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -66,6 +67,7 @@ final class SwapOfferSssCosignForm extends FormBase {
       '#type' => 'item',
       '#title' => $this->t('Expected cosigner public key'),
       '#markup' => (string) $offer['leg2_signer_public_key'],
+      '#description' => $this->t('SSS must be set to this taker account before cosigning. The maker account must use Sign with SSS instead.'),
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
@@ -80,8 +82,8 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['parent_hash'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Parent hash fallback'),
-      '#default_value' => (string) ($offer['transaction_hash'] ?: ''),
-      '#description' => $this->t('Used only when SSS does not return a hash. If the aggregate signer already submitted a signed payload, this is the transaction hash.'),
+      '#default_value' => (string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?: '')),
+      '#description' => $this->t('Used only when SSS does not return a hash. This must be the root transaction hash produced by the maker signature.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',

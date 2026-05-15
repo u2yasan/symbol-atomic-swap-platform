@@ -78,6 +78,7 @@ final class SwapOfferAssembleSignedPayloadForm extends FormBase {
       '#title' => $this->t('Root signed payload'),
       '#rows' => 10,
       '#required' => TRUE,
+      '#default_value' => (string) ($offer['root_signed_payload'] ?? ''),
       '#description' => $this->t('Paste the root signed transaction payload HEX created by the aggregate signer. This is not enough by itself; stored detached cosignatures from non-root signers are also required.'),
       '#attributes' => [
         'autocomplete' => 'off',

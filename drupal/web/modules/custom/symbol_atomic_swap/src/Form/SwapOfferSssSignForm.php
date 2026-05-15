@@ -49,6 +49,7 @@ final class SwapOfferSssSignForm extends FormBase {
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $unsigned_payload;
+    $form['#attributes']['data-symbol-sss-required-signer'] = (string) $offer['leg1_signer_public_key'];
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -63,6 +64,7 @@ final class SwapOfferSssSignForm extends FormBase {
       '#type' => 'item',
       '#title' => $this->t('Required aggregate signer public key'),
       '#markup' => (string) ($offer['leg1_signer_public_key'] ?: ''),
+      '#description' => $this->t('Root signed payload must be signed by this maker account. If SSS is set to the taker account, use Cosign with SSS instead.'),
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
@@ -112,7 +114,7 @@ final class SwapOfferSssSignForm extends FormBase {
       '#title' => $this->t('Signed payload'),
       '#rows' => 10,
       '#required' => TRUE,
-      '#description' => $this->t('SSS fills this field after signature approval. Submit it to verify the payload with Symbol Engine.'),
+      '#description' => $this->t('SSS fills this field after maker signature approval. Submit it to verify and store the root signed payload before collecting taker cosignatures.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
@@ -122,7 +124,7 @@ final class SwapOfferSssSignForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Verify SSS signed payload'),
+      '#value' => $this->t('Verify SSS root signed payload'),
       '#button_type' => 'primary',
       '#disabled' => !$this->offers->canSubmitSignedPayload($offer) || $unsigned_payload === '',
     ];
@@ -164,29 +166,29 @@ final class SwapOfferSssSignForm extends FormBase {
 
     try {
       $payload = $this->normalizeHex((string) $form_state->getValue('payload'));
-      $result = $this->engineClient->verifySignedPayload((string) $offer['intent_hash'], $payload);
+      $result = $this->engineClient->verifyRootSignedPayload((string) $offer['intent_hash'], $payload);
       if (($result['accepted'] ?? FALSE) !== TRUE || empty($result['transactionHash'])) {
-        $this->messenger()->addError($this->t('SSS signed payload was rejected: @reason', [
-          '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason')),
+        $this->messenger()->addError($this->t('SSS root signed payload was rejected: @reason', [
+          '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason'), (string) $offer['leg1_signer_public_key']),
         ]));
         $form_state->setRebuild(TRUE);
         return;
       }
 
-      $this->offers->markSigned($offer_id, (string) $result['transactionHash']);
-      $this->messenger()->addStatus($this->t('SSS signed payload was verified. Normalized size: @bytes bytes.', [
+      $this->offers->markRootSigned($offer_id, $payload, (string) $result['transactionHash']);
+      $this->messenger()->addStatus($this->t('SSS root signed payload was verified. Next, collect the taker cosignature and assemble the final signed payload. Normalized size: @bytes bytes.', [
         '@bytes' => (string) intdiv(strlen($payload), 2),
       ]));
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
     }
     catch (SymbolEngineException $exception) {
-      $this->messenger()->addError($this->t('SSS signed payload verification failed: @reason', [
-        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception)),
+      $this->messenger()->addError($this->t('SSS root signed payload verification failed: @reason', [
+        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception), (string) $offer['leg1_signer_public_key']),
       ]));
       $form_state->setRebuild(TRUE);
     }
     catch (\InvalidArgumentException | \RuntimeException) {
-      $this->messenger()->addError($this->t('SSS signed payload verification failed: @reason', [
+      $this->messenger()->addError($this->t('SSS root signed payload verification failed: @reason', [
         '@reason' => 'verification_unavailable',
       ]));
       $form_state->setRebuild(TRUE);
@@ -197,8 +199,12 @@ final class SwapOfferSssSignForm extends FormBase {
     return strtoupper(preg_replace('/\s+/', '', $value) ?? '');
   }
 
-  private function safeRejectionReason(string $reason): string {
+  private function safeRejectionReason(string $reason, string $required_signer = ''): string {
     $reason = strtolower(trim(preg_replace('/\s+/', ' ', $reason) ?? ''));
+    $required_signer = strtolower($required_signer);
+    if ($required_signer !== '' && str_contains($reason, 'missing required signer ' . $required_signer)) {
+      return 'wrong SSS account: root signed payload must be signed by the required aggregate signer. Switch SSS to the maker account, or use Cosign with SSS for the taker account.';
+    }
     if ($reason === '' || preg_match('/^[a-z0-9_.: -]{1,120}$/', $reason) !== 1) {
       return 'verification_failed';
     }

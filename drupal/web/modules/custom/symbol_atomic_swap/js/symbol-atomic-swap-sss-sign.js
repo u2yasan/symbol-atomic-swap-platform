@@ -35,6 +35,10 @@
     status.classList.toggle('messages--status', Boolean(message && !isError));
   }
 
+  function activePublicKey() {
+    return normalizeHex(window.SSS && (window.SSS.activePublicKey || window.SSS.activePublicAccountPublicKey || ''));
+  }
+
   Drupal.behaviors.symbolAtomicSwapSssSign = {
     attach(context) {
       once('symbol-atomic-swap-sss-sign', '[data-symbol-sss-sign]', context).forEach((button) => {
@@ -46,6 +50,7 @@
 
           const payloadField = container.querySelector('[data-symbol-sss-signed-payload]');
           const unsignedPayload = normalizeHex(container.getAttribute('data-symbol-sss-unsigned-payload'));
+          const requiredSigner = normalizeHex(container.getAttribute('data-symbol-sss-required-signer'));
           if (!payloadField || !unsignedPayload) {
             setStatus(container, Drupal.t('Unsigned payload is not available.'), true);
             return;
@@ -53,6 +58,11 @@
 
           if (!window.SSS || typeof window.SSS.setTransactionByPayload !== 'function' || typeof window.SSS.requestSign !== 'function') {
             setStatus(container, Drupal.t('SSS Extension is not available in this browser profile.'), true);
+            return;
+          }
+          const activeSigner = activePublicKey();
+          if (requiredSigner && activeSigner && activeSigner !== requiredSigner) {
+            setStatus(container, Drupal.t('SSS is using a different account. Switch SSS to the required aggregate signer account, or use Cosign with SSS for the taker account.'), true);
             return;
           }
 
@@ -89,6 +99,7 @@
           const payloadField = container.querySelector('[data-symbol-sss-cosignature-json]');
           const parentHashField = container.querySelector('[data-symbol-sss-parent-hash]');
           const unsignedPayload = normalizeHex(container.getAttribute('data-symbol-sss-unsigned-payload'));
+          const requiredSigner = normalizeHex(container.getAttribute('data-symbol-sss-required-signer'));
           if (!payloadField || !parentHashField || !unsignedPayload) {
             setStatus(container, Drupal.t('Unsigned payload is not available.'), true);
             return;
@@ -96,6 +107,11 @@
 
           if (!window.SSS || typeof window.SSS.setTransactionByPayload !== 'function' || typeof window.SSS.requestSignCosignatureTransaction !== 'function') {
             setStatus(container, Drupal.t('SSS Extension cosignature API is not available in this browser profile.'), true);
+            return;
+          }
+          const activeSigner = activePublicKey();
+          if (requiredSigner && activeSigner && activeSigner !== requiredSigner) {
+            setStatus(container, Drupal.t('SSS is using a different account. Switch SSS to the expected cosigner account.'), true);
             return;
           }
 

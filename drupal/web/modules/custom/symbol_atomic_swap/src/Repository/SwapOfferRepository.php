@@ -13,7 +13,7 @@ final class SwapOfferRepository {
 
   private const TABLE = 'symbol_atomic_swap_offer';
   public const TERMINAL_STATES = ['expired', 'cancelled', 'failed', 'rolled_back', 'finalized'];
-  public const SIGNABLE_STATES = ['qr_generated', 'signed'];
+  public const SIGNABLE_STATES = ['qr_generated', 'root_signed', 'signed'];
   public const SYNCABLE_STATES = ['signed', 'announced', 'unconfirmed', 'confirmed', 'partial_announced', 'partial_cosigned'];
 
   public function __construct(
@@ -173,6 +173,26 @@ final class SwapOfferRepository {
     $this->update($id, [
       'state' => 'signed',
       'transaction_hash' => strtoupper($transaction_hash),
+      'changed' => \Drupal::time()->getRequestTime(),
+    ]);
+  }
+
+  public function markRootSigned(int $id, string $root_signed_payload, string $root_transaction_hash): void {
+    $offer = $this->find($id);
+    if (!$offer) {
+      throw new \InvalidArgumentException('Swap offer not found.');
+    }
+    if (!$this->canSubmitSignedPayload($offer)) {
+      throw new \InvalidArgumentException('Root signed payload can only be submitted for signable offers with an intent hash.');
+    }
+    if (!$this->isHash($root_transaction_hash)) {
+      throw new \InvalidArgumentException('Root transaction hash must be 64 hex characters.');
+    }
+
+    $this->update($id, [
+      'state' => 'root_signed',
+      'root_signed_payload' => strtoupper($root_signed_payload),
+      'root_transaction_hash' => strtoupper($root_transaction_hash),
       'changed' => \Drupal::time()->getRequestTime(),
     ]);
   }
@@ -395,6 +415,8 @@ final class SwapOfferRepository {
       'intent_hash' => isset($engine_result['intentHash']) ? strtoupper((string) $engine_result['intentHash']) : NULL,
       'unsigned_payload' => isset($engine_result['unsignedPayload']) ? strtoupper((string) $engine_result['unsignedPayload']) : NULL,
       'qr_payload' => $qr_payload,
+      'root_signed_payload' => NULL,
+      'root_transaction_hash' => NULL,
       'transaction_hash' => $offer['transaction_hash'] ?? NULL,
     ];
   }

@@ -16,6 +16,10 @@ export type SignedPayloadVerificationResult = {
   transactionHash?: string;
 };
 
+type SignedPayloadVerificationOptions = {
+  requireAllAggregateCompleteSigners?: boolean;
+};
+
 function hexAddress(address: string): string {
   return utils.uint8ToHex(new Address(address).bytes).toUpperCase();
 }
@@ -50,7 +54,12 @@ function publicVerificationFailureReason(error: unknown): string {
   return 'signed payload verification failed';
 }
 
-export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | null): SignedPayloadVerificationResult {
+export function verifySignedPayload(
+  input: unknown,
+  intent: SwapIntentRecord | null,
+  options: SignedPayloadVerificationOptions = {},
+): SignedPayloadVerificationResult {
+  const requireAllAggregateCompleteSigners = options.requireAllAggregateCompleteSigners ?? true;
   const parsed = signedPayloadVerificationSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -108,12 +117,14 @@ export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | n
       actualSignerSet.add(cosignature.signerPublicKey.toString().toUpperCase());
     }
 
-    if (intent.aggregateType === 'aggregate_complete') {
+    if (intent.aggregateType === 'aggregate_complete' && requireAllAggregateCompleteSigners) {
       for (const expectedSigner of expectedSignerSet) {
         if (!actualSignerSet.has(expectedSigner)) {
           return { accepted: false, reason: `missing required signer ${expectedSigner}` };
         }
       }
+    } else if (intent.aggregateType === 'aggregate_complete' && transaction.signerPublicKey.toString().toUpperCase() !== intent.requiredCosigners[0]) {
+      return { accepted: false, reason: 'aggregate signer mismatch' };
     } else if (transaction.signerPublicKey.toString().toUpperCase() !== intent.requiredCosigners[0]) {
       return { accepted: false, reason: 'aggregate bonded signer mismatch' };
     }
@@ -185,4 +196,10 @@ export function verifySignedPayload(input: unknown, intent: SwapIntentRecord | n
       reason: publicVerificationFailureReason(error),
     };
   }
+}
+
+export function verifyRootSignedPayload(input: unknown, intent: SwapIntentRecord | null): SignedPayloadVerificationResult {
+  return verifySignedPayload(input, intent, {
+    requireAllAggregateCompleteSigners: false,
+  });
 }

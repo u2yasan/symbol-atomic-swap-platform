@@ -347,6 +347,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
+    $assert_session->pageTextContains('Root signed payload must be signed by this maker account.');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Aggregate signer JSON');
@@ -356,6 +357,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Cosignature JSON');
+    $assert_session->pageTextContains('SSS must be set to this taker account before cosigning.');
 
     $this->drupalLogin($operator);
 
@@ -383,8 +385,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
+    $assert_session->pageTextContains('Root signed payload must be signed by this maker account.');
     $assert_session->buttonExists('Sign unsigned payload with SSS');
-    $assert_session->buttonExists('Verify SSS signed payload');
+    $assert_session->buttonExists('Verify SSS root signed payload');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Aggregate signer JSON');
@@ -394,6 +397,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Parent hash fallback');
     $assert_session->fieldExists('Cosignature JSON');
+    $assert_session->pageTextContains('SSS must be set to this taker account before cosigning.');
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
     $assert_session->buttonExists('Verify and store SSS cosignature');
 

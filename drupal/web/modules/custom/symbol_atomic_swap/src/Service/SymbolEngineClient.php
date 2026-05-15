@@ -66,6 +66,14 @@ final class SymbolEngineClient {
     ]);
   }
 
+  public function verifyRootSignedPayload(string $intent_hash, string $payload): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    return $this->request('POST', '/v1/transactions/verify-root-signed-payload', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+      'payload' => strtoupper($payload),
+    ]);
+  }
+
   /**
    * @param array<string, mixed> $cosignature
    */

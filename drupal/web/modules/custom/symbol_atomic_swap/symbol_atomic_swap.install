@@ -109,6 +109,16 @@ function symbol_atomic_swap_schema(): array {
         'size' => 'big',
         'not null' => FALSE,
       ],
+      'root_signed_payload' => [
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => FALSE,
+      ],
+      'root_transaction_hash' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+      ],
       'transaction_hash' => [
         'type' => 'varchar',
         'length' => 64,
@@ -160,6 +170,7 @@ function symbol_atomic_swap_schema(): array {
     'indexes' => [
       'state' => ['state'],
       'intent_hash' => ['intent_hash'],
+      'root_transaction_hash' => ['root_transaction_hash'],
       'transaction_hash' => ['transaction_hash'],
       'projection_state' => ['projection_state'],
       'uid' => ['uid'],
@@ -393,5 +404,29 @@ function symbol_atomic_swap_update_11007(): void {
   if (!$schema->tableExists('symbol_atomic_swap_cosignature')) {
     $module_schema = symbol_atomic_swap_schema();
     $schema->createTable('symbol_atomic_swap_cosignature', $module_schema['symbol_atomic_swap_cosignature']);
+  }
+}
+
+/**
+ * Adds root signed payload storage for aggregate complete assembly.
+ */
+function symbol_atomic_swap_update_11008(): void {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->fieldExists('symbol_atomic_swap_offer', 'root_signed_payload')) {
+    $schema->addField('symbol_atomic_swap_offer', 'root_signed_payload', [
+      'type' => 'text',
+      'size' => 'big',
+      'not null' => FALSE,
+    ]);
+  }
+  if (!$schema->fieldExists('symbol_atomic_swap_offer', 'root_transaction_hash')) {
+    $schema->addField('symbol_atomic_swap_offer', 'root_transaction_hash', [
+      'type' => 'varchar',
+      'length' => 64,
+      'not null' => FALSE,
+    ]);
+  }
+  if (!$schema->indexExists('symbol_atomic_swap_offer', 'root_transaction_hash')) {
+    $schema->addIndex('symbol_atomic_swap_offer', 'root_transaction_hash', ['root_transaction_hash'], symbol_atomic_swap_schema()['symbol_atomic_swap_offer']);
   }
 }

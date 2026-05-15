@@ -5,7 +5,7 @@ import { SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
 import { buildAggregateBonded } from '../aggregate/aggregateBondedBuilder.js';
 import { buildAggregateComplete } from '../aggregate/aggregateCompleteBuilder.js';
 import type { SwapIntentRecord } from '../repository/types.js';
-import { verifySignedPayload } from './signedPayloadVerifier.js';
+import { verifyRootSignedPayload, verifySignedPayload } from './signedPayloadVerifier.js';
 
 function makeIntent(): SwapIntentRecord {
   const built = buildAggregateComplete({
@@ -150,6 +150,56 @@ test('verifySignedPayload rejects signer mismatch', () => {
 
   assert.equal(result.accepted, false);
   assert.match(result.reason, /missing required signer/);
+});
+
+test('verifyRootSignedPayload accepts aggregate signer payload before cosignatures are attached', () => {
+  const facade = new SymbolFacade('testnet');
+  const maker = facade.createAccount(PrivateKey.random());
+  const taker = facade.createAccount(PrivateKey.random());
+  const built = buildAggregateComplete({
+    network: 'testnet',
+    deadlineHours: 2,
+    correlationId: 'root-0001',
+    legs: [
+      {
+        signerPublicKey: maker.publicKey.toString(),
+        recipientAddress: taker.address.toString(),
+        mosaicId: '72C0212E67A08BCE',
+        amount: '100',
+      },
+      {
+        signerPublicKey: taker.publicKey.toString(),
+        recipientAddress: maker.address.toString(),
+        mosaicId: '72C0212E67A08BCE',
+        amount: '200',
+      },
+    ],
+  });
+  const intent: SwapIntentRecord = {
+    id: built.intentId,
+    correlationId: built.correlationId,
+    network: built.network,
+    intentHash: built.intentHash,
+    state: 'created',
+    aggregateType: 'aggregate_complete',
+    unsignedPayload: built.unsignedPayload,
+    qrPayload: built.qrPayload,
+    requiredCosigners: built.requiredCosigners,
+    intent: built.intent,
+    signedPayload: null,
+    transactionHash: null,
+    nodeResponse: null,
+  };
+  const payload = signPayload(intent.unsignedPayload, maker.keyPair.privateKey);
+
+  const result = verifyRootSignedPayload({
+    payload,
+    intentHash: intent.intentHash,
+  }, intent);
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'semantic_verification_passed');
+  assert.match(result.transactionHash ?? '', /^[0-9A-F]{64}$/);
 });
 
 test('verifySignedPayload accepts initiator-signed aggregate bonded payload', () => {
