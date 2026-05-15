@@ -8,6 +8,10 @@ export type SymbolTransactionLookup = {
   blockHeight?: number;
 };
 
+export type SymbolConfirmedTransactionDetails = SymbolTransactionLookup & {
+  raw?: unknown;
+};
+
 export type SymbolStatusLookup = {
   found: boolean;
   transactionHash: string;
@@ -111,6 +115,12 @@ export class SymbolRestClient {
   }
 
   public async getConfirmedTransaction(transactionHash: string): Promise<SymbolTransactionLookup> {
+    const details = await this.getConfirmedTransactionDetails(transactionHash);
+    const { raw: _raw, ...lookup } = details;
+    return lookup;
+  }
+
+  public async getConfirmedTransactionDetails(transactionHash: string): Promise<SymbolConfirmedTransactionDetails> {
     const response = await this.request(`/transactions/confirmed/${transactionHash}`);
     if (response.status === 404) {
       return { found: false, transactionHash };
@@ -124,6 +134,7 @@ export class SymbolRestClient {
     return {
       found: true,
       transactionHash,
+      raw,
       ...(blockHeight ? { blockHeight } : {}),
     };
   }

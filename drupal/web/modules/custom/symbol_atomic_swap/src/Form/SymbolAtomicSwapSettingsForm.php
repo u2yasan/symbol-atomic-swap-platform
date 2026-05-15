@@ -56,6 +56,36 @@ final class SymbolAtomicSwapSettingsForm extends ConfigFormBase {
       '#description' => $this->t('Keep disabled unless production Engine and Symbol node configuration has been verified.'),
     ];
 
+    $form['account_verification'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Account verification'),
+      '#open' => TRUE,
+    ];
+    $form['account_verification']['account_verification_recipient_testnet'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Testnet on-chain verification recipient address'),
+      '#maxlength' => 46,
+      '#size' => 52,
+      '#default_value' => $config->get('account_verification_recipient_testnet') ?: '',
+      '#description' => $this->t('Public site-owned address that receives challenge transfers for users who cannot use SSS, Symbol CLI, or SDK tools. Leave empty to disable this method.'),
+      '#attributes' => [
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+      ],
+    ];
+    $form['account_verification']['account_verification_recipient_mainnet'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Mainnet on-chain verification recipient address'),
+      '#maxlength' => 46,
+      '#size' => 52,
+      '#default_value' => $config->get('account_verification_recipient_mainnet') ?: '',
+      '#description' => $this->t('Only configure this after mainnet operations are ready. This address is public and does not require storing a private key in Drupal.'),
+      '#attributes' => [
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+      ],
+    ];
+
     $form['notifications'] = [
       '#type' => 'details',
       '#title' => $this->t('Notifications'),
@@ -103,12 +133,24 @@ final class SymbolAtomicSwapSettingsForm extends ConfigFormBase {
     if ($webhook_url !== '' && !$this->isHttpUrl($webhook_url)) {
       $form_state->setErrorByName('webhook_url', $this->t('Webhook URL must be an http or https URL.'));
     }
+
+    $testnet_recipient = strtoupper(trim((string) $form_state->getValue('account_verification_recipient_testnet')));
+    if ($testnet_recipient !== '' && !$this->isNetworkAddress($testnet_recipient, 'testnet')) {
+      $form_state->setErrorByName('account_verification_recipient_testnet', $this->t('Testnet verification recipient must be a valid raw testnet Symbol address.'));
+    }
+
+    $mainnet_recipient = strtoupper(trim((string) $form_state->getValue('account_verification_recipient_mainnet')));
+    if ($mainnet_recipient !== '' && !$this->isNetworkAddress($mainnet_recipient, 'mainnet')) {
+      $form_state->setErrorByName('account_verification_recipient_mainnet', $this->t('Mainnet verification recipient must be a valid raw mainnet Symbol address.'));
+    }
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $this->config('symbol_atomic_swap.settings')
       ->set('engine_base_url', rtrim(trim((string) $form_state->getValue('engine_base_url')), '/'))
       ->set('engine_timeout', (int) $form_state->getValue('engine_timeout'))
+      ->set('account_verification_recipient_testnet', strtoupper(trim((string) $form_state->getValue('account_verification_recipient_testnet'))))
+      ->set('account_verification_recipient_mainnet', strtoupper(trim((string) $form_state->getValue('account_verification_recipient_mainnet'))))
       ->set('notification_email', trim((string) $form_state->getValue('notification_email')))
       ->set('webhook_url', trim((string) $form_state->getValue('webhook_url')))
       ->set('webhook_timeout', (int) $form_state->getValue('webhook_timeout'))
@@ -122,6 +164,15 @@ final class SymbolAtomicSwapSettingsForm extends ConfigFormBase {
     $scheme = parse_url($url, PHP_URL_SCHEME);
     return filter_var($url, FILTER_VALIDATE_URL) !== FALSE
       && in_array($scheme, ['http', 'https'], TRUE);
+  }
+
+  private function isNetworkAddress(string $value, string $network): bool {
+    $prefix = match ($network) {
+      'mainnet' => 'N',
+      'testnet' => 'T',
+      default => '',
+    };
+    return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper(trim($value))) === 1;
   }
 
 }

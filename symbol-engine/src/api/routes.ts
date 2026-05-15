@@ -11,7 +11,11 @@ import { announceVerifiedTransaction } from '../transaction/announceService.js';
 import { announceSignedHashLock, buildHashLockTransaction } from '../transaction/hashLockService.js';
 import { announcePartialAggregateBonded } from '../transaction/partialAnnouncementService.js';
 import { announceAggregateBondedCosignature } from '../transaction/cosignatureService.js';
-import { buildAccountVerificationPayload, verifyAccountVerificationPayload } from '../transaction/accountVerificationService.js';
+import {
+  buildAccountVerificationPayload,
+  verifyAccountVerificationPayload,
+  verifyOnChainAccountVerificationTransaction,
+} from '../transaction/accountVerificationService.js';
 import { SymbolRestClient } from '../transaction/symbolRestClient.js';
 import {
   announceSignedSecretLock,
@@ -164,6 +168,29 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
     },
   }, async (request, reply) => {
     const result = verifyAccountVerificationPayload(request.body);
+    return reply.code(result.accepted ? 200 : 400).send(result);
+  });
+
+  app.post('/v1/account-verification/verify-on-chain', {
+    bodyLimit: SMALL_BODY_LIMIT_BYTES,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+  }, async (request, reply) => {
+    if (!dependencies.nodeUrl) {
+      return reply.code(503).send({
+        accepted: false,
+        reason: 'symbol node unavailable',
+      });
+    }
+
+    const result = await verifyOnChainAccountVerificationTransaction(
+      request.body,
+      new SymbolRestClient(dependencies.nodeUrl, fetch, dependencies.nodeRequestTimeoutMs),
+    );
     return reply.code(result.accepted ? 200 : 400).send(result);
   });
 

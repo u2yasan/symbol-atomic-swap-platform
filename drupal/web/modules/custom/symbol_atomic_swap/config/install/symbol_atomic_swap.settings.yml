@@ -1,5 +1,7 @@
 engine_base_url: 'http://symbol-engine:3000'
 engine_timeout: 10
+account_verification_recipient_testnet: ''
+account_verification_recipient_mainnet: ''
 notification_email: ''
 webhook_url: ''
 webhook_timeout: 3

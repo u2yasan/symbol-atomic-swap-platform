@@ -91,6 +91,24 @@ final class SymbolEngineClient {
     ]);
   }
 
+  public function verifyOnChainAccountVerification(string $network, string $address, string $signer_public_key, string $challenge, string $recipient_address, string $transaction_hash): array {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+    $this->assertRawAddress($address, $network);
+    $this->assertRawAddress($recipient_address, $network);
+    $this->assertPublicKey($signer_public_key);
+    $this->assertHash($transaction_hash, 'transaction hash');
+    return $this->request('POST', '/v1/account-verification/verify-on-chain', TRUE, [
+      'network' => $network,
+      'address' => strtoupper($address),
+      'signerPublicKey' => strtoupper($signer_public_key),
+      'challenge' => $challenge,
+      'recipientAddress' => strtoupper($recipient_address),
+      'transactionHash' => strtoupper($transaction_hash),
+    ]);
+  }
+
   public function verifySignedPayload(string $intent_hash, string $payload): array {
     $this->assertHash($intent_hash, 'intent hash');
     return $this->request('POST', '/v1/transactions/verify-signed-payload', TRUE, [

@@ -446,6 +446,20 @@ function symbol_atomic_swap_update_11009(): void {
 }
 
 /**
+ * Adds defaults for on-chain account verification recipient settings.
+ */
+function symbol_atomic_swap_update_11010(): void {
+  $config = \Drupal::configFactory()->getEditable('symbol_atomic_swap.settings');
+  if ($config->get('account_verification_recipient_testnet') === NULL) {
+    $config->set('account_verification_recipient_testnet', '');
+  }
+  if ($config->get('account_verification_recipient_mainnet') === NULL) {
+    $config->set('account_verification_recipient_mainnet', '');
+  }
+  $config->save();
+}
+
+/**
  * Ensures configurable user fields used for Symbol account verification exist.
  */
 function symbol_atomic_swap_ensure_user_account_fields(): void {

@@ -8,6 +8,12 @@ symbol_atomic_swap.settings:
     engine_timeout:
       type: integer
       label: 'Symbol Engine timeout'
+    account_verification_recipient_testnet:
+      type: string
+      label: 'Testnet account verification recipient address'
+    account_verification_recipient_mainnet:
+      type: string
+      label: 'Mainnet account verification recipient address'
     notification_email:
       type: string
       label: 'Notification email recipient'

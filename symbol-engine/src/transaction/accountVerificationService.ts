@@ -2,9 +2,11 @@ import { PublicKey, Signature, utils } from 'symbol-sdk';
 import { Address, descriptors, models, SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
 import { z } from 'zod';
 import { addressSchema, publicKeySchema } from '../dto/aggregateComplete.js';
+import type { SymbolRestClient } from './symbolRestClient.js';
 
 const challengeSchema = z.string().min(32).max(1024);
 const signedPayloadSchema = z.string().regex(/^[0-9A-Fa-f]+$/, 'payload must be hex').min(2);
+const transactionHashSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'transaction hash must be 64 hex characters');
 
 const accountVerificationBuildSchema = z.object({
   network: z.enum(['mainnet', 'testnet']),
@@ -16,6 +18,11 @@ const accountVerificationBuildSchema = z.object({
 
 const accountVerificationVerifySchema = accountVerificationBuildSchema.omit({ deadlineHours: true }).extend({
   payload: signedPayloadSchema,
+});
+
+const accountVerificationOnChainSchema = accountVerificationBuildSchema.omit({ deadlineHours: true }).extend({
+  recipientAddress: addressSchema,
+  transactionHash: transactionHashSchema,
 });
 
 export type AccountVerificationBuildResult = {
@@ -47,6 +54,34 @@ function readMessage(transaction: unknown): string {
     return message;
   }
   return new TextDecoder().decode(message);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
+}
+
+function readRestString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function decodePlainMessage(payload: string): string {
+  if (!/^[0-9A-Fa-f]*$/.test(payload) || payload.length % 2 !== 0) {
+    return '';
+  }
+  const decoded = new TextDecoder().decode(utils.hexToUint8(payload));
+  if (decoded.startsWith('\u0000')) {
+    return decoded.slice(1);
+  }
+  return decoded;
+}
+
+function networkIdentifier(network: 'mainnet' | 'testnet'): string {
+  return network === 'mainnet' ? '104' : '152';
 }
 
 export function buildAccountVerificationPayload(input: unknown): AccountVerificationBuildResult {
@@ -141,5 +176,74 @@ export function verifyAccountVerificationPayload(input: unknown): AccountVerific
     };
   } catch {
     return { accepted: false, reason: 'account verification failed' };
+  }
+}
+
+export async function verifyOnChainAccountVerificationTransaction(
+  input: unknown,
+  restClient: SymbolRestClient,
+): Promise<AccountVerificationResult> {
+  const parsed = accountVerificationOnChainSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      accepted: false,
+      reason: parsed.error.issues.map((issue) => issue.message).join('; '),
+    };
+  }
+
+  try {
+    const request = parsed.data;
+    const lookup = await restClient.getConfirmedTransactionDetails(request.transactionHash.toUpperCase());
+    if (!lookup.found || !lookup.raw) {
+      return { accepted: false, reason: 'confirmed transaction not found' };
+    }
+
+    const root = asRecord(lookup.raw);
+    const meta = asRecord(root.meta);
+    const transaction = asRecord(root.transaction);
+    const signerPublicKey = readRestString(transaction.signerPublicKey)?.toUpperCase() ?? '';
+    const recipientAddress = readRestString(transaction.recipientAddress)?.toUpperCase() ?? '';
+    const type = transaction.type;
+    const network = transaction.network;
+    const hash = readRestString(meta.hash, root.hash, lookup.transactionHash)?.toUpperCase() ?? '';
+    const message = asRecord(transaction.message);
+    const messageType = message.type;
+    const messagePayload = readRestString(message.payload) ?? '';
+    const plainMessage = decodePlainMessage(messagePayload);
+    const facade = new SymbolFacade(request.network);
+
+    if (hash !== request.transactionHash.toUpperCase()) {
+      return { accepted: false, reason: 'transaction hash mismatch' };
+    }
+    if (type !== models.TransactionType.TRANSFER.value) {
+      return { accepted: false, reason: 'transaction is not transfer' };
+    }
+    if (String(network) !== networkIdentifier(request.network)) {
+      return { accepted: false, reason: 'network mismatch' };
+    }
+    if (signerPublicKey !== request.signerPublicKey.toUpperCase()) {
+      return { accepted: false, reason: 'signer public key mismatch' };
+    }
+    if (facade.network.publicKeyToAddress(new PublicKey(signerPublicKey)).toString() !== request.address) {
+      return { accepted: false, reason: 'signer address mismatch' };
+    }
+    if (recipientAddress !== request.recipientAddress.toUpperCase()) {
+      return { accepted: false, reason: 'recipient address mismatch' };
+    }
+    if (messageType !== 0) {
+      return { accepted: false, reason: 'verification message must be plain text' };
+    }
+    if (plainMessage !== request.challenge) {
+      return { accepted: false, reason: 'challenge mismatch' };
+    }
+
+    return {
+      accepted: true,
+      reason: 'account_on_chain_verification_passed',
+      signerPublicKey,
+      transactionHash: request.transactionHash.toUpperCase(),
+    };
+  } catch {
+    return { accepted: false, reason: 'on-chain account verification failed' };
   }
 }

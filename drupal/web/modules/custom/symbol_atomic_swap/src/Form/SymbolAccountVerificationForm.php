@@ -23,6 +23,7 @@ final class SymbolAccountVerificationForm extends FormBase {
   private const TEMPSTORE_KEY = 'challenge';
   private const CHALLENGE_TTL = 600;
   private const VERIFICATION_METHOD = 'sss_zero_fee_transfer';
+  private const ON_CHAIN_VERIFICATION_METHOD = 'on_chain_transfer';
 
   public function __construct(
     private readonly AccountProxyInterface $currentUser,
@@ -68,7 +69,7 @@ final class SymbolAccountVerificationForm extends FormBase {
       '#type' => 'item',
       '#title' => $this->t('Verification status'),
       '#markup' => $verified
-        ? $this->t('Verified at @time.', ['@time' => $this->dateFormatter->format($verified_at, 'short')])
+      ? $this->t('Verified at @time.', ['@time' => $this->dateFormatterService()->format($verified_at, 'short')])
         : $this->t('Not verified.'),
     ];
 
@@ -112,6 +113,8 @@ final class SymbolAccountVerificationForm extends FormBase {
 
     if ($challenge) {
       $expires = (int) $challenge['expires'];
+      $on_chain_recipient = $this->onChainRecipient((string) $challenge['network']);
+      $on_chain_message = $this->onChainMessage($challenge);
       $form['challenge'] = [
         '#type' => 'details',
         '#title' => $this->t('Current verification challenge'),
@@ -119,7 +122,7 @@ final class SymbolAccountVerificationForm extends FormBase {
         'expires' => [
           '#type' => 'item',
           '#title' => $this->t('Expires'),
-          '#markup' => $this->dateFormatter->format($expires, 'short'),
+          '#markup' => $this->dateFormatterService()->format($expires, 'short'),
         ],
         'unsigned_payload' => [
           '#type' => 'textarea',
@@ -183,6 +186,17 @@ final class SymbolAccountVerificationForm extends FormBase {
           ],
           ],
         ],
+        'onchain' => [
+          '#type' => 'details',
+          '#title' => $this->t('On-chain verification without signing tools'),
+          '#open' => FALSE,
+          'notice' => [
+            '#type' => 'item',
+            '#markup' => $on_chain_recipient !== ''
+              ? $this->t('Use this only when SSS, Symbol CLI, and SDK signing tools are unavailable. Send a confirmed Symbol Transfer from the registered address to the site address with the exact message below, then paste the transaction hash. This costs a network fee and the verification transfer is public on-chain. Do not send funds; use a message-only transfer if your wallet supports it.')
+              : $this->t('On-chain verification is disabled because no site recipient address is configured for this network.'),
+          ],
+        ],
         'signed_payload' => [
           '#type' => 'textarea',
           '#title' => $this->t('Signed verification payload'),
@@ -193,6 +207,30 @@ final class SymbolAccountVerificationForm extends FormBase {
           ],
         ],
       ];
+      if ($on_chain_recipient !== '') {
+        $form['challenge']['onchain']['recipient'] = [
+          '#type' => 'item',
+          '#title' => $this->t('Site recipient address'),
+          '#markup' => $this->plainValue($on_chain_recipient),
+        ];
+        $form['challenge']['onchain']['recipient_copy'] = $this->copyValue($on_chain_recipient);
+        $form['challenge']['onchain']['message'] = [
+          '#type' => 'item',
+          '#title' => $this->t('Transfer message'),
+          '#markup' => $this->plainValue($on_chain_message),
+        ];
+        $form['challenge']['onchain']['message_copy'] = $this->copyValue($on_chain_message);
+        $form['challenge']['onchain']['transaction_hash'] = [
+          '#type' => 'textfield',
+          '#title' => $this->t('Confirmed transaction hash'),
+          '#maxlength' => 64,
+          '#size' => 72,
+          '#attributes' => [
+            'autocomplete' => 'off',
+            'spellcheck' => 'false',
+          ],
+        ];
+      }
     }
 
     $form['actions'] = ['#type' => 'actions'];
@@ -222,6 +260,15 @@ final class SymbolAccountVerificationForm extends FormBase {
         '#validate' => ['::validateVerify'],
         '#submit' => ['::submitVerify'],
       ];
+      if ($this->onChainRecipient((string) $challenge['network']) !== '') {
+        $form['actions']['verify_on_chain'] = [
+          '#type' => 'submit',
+          '#value' => $this->t('Verify on-chain transaction'),
+          '#button_type' => 'secondary',
+          '#validate' => ['::validateOnChainVerify'],
+          '#submit' => ['::submitOnChainVerify'],
+        ];
+      }
     }
 
     return $form;
@@ -240,7 +287,7 @@ final class SymbolAccountVerificationForm extends FormBase {
     }
 
     try {
-      $form_state->set('symbol_public_key', $this->publicKeyResolver->resolve($network, $address));
+      $form_state->set('symbol_public_key', $this->publicKeyResolverService()->resolve($network, $address));
     }
     catch (SymbolEngineException) {
       $form_state->setErrorByName('address', $this->t('No public key was found for this address on the selected network. Use an account that has sent at least one signed transaction.'));
@@ -257,9 +304,11 @@ final class SymbolAccountVerificationForm extends FormBase {
     $issued = \Drupal::time()->getRequestTime();
     $expires = $issued + self::CHALLENGE_TTL;
     $challenge = $this->challengeMessage($network, $address, $issued, $expires);
+    $challenge_hash = hash('sha256', $challenge);
+    $on_chain_message = 'symbol-atomic-swap:' . $challenge_hash;
 
     try {
-      $built = $this->engineClient->buildAccountVerification($network, $address, $public_key, $challenge);
+      $built = $this->engineClientService()->buildAccountVerification($network, $address, $public_key, $challenge);
     }
     catch (SymbolEngineException | \RuntimeException | \InvalidArgumentException $exception) {
       $this->messenger()->addError($this->t('Verification payload build failed: @message', ['@message' => $exception->getMessage()]));
@@ -273,14 +322,15 @@ final class SymbolAccountVerificationForm extends FormBase {
       'field_symbol_address_verified' => FALSE,
       'field_symbol_address_verified_at' => NULL,
       'field_symbol_verification_method' => '',
-      'field_symbol_challenge_hash' => hash('sha256', $challenge),
+      'field_symbol_challenge_hash' => $challenge_hash,
     ]);
-    $this->tempStoreFactory->get(self::TEMPSTORE_COLLECTION)->set(self::TEMPSTORE_KEY, [
+    $this->tempStoreFactoryService()->get(self::TEMPSTORE_COLLECTION)->set(self::TEMPSTORE_KEY, [
       'network' => $network,
       'address' => $address,
       'publicKey' => $public_key,
       'challenge' => $challenge,
-      'challengeHash' => hash('sha256', $challenge),
+      'challengeHash' => $challenge_hash,
+      'onChainMessage' => $on_chain_message,
       'unsignedPayload' => strtoupper((string) $built['unsignedPayload']),
       'issued' => $issued,
       'expires' => $expires,
@@ -299,7 +349,7 @@ final class SymbolAccountVerificationForm extends FormBase {
       'field_symbol_verification_method' => NULL,
       'field_symbol_challenge_hash' => NULL,
     ]);
-    $this->tempStoreFactory->get(self::TEMPSTORE_COLLECTION)->delete(self::TEMPSTORE_KEY);
+    $this->tempStoreFactoryService()->get(self::TEMPSTORE_COLLECTION)->delete(self::TEMPSTORE_KEY);
     $this->messenger()->addStatus($this->t('Registered Symbol account was removed. You can register a new address.'));
     $form_state->setRebuild();
   }
@@ -328,7 +378,7 @@ final class SymbolAccountVerificationForm extends FormBase {
     $payload = $this->signedPayloadValue($form_state);
 
     try {
-      $result = $this->engineClient->verifyAccountVerification(
+      $result = $this->engineClientService()->verifyAccountVerification(
         (string) $challenge['network'],
         (string) $challenge['address'],
         (string) $challenge['publicKey'],
@@ -355,8 +405,71 @@ final class SymbolAccountVerificationForm extends FormBase {
       'field_symbol_verification_method' => self::VERIFICATION_METHOD,
       'field_symbol_challenge_hash' => (string) $challenge['challengeHash'],
     ]);
-    $this->tempStoreFactory->get(self::TEMPSTORE_COLLECTION)->delete(self::TEMPSTORE_KEY);
+    $this->tempStoreFactoryService()->get(self::TEMPSTORE_COLLECTION)->delete(self::TEMPSTORE_KEY);
     $this->messenger()->addStatus($this->t('Symbol address ownership was verified.'));
+    $form_state->setRebuild();
+  }
+
+  public function validateOnChainVerify(array &$form, FormStateInterface $form_state): void {
+    $challenge = $this->challenge();
+    if (!$challenge) {
+      $form_state->setErrorByName('transaction_hash', $this->t('Generate a verification payload first.'));
+      return;
+    }
+    if ((int) $challenge['expires'] < \Drupal::time()->getRequestTime()) {
+      $form_state->setErrorByName('transaction_hash', $this->t('Verification challenge expired. Generate a new payload.'));
+      return;
+    }
+    if ($this->onChainRecipient((string) $challenge['network']) === '') {
+      $form_state->setErrorByName('transaction_hash', $this->t('On-chain verification is not configured for this network.'));
+      return;
+    }
+    $transaction_hash = $this->transactionHashValue($form_state);
+    if (!preg_match('/^[0-9A-F]{64}$/', $transaction_hash)) {
+      $form_state->setErrorByName('transaction_hash', $this->t('Transaction hash must be 64 hex characters.'));
+    }
+  }
+
+  public function submitOnChainVerify(array &$form, FormStateInterface $form_state): void {
+    $challenge = $this->challenge();
+    if (!$challenge) {
+      return;
+    }
+    $network = (string) $challenge['network'];
+    $transaction_hash = $this->transactionHashValue($form_state);
+    $recipient = $this->onChainRecipient($network);
+
+    try {
+      $result = $this->engineClientService()->verifyOnChainAccountVerification(
+        $network,
+        (string) $challenge['address'],
+        (string) $challenge['publicKey'],
+        $this->onChainMessage($challenge),
+        $recipient,
+        $transaction_hash,
+      );
+    }
+    catch (SymbolEngineException | \RuntimeException | \InvalidArgumentException $exception) {
+      $this->messenger()->addError($this->t('On-chain verification failed: @message', ['@message' => $exception->getMessage()]));
+      return;
+    }
+
+    if (empty($result['accepted'])) {
+      $this->messenger()->addError($this->t('On-chain verification failed: @message', ['@message' => (string) ($result['reason'] ?? 'rejected')]));
+      return;
+    }
+
+    $this->saveUserFields([
+      'field_symbol_network' => $network,
+      'field_symbol_address' => (string) $challenge['address'],
+      'field_symbol_public_key' => strtoupper((string) ($result['signerPublicKey'] ?? $challenge['publicKey'])),
+      'field_symbol_address_verified' => TRUE,
+      'field_symbol_address_verified_at' => \Drupal::time()->getRequestTime(),
+      'field_symbol_verification_method' => self::ON_CHAIN_VERIFICATION_METHOD,
+      'field_symbol_challenge_hash' => (string) $challenge['challengeHash'],
+    ]);
+    $this->tempStoreFactoryService()->get(self::TEMPSTORE_COLLECTION)->delete(self::TEMPSTORE_KEY);
+    $this->messenger()->addStatus($this->t('Symbol address ownership was verified by confirmed on-chain transfer.'));
     $form_state->setRebuild();
   }
 
@@ -364,7 +477,7 @@ final class SymbolAccountVerificationForm extends FormBase {
    * @return array<string, mixed>|null
    */
   private function challenge(): ?array {
-    $challenge = $this->tempStoreFactory->get(self::TEMPSTORE_COLLECTION)->get(self::TEMPSTORE_KEY);
+    $challenge = $this->tempStoreFactoryService()->get(self::TEMPSTORE_COLLECTION)->get(self::TEMPSTORE_KEY);
     return is_array($challenge) ? $challenge : NULL;
   }
 
@@ -374,6 +487,14 @@ final class SymbolAccountVerificationForm extends FormBase {
       $payload = $form_state->getValue(['challenge', 'signed_payload']);
     }
     return strtoupper(preg_replace('/\s+/', '', (string) $payload));
+  }
+
+  private function transactionHashValue(FormStateInterface $form_state): string {
+    $transaction_hash = $form_state->getValue('transaction_hash');
+    if ($transaction_hash === NULL) {
+      $transaction_hash = $form_state->getValue(['challenge', 'onchain', 'transaction_hash']);
+    }
+    return strtoupper(preg_replace('/\s+/', '', (string) $transaction_hash));
   }
 
   private function plainValue(string $value): string {
@@ -404,17 +525,82 @@ final class SymbolAccountVerificationForm extends FormBase {
   }
 
   private function challengeMessage(string $network, string $address, int $issued, int $expires): string {
-    $host = $this->requestStackService->getCurrentRequest()?->getHost() ?: 'localhost';
+    $host = $this->requestStackService()->getCurrentRequest()?->getHost() ?: 'localhost';
     return implode("\n", [
       'symbol-atomic-swap address verification',
       'domain: ' . $host,
-      'user_id: ' . $this->currentUser->id(),
+      'user_id: ' . $this->currentUserService()->id(),
       'network: ' . $network,
       'address: ' . $address,
       'nonce: ' . bin2hex(random_bytes(16)),
       'issued_at: ' . gmdate(DATE_ATOM, $issued),
       'expires_at: ' . gmdate(DATE_ATOM, $expires),
     ]);
+  }
+
+  /**
+   * @param array<string, mixed> $challenge
+   */
+  private function onChainMessage(array $challenge): string {
+    $stored = (string) ($challenge['onChainMessage'] ?? '');
+    if ($stored !== '') {
+      return $stored;
+    }
+    return 'symbol-atomic-swap:' . (string) ($challenge['challengeHash'] ?? hash('sha256', (string) ($challenge['challenge'] ?? '')));
+  }
+
+  private function onChainRecipient(string $network): string {
+    $key = match ($network) {
+      'mainnet' => 'account_verification_recipient_mainnet',
+      'testnet' => 'account_verification_recipient_testnet',
+      default => '',
+    };
+    if ($key === '') {
+      return '';
+    }
+    return strtoupper(trim((string) ($this->config('symbol_atomic_swap.settings')->get($key) ?: '')));
+  }
+
+  private function currentUserService(): AccountProxyInterface {
+    return isset($this->currentUser)
+      ? $this->currentUser
+      : \Drupal::service('current_user');
+  }
+
+  private function entityTypeManagerService(): EntityTypeManagerInterface {
+    return isset($this->entityTypeManager)
+      ? $this->entityTypeManager
+      : \Drupal::entityTypeManager();
+  }
+
+  private function publicKeyResolverService(): SymbolAccountPublicKeyResolverInterface {
+    return isset($this->publicKeyResolver)
+      ? $this->publicKeyResolver
+      : \Drupal::service('symbol_atomic_swap.account_public_key_resolver');
+  }
+
+  private function engineClientService(): SymbolEngineClient {
+    return isset($this->engineClient)
+      ? $this->engineClient
+      : \Drupal::service('symbol_atomic_swap.engine_client');
+  }
+
+  private function tempStoreFactoryService(): PrivateTempStoreFactory {
+    return isset($this->tempStoreFactory)
+      ? $this->tempStoreFactory
+      : \Drupal::service('tempstore.private');
+  }
+
+  private function dateFormatterService(): DateFormatterInterface {
+    return isset($this->dateFormatter)
+      ? $this->dateFormatter
+      : \Drupal::service('date.formatter');
+  }
+
+  private function requestStackService(): RequestStack {
+    return isset($this->requestStackService)
+      ? $this->requestStackService
+      : \Drupal::service('request_stack');
   }
 
   /**
@@ -429,7 +615,7 @@ final class SymbolAccountVerificationForm extends FormBase {
   }
 
   private function loadUser() {
-    return $this->entityTypeManager->getStorage('user')->load((int) $this->currentUser->id());
+    return $this->entityTypeManagerService()->getStorage('user')->load((int) $this->currentUserService()->id());
   }
 
   private function isNetworkAddress(string $value, string $network): bool {
