@@ -429,6 +429,33 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Taker creates this aggregate bonded QR payload');
     $assert_session->pageTextContains('"intentHash": "' . str_repeat('C', 64) . '"');
     $assert_session->pageTextContains('"signerPublicKey": "' . str_repeat('A', 64) . '"');
+
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($operator);
+
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Bonded steps offer');
+    $assert_session->linkExists('Submit signed payload');
+    $assert_session->linkExists('Sign with SSS');
+    $assert_session->linkExists('Submit aggregate signer JSON');
+    $assert_session->linkNotExists('Submit cosignature JSON');
+    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Assemble signed payload');
+    $assert_session->linkNotExists('Announce transaction');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Submit signed payload');
+    $assert_session->linkExists('Sign with SSS');
+    $assert_session->linkExists('Submit aggregate signer JSON');
+    $assert_session->linkNotExists('Submit cosignature JSON');
+    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Assemble signed payload');
+    $assert_session->linkNotExists('Announce transaction');
   }
 
   /**
