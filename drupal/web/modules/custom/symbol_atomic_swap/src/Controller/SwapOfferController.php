@@ -53,10 +53,6 @@ final class SwapOfferController extends ControllerBase {
       $rows[] = [
         Link::fromTextAndUrl((string) $offer['label'], Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
         $this->stateLabel((string) $offer['state']),
-        $offer['network'],
-        (string) $offer['uid'],
-        ['data' => $this->hashValue((string) ($offer['intent_hash'] ?: ''))],
-        ['data' => $this->hashValue((string) ($offer['transaction_hash'] ?: ''))],
         $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : '',
         [
           'data' => [
@@ -85,10 +81,6 @@ final class SwapOfferController extends ControllerBase {
         '#header' => [
           $this->t('Offer'),
           $this->t('State'),
-          $this->t('Network'),
-          $this->t('Owner UID'),
-          $this->t('Intent hash'),
-          $this->t('Transaction hash'),
           $this->t('Changed'),
           $this->t('Operations'),
         ],
