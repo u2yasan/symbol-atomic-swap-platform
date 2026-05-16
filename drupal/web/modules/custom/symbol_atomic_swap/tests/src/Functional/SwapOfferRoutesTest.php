@@ -421,14 +421,16 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('POST /v1/hash-lock/build');
     $assert_session->pageTextContains('POST /v1/hash-lock/announce');
     $assert_session->pageTextContains('POST /v1/transactions/announce-partial');
+    $assert_session->pageTextContains('Hash lock signer');
+    $assert_session->pageTextContains('Taker initiates this aggregate bonded transaction from the accept page and pays the 10 XYM hash lock.');
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('C', 64));
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate type');
     $assert_session->pageTextContains('aggregate bonded');
-    $assert_session->pageTextContains('Taker creates this aggregate bonded QR payload');
+    $assert_session->pageTextContains('Taker initiates this aggregate bonded transaction from the accept page and pays the 10 XYM hash lock.');
     $assert_session->pageTextContains('"intentHash": "' . str_repeat('C', 64) . '"');
-    $assert_session->pageTextContains('"signerPublicKey": "' . str_repeat('A', 64) . '"');
+    $assert_session->pageTextContains('"signerPublicKey": "' . str_repeat('B', 64) . '"');
 
     $operator = $this->drupalCreateUser([
       'view symbol atomic swap offers',
