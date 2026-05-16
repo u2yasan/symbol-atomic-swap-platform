@@ -254,6 +254,10 @@ final class SwapOfferController extends ControllerBase {
       ];
     }
 
+    if ($this->isAggregateBondedPayload($qr_payload)) {
+      $build['aggregate_bonded_workflow'] = $this->aggregateBondedWorkflow($offer, $qr_payload);
+    }
+
     $notification_items = [];
     foreach ($this->notifications->findByOffer((int) $offer['id']) as $notification) {
       $notification_items[] = $this->t('@severity: @message (@created)', [
@@ -413,8 +417,9 @@ final class SwapOfferController extends ControllerBase {
     }
     $scan_text = $this->qrScanText($raw_json);
     $unsigned_payload = is_string($qr_payload['unsignedPayload'] ?? NULL) ? $qr_payload['unsignedPayload'] : '';
+    $is_aggregate_bonded = $this->isAggregateBondedPayload($qr_payload);
 
-    return [
+    $build = [
       '#cache' => ['max-age' => 0],
       '#attached' => ['library' => ['symbol_atomic_swap/qr']],
       'summary' => [
@@ -424,6 +429,7 @@ final class SwapOfferController extends ControllerBase {
         'table' => $this->keyValueTable([
           [$this->t('Offer'), (string) $offer['label']],
           [$this->t('Network'), (string) $offer['network']],
+          [$this->t('Aggregate type'), $is_aggregate_bonded ? (string) $this->t('aggregate bonded') : (string) $this->t('aggregate complete')],
           [$this->t('Intent hash'), $this->hashValue((string) $offer['intent_hash'])],
         ]),
       ],
@@ -491,6 +497,11 @@ final class SwapOfferController extends ControllerBase {
         ],
       ],
     ];
+    if ($is_aggregate_bonded) {
+      $build['aggregate_bonded_workflow'] = $this->aggregateBondedWorkflow($offer, $qr_payload);
+    }
+
+    return $build;
   }
 
   public function title($offerId): string {
@@ -561,6 +572,92 @@ final class SwapOfferController extends ControllerBase {
 
   private function qrScanText(string $raw_json): string {
     return 'symbol-swap:v1:' . rtrim(strtr(base64_encode($raw_json), '+/', '-_'), '=');
+  }
+
+  /**
+   * @param array<string, mixed> $qr_payload
+   */
+  private function isAggregateBondedPayload(array $qr_payload): bool {
+    return ($qr_payload['type'] ?? '') === 'symbol-aggregate-bonded';
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   * @param array<string, mixed> $qr_payload
+   */
+  private function aggregateBondedWorkflow(array $offer, array $qr_payload): array {
+    $required_cosigners = array_values(array_filter(
+      array_map('strval', is_array($qr_payload['requiredCosigners'] ?? NULL) ? $qr_payload['requiredCosigners'] : []),
+      static fn (string $value): bool => $value !== '',
+    ));
+    $aggregate_signer = $required_cosigners[0] ?? (string) $offer['leg1_signer_public_key'];
+    $taker_cosigner = $required_cosigners[1] ?? (string) $offer['leg2_signer_public_key'];
+    $hash_lock = is_array($qr_payload['hashLock'] ?? NULL) ? $qr_payload['hashLock'] : [];
+
+    return [
+      '#type' => 'details',
+      '#title' => $this->t('Aggregate bonded partial announcement steps'),
+      '#open' => TRUE,
+      'warning' => [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['messages', 'messages--warning']],
+        'text' => [
+          '#markup' => $this->t('This is not an aggregate complete transaction. Do not use the complete-only assemble-and-announce path for partial announcement.'),
+        ],
+      ],
+      'roles' => $this->keyValueTable([
+        [$this->t('Aggregate signer'), $this->hashValue(strtoupper($aggregate_signer))],
+        [$this->t('Taker cosigner'), $this->hashValue(strtoupper($taker_cosigner))],
+        [$this->t('Hash lock mosaic'), $this->hashValue(strtoupper((string) ($hash_lock['mosaicId'] ?? '')))],
+        [$this->t('Hash lock amount'), (string) ($hash_lock['amount'] ?? '')],
+        [$this->t('Hash lock duration blocks'), (string) ($hash_lock['duration'] ?? '')],
+      ]),
+      'steps' => [
+        '#theme' => 'item_list',
+        '#title' => $this->t('Required order'),
+        '#list_type' => 'ol',
+        '#items' => [
+          $this->t('Taker creates this aggregate bonded QR payload from the accept page and shares the QR URL, QR scan text, or unsigned payload with the aggregate signer.'),
+          $this->t('Aggregate signer root-signs the unsigned aggregate bonded payload. It must not be announced as aggregate complete.'),
+          $this->t('Submit the root-signed aggregate payload or aggregate signer JSON in Drupal so Symbol Engine records the bonded transaction hash.'),
+          $this->t('Build the hash lock with Symbol Engine POST /v1/hash-lock/build using intentHash, signerPublicKey, and deadlineHours, then sign that hash lock transaction.'),
+          $this->t('Announce the signed hash lock with POST /v1/hash-lock/announce and wait until the node accepts it.'),
+          $this->t('Announce the signed aggregate bonded transaction as partial with POST /v1/transactions/announce-partial using this intent hash.'),
+          $this->t('Taker cosigns the partial aggregate, then announces or submits that cosignature. After confirmation/finalization, sync the projection.'),
+        ],
+      ],
+      'api_payloads' => [
+        '#type' => 'details',
+        '#title' => $this->t('Engine API payloads'),
+        '#open' => FALSE,
+        'hash_lock_build' => [
+          '#type' => 'textarea',
+          '#title' => $this->t('POST /v1/hash-lock/build'),
+          '#value' => json_encode([
+            'intentHash' => (string) $offer['intent_hash'],
+            'signerPublicKey' => $aggregate_signer,
+            'deadlineHours' => 2,
+          ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+          '#rows' => 6,
+          '#attributes' => [
+            'readonly' => 'readonly',
+            'spellcheck' => 'false',
+          ],
+        ],
+        'partial_announce' => [
+          '#type' => 'textarea',
+          '#title' => $this->t('POST /v1/transactions/announce-partial'),
+          '#value' => json_encode([
+            'intentHash' => (string) $offer['intent_hash'],
+          ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+          '#rows' => 4,
+          '#attributes' => [
+            'readonly' => 'readonly',
+            'spellcheck' => 'false',
+          ],
+        ],
+      ],
+    ];
   }
 
   /**

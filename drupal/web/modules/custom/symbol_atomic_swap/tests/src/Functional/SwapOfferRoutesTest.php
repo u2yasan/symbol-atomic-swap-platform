@@ -377,6 +377,61 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
+   * Aggregate bonded QR pages explain the partial announcement sequence.
+   */
+  public function testAggregateBondedQrPayloadShowsPartialAnnouncementSteps(): void {
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $qr_payload = [
+      'type' => 'symbol-aggregate-bonded',
+      'network' => 'testnet',
+      'unsignedPayload' => 'BEEF',
+      'deadline' => '123',
+      'requiredCosigners' => [
+        str_repeat('A', 64),
+        str_repeat('B', 64),
+      ],
+      'callback' => NULL,
+      'intentHash' => str_repeat('C', 64),
+      'hashLock' => [
+        'mosaicId' => '72C0212E67A08BCE',
+        'amount' => '10000000',
+        'duration' => 5760,
+      ],
+    ];
+    $id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-bonded-steps',
+      'label' => 'Bonded steps offer',
+      'intent_hash' => str_repeat('C', 64),
+      'unsigned_payload' => 'BEEF',
+      'qr_payload' => json_encode($qr_payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+    ]));
+
+    $admin = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'administer symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($admin);
+
+    $assert_session = $this->assertSession();
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Aggregate bonded partial announcement steps');
+    $assert_session->pageTextContains('This is not an aggregate complete transaction.');
+    $assert_session->pageTextContains('Required order');
+    $assert_session->pageTextContains('POST /v1/hash-lock/build');
+    $assert_session->pageTextContains('POST /v1/hash-lock/announce');
+    $assert_session->pageTextContains('POST /v1/transactions/announce-partial');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('C', 64));
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Aggregate type');
+    $assert_session->pageTextContains('aggregate bonded');
+    $assert_session->pageTextContains('Taker creates this aggregate bonded QR payload');
+    $assert_session->pageTextContains('"intentHash": "' . str_repeat('C', 64) . '"');
+    $assert_session->pageTextContains('"signerPublicKey": "' . str_repeat('A', 64) . '"');
+  }
+
+  /**
    * Signed payload and announce routes require operation permission.
    */
   public function testOfferOperationRoutesRenderForOperators(): void {
