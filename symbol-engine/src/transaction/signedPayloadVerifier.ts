@@ -125,7 +125,7 @@ export function verifySignedPayload(
       }
     } else if (intent.aggregateType === 'aggregate_complete' && transaction.signerPublicKey.toString().toUpperCase() !== intent.requiredCosigners[0]) {
       return { accepted: false, reason: 'aggregate signer mismatch' };
-    } else if (transaction.signerPublicKey.toString().toUpperCase() !== intent.requiredCosigners[0]) {
+    } else if (!expectedSignerSet.has(transaction.signerPublicKey.toString().toUpperCase())) {
       return { accepted: false, reason: 'aggregate bonded signer mismatch' };
     }
 

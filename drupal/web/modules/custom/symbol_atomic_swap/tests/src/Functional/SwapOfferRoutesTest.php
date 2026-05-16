@@ -458,6 +458,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Cosign with SSS');
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Aggregate bonded is initiated by the taker.');
+    $assert_session->pageTextContains(str_repeat('B', 64));
   }
 
   /**

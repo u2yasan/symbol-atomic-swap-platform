@@ -62,7 +62,7 @@
           }
           const activeSigner = activePublicKey();
           if (requiredSigner && activeSigner && activeSigner !== requiredSigner) {
-            setStatus(container, Drupal.t('SSS is using a different account. Switch SSS to the required aggregate signer account, or use Cosign with SSS for the taker account.'), true);
+            setStatus(container, Drupal.t('SSS is using a different account. Switch SSS to the required signing account.'), true);
             return;
           }
 

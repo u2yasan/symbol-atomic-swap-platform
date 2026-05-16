@@ -45,7 +45,7 @@ function makeIntent(): SwapIntentRecord {
   };
 }
 
-function makeBondedIntent(): { intent: SwapIntentRecord; initiatorPrivateKey: PrivateKey } {
+function makeBondedIntent(): { intent: SwapIntentRecord; initiatorPrivateKey: PrivateKey; counterpartyPrivateKey: PrivateKey } {
   const facade = new SymbolFacade('testnet');
   const initiator = facade.createAccount(PrivateKey.random());
   const counterparty = facade.createAccount(PrivateKey.random());
@@ -76,6 +76,7 @@ function makeBondedIntent(): { intent: SwapIntentRecord; initiatorPrivateKey: Pr
 
   return {
     initiatorPrivateKey: initiator.keyPair.privateKey,
+    counterpartyPrivateKey: counterparty.keyPair.privateKey,
     intent: {
       id: built.intentId,
       correlationId: built.correlationId,
@@ -206,6 +207,23 @@ test('verifySignedPayload accepts initiator-signed aggregate bonded payload', ()
   const { intent, initiatorPrivateKey } = makeBondedIntent();
   const payload = signPayload(intent.unsignedPayload, initiatorPrivateKey);
   const result = verifySignedPayload({
+    payload,
+    intentHash: intent.intentHash,
+  }, intent);
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.reason, 'semantic_verification_passed');
+  assert.match(result.transactionHash ?? '', /^[0-9A-F]{64}$/);
+});
+
+test('verifyRootSignedPayload accepts non-first aggregate bonded cosigner as root signer', () => {
+  const { intent, initiatorPrivateKey } = makeBondedIntent();
+  intent.requiredCosigners = [
+    intent.requiredCosigners[1]!,
+    intent.requiredCosigners[0]!,
+  ];
+  const payload = signPayload(intent.unsignedPayload, initiatorPrivateKey);
+  const result = verifyRootSignedPayload({
     payload,
     intentHash: intent.intentHash,
   }, intent);

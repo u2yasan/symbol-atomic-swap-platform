@@ -45,11 +45,13 @@ final class SwapOfferSssSignForm extends FormBase {
     }
     $this->offer = $offer;
     $unsigned_payload = $this->normalizeHex((string) ($offer['unsigned_payload'] ?? ''));
+    $required_signer = $this->requiredRootSigner($offer);
+    $is_aggregate_bonded = $this->isAggregateBonded($offer);
 
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $unsigned_payload;
-    $form['#attributes']['data-symbol-sss-required-signer'] = (string) $offer['leg1_signer_public_key'];
+    $form['#attributes']['data-symbol-sss-required-signer'] = $required_signer;
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -63,8 +65,10 @@ final class SwapOfferSssSignForm extends FormBase {
     $form['signer'] = [
       '#type' => 'item',
       '#title' => $this->t('Required aggregate signer public key'),
-      '#markup' => (string) ($offer['leg1_signer_public_key'] ?: ''),
-      '#description' => $this->t('Root signed payload must be signed by this maker account. If SSS is set to the taker account, use Cosign with SSS instead.'),
+      '#markup' => $required_signer,
+      '#description' => $is_aggregate_bonded
+        ? $this->t('Aggregate bonded is initiated by the taker. Root signed payload must be signed by this taker account.')
+        : $this->t('Root signed payload must be signed by this maker account. If SSS is set to the taker account, use Cosign with SSS instead.'),
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
@@ -169,21 +173,25 @@ final class SwapOfferSssSignForm extends FormBase {
       $result = $this->engineClient->verifyRootSignedPayload((string) $offer['intent_hash'], $payload);
       if (($result['accepted'] ?? FALSE) !== TRUE || empty($result['transactionHash'])) {
         $this->messenger()->addError($this->t('SSS root signed payload was rejected: @reason', [
-          '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason'), (string) $offer['leg1_signer_public_key']),
+          '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason'), $this->requiredRootSigner($offer)),
         ]));
         $form_state->setRebuild(TRUE);
         return;
       }
 
       $this->offers->markRootSigned($offer_id, $payload, (string) $result['transactionHash']);
-      $this->messenger()->addStatus($this->t('SSS root signed payload was verified. Next, collect the taker cosignature and assemble the final signed payload. Normalized size: @bytes bytes.', [
+      $this->messenger()->addStatus($this->isAggregateBonded($offer)
+        ? $this->t('SSS root signed payload was verified. Next, build and announce the taker-funded hash lock, then announce the aggregate bonded transaction as partial. Normalized size: @bytes bytes.', [
+          '@bytes' => (string) intdiv(strlen($payload), 2),
+        ])
+        : $this->t('SSS root signed payload was verified. Next, collect the taker cosignature and assemble the final signed payload. Normalized size: @bytes bytes.', [
         '@bytes' => (string) intdiv(strlen($payload), 2),
-      ]));
+        ]));
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
     }
     catch (SymbolEngineException $exception) {
       $this->messenger()->addError($this->t('SSS root signed payload verification failed: @reason', [
-        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception), (string) $offer['leg1_signer_public_key']),
+        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception), $this->requiredRootSigner($offer)),
       ]));
       $form_state->setRebuild(TRUE);
     }
@@ -197,6 +205,41 @@ final class SwapOfferSssSignForm extends FormBase {
 
   private function normalizeHex(string $value): string {
     return strtoupper(preg_replace('/\s+/', '', $value) ?? '');
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function requiredRootSigner(array $offer): string {
+    return $this->isAggregateBonded($offer)
+      ? (string) ($offer['leg2_signer_public_key'] ?: '')
+      : (string) ($offer['leg1_signer_public_key'] ?: '');
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function isAggregateBonded(array $offer): bool {
+    $qr_payload = $this->decodedQrPayload($offer);
+    return ($qr_payload['type'] ?? '') === 'symbol-aggregate-bonded';
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   *
+   * @return array<string, mixed>
+   */
+  private function decodedQrPayload(array $offer): array {
+    if (empty($offer['qr_payload'])) {
+      return [];
+    }
+    try {
+      $decoded = json_decode((string) $offer['qr_payload'], TRUE, 512, JSON_THROW_ON_ERROR);
+      return is_array($decoded) ? $decoded : [];
+    }
+    catch (\JsonException) {
+      return [];
+    }
   }
 
   private function safeRejectionReason(string $reason, string $required_signer = ''): string {
