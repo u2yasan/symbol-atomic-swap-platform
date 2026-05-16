@@ -65,6 +65,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldNotExists('Resolved maker public key');
     $assert_session->fieldValueEquals('maker_pays[mosaic_id]', '72C0212E67A08BCE');
     $assert_session->fieldValueEquals('maker_wants[mosaic_id]', '72C0212E67A08BCE');
+    $this->assertSame(2, $this->getSession()->getPage()->findAll('css', '[data-symbol-mosaic-status]') ? count($this->getSession()->getPage()->findAll('css', '[data-symbol-mosaic-status]')) : 0);
     $assert_session->pageTextContains('Same as Maker address.');
     $assert_session->buttonExists('Create trade offer');
 
@@ -109,11 +110,30 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->assertSame('97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D', $records[0]['leg1_signer_public_key']);
     $this->assertSame('', $records[0]['leg1_recipient_address']);
     $this->assertSame('72C0212E67A08BCE', $records[0]['leg1_mosaic_id']);
-    $this->assertSame('100', $records[0]['leg1_amount']);
+    $this->assertSame('100000000', $records[0]['leg1_amount']);
     $this->assertSame('', $records[0]['leg2_signer_public_key']);
     $this->assertSame('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', $records[0]['leg2_recipient_address']);
     $this->assertSame('72C0212E67A08BCF', $records[0]['leg2_mosaic_id']);
-    $this->assertSame('200', $records[0]['leg2_amount']);
+    $this->assertSame('20000', $records[0]['leg2_amount']);
+  }
+
+  /**
+   * Creating an offer requires a verified Symbol account.
+   */
+  public function testCreateOfferWarnsWhenMySymbolAccountIsNotVerified(): void {
+    $creator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'create symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($creator);
+
+    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Create Swap Offer requires a verified Symbol address in My Symbol Account.');
+    $assert_session->linkExists('Open My Symbol Account');
+    $assert_session->linkByHrefExists('/symbol-atomic-swap/account');
+    $assert_session->pageTextContains('Register and verify My Symbol Account before creating a swap offer.');
   }
 
   /**
@@ -656,6 +676,18 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'testnet' => [
         'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ' => '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
         'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI' => 'D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16',
+      ],
+    ]);
+    \Drupal::state()->set('symbol_atomic_swap.mosaic_metadata_test_overrides', [
+      'testnet' => [
+        '72C0212E67A08BCE' => [
+          'divisibility' => 6,
+          'aliases' => ['symbol.xym'],
+        ],
+        '72C0212E67A08BCF' => [
+          'divisibility' => 2,
+          'aliases' => [],
+        ],
       ],
     ]);
   }

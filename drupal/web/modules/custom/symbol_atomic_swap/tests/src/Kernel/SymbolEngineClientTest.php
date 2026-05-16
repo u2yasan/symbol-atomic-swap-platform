@@ -158,6 +158,43 @@ final class SymbolEngineClientTest extends KernelTestBase {
   }
 
   /**
+   * Mosaic metadata requests are routed through Symbol Engine.
+   */
+  public function testMosaicMetadataRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
+
+    $history = [];
+    $client = $this->client([
+      new Response(200, [], '{"found":true,"mosaicId":"72C0212E67A08BCE","divisibility":6,"aliases":["symbol.xym"]}'),
+    ], $history);
+
+    $result = $client->mosaicMetadata('testnet', '72c0212e67a08bce');
+
+    $this->assertSame('symbol.xym', $result['aliases'][0]);
+    $this->assertSame(6, $result['divisibility']);
+    $this->assertSame('http://engine.local/v1/mosaics/testnet/72C0212E67A08BCE', (string) $history[0]['request']->getUri());
+  }
+
+  /**
+   * Account mosaic balance requests are routed through Symbol Engine.
+   */
+  public function testAccountMosaicBalanceRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
+
+    $history = [];
+    $client = $this->client([
+      new Response(200, [], '{"found":true,"address":"TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ","mosaicId":"72C0212E67A08BCE","amount":"719328436"}'),
+    ], $history);
+
+    $result = $client->accountMosaicBalance('testnet', 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', '72c0212e67a08bce');
+
+    $this->assertSame('719328436', $result['amount']);
+    $this->assertSame('http://engine.local/v1/accounts/testnet/TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ/mosaics/72C0212E67A08BCE', (string) $history[0]['request']->getUri());
+  }
+
+  /**
    * Engine state errors should be normalized without losing engine details.
    */
   public function testRequestExceptionIsNormalized(): void {

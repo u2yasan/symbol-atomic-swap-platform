@@ -14,6 +14,7 @@ use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
+use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -27,6 +28,7 @@ final class SwapOfferController extends ControllerBase {
     private readonly SwapOfferCosignatureRepository $cosignatures,
     private readonly SymbolAccountPublicKeyResolverInterface $accountPublicKeyResolver,
     private readonly SymbolAddressDeriver $addressDeriver,
+    private readonly SymbolEngineClient $engineClient,
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
   ) {}
@@ -38,6 +40,7 @@ final class SwapOfferController extends ControllerBase {
       $container->get('symbol_atomic_swap.offer_cosignature_repository'),
       $container->get('symbol_atomic_swap.account_public_key_resolver'),
       $container->get('symbol_atomic_swap.address_deriver'),
+      $container->get('symbol_atomic_swap.engine_client'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
     );
@@ -92,6 +95,55 @@ final class SwapOfferController extends ControllerBase {
         '#rows' => $rows,
         '#empty' => $this->t('No swap offers have been created.'),
       ],
+    ];
+  }
+
+  public function mosaicMetadata(string $network, string $mosaicId): JsonResponse {
+    try {
+      $metadata = $this->engineClient->mosaicMetadata($network, $mosaicId);
+      $symbol_account = $this->verifiedSymbolAccount();
+      if ($symbol_account && $symbol_account['network'] === $network) {
+        $metadata['balance'] = $this->engineClient->accountMosaicBalance($network, $symbol_account['address'], $mosaicId)['amount'] ?? '0';
+      }
+      else {
+        $metadata['balance'] = NULL;
+      }
+      return new JsonResponse($metadata);
+    }
+    catch (SymbolEngineException $exception) {
+      return new JsonResponse([
+        'found' => FALSE,
+        'mosaicId' => strtoupper($mosaicId),
+        'aliases' => [],
+        'error' => $exception->engineError ?: 'mosaic_lookup_failed',
+      ], $exception->statusCode ?: 502);
+    }
+    catch (\InvalidArgumentException) {
+      return new JsonResponse([
+        'found' => FALSE,
+        'mosaicId' => strtoupper($mosaicId),
+        'aliases' => [],
+        'error' => 'invalid_mosaic_id',
+      ], 400);
+    }
+  }
+
+  /**
+   * @return array{network: string, address: string}|null
+   */
+  private function verifiedSymbolAccount(): ?array {
+    $account = $this->entityTypeManager()->getStorage('user')->load((int) $this->currentUser()->id());
+    if (!$account || !(bool) ($account->get('field_symbol_address_verified')->value ?? FALSE)) {
+      return NULL;
+    }
+    $network = (string) ($account->get('field_symbol_network')->value ?? '');
+    $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE) || !preg_match('/^[NT][A-Z2-7]{38}$/', $address)) {
+      return NULL;
+    }
+    return [
+      'network' => $network,
+      'address' => $address,
     ];
   }
 

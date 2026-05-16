@@ -13,6 +13,7 @@ use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
+use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -29,6 +30,7 @@ final class SwapOfferForm extends FormBase {
     private readonly AccountProxyInterface $currentUser,
     private readonly SymbolAddressDeriver $addressDeriver,
     private readonly SymbolAccountPublicKeyResolverInterface $accountPublicKeyResolver,
+    private readonly SymbolEngineClient $engineClient,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -38,6 +40,7 @@ final class SwapOfferForm extends FormBase {
       $container->get('current_user'),
       $container->get('symbol_atomic_swap.address_deriver'),
       $container->get('symbol_atomic_swap.account_public_key_resolver'),
+      $container->get('symbol_atomic_swap.engine_client'),
     );
   }
 
@@ -56,6 +59,23 @@ final class SwapOfferForm extends FormBase {
       throw new NotFoundHttpException();
     }
     $verified_symbol_account = $offer ? NULL : $this->verifiedSymbolAccount();
+
+    if (!$offer && !$verified_symbol_account) {
+      $form['account_verification_required'] = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['messages', 'messages--warning']],
+        'message' => [
+          '#type' => 'item',
+          '#markup' => $this->t('Create Swap Offer requires a verified Symbol address in My Symbol Account.'),
+        ],
+        'link' => [
+          '#type' => 'link',
+          '#title' => $this->t('Open My Symbol Account'),
+          '#url' => Url::fromRoute('symbol_atomic_swap.account_verification'),
+          '#attributes' => ['class' => ['button']],
+        ],
+      ];
+    }
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -167,18 +187,29 @@ final class SwapOfferForm extends FormBase {
         'autocomplete' => 'off',
         'spellcheck' => 'false',
         'data-symbol-default-mosaic' => '1',
+        'data-symbol-mosaic-id' => '1',
+      ],
+    ];
+    $form['maker_pays']['mosaic_status'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => '',
+      '#attributes' => [
+        'data-symbol-mosaic-status' => '1',
+        'aria-live' => 'polite',
       ],
     ];
     $form['maker_pays']['amount'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Amount'),
-      '#maxlength' => 32,
+      '#maxlength' => 48,
       '#size' => 24,
       '#required' => TRUE,
       '#default_value' => $offer['leg1_amount'] ?? '',
       '#attributes' => [
-        'pattern' => '[1-9][0-9]*',
+        'pattern' => '[0-9]+(\\.[0-9]+)?',
         'autocomplete' => 'off',
+        'data-symbol-mosaic-amount' => '1',
       ],
     ];
 
@@ -217,18 +248,29 @@ final class SwapOfferForm extends FormBase {
         'autocomplete' => 'off',
         'spellcheck' => 'false',
         'data-symbol-default-mosaic' => '1',
+        'data-symbol-mosaic-id' => '1',
+      ],
+    ];
+    $form['maker_wants']['mosaic_status'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => '',
+      '#attributes' => [
+        'data-symbol-mosaic-status' => '1',
+        'aria-live' => 'polite',
       ],
     ];
     $form['maker_wants']['amount'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Amount'),
-      '#maxlength' => 32,
+      '#maxlength' => 48,
       '#size' => 24,
       '#required' => TRUE,
       '#default_value' => $offer['leg2_amount'] ?? '',
       '#attributes' => [
-        'pattern' => '[1-9][0-9]*',
+        'pattern' => '[0-9]+(\\.[0-9]+)?',
         'autocomplete' => 'off',
+        'data-symbol-mosaic-amount' => '1',
       ],
     ];
 
@@ -357,17 +399,33 @@ final class SwapOfferForm extends FormBase {
         $form_state->setErrorByName('maker_pays][address', $this->t('Maker address public key could not be verified.'));
       }
     }
-    if (!$this->isMosaicId(trim((string) ($maker_pays['mosaic_id'] ?? '')))) {
+    $maker_pays_mosaic_id = strtoupper(trim((string) ($maker_pays['mosaic_id'] ?? '')));
+    $maker_wants_mosaic_id = strtoupper(trim((string) ($maker_wants['mosaic_id'] ?? '')));
+    if (!$this->isMosaicId($maker_pays_mosaic_id)) {
       $form_state->setErrorByName('maker_pays][mosaic_id', $this->t('Maker pays mosaic ID must be 16 hex characters.'));
     }
-    if (!$this->isPositiveInteger(trim((string) ($maker_pays['amount'] ?? '')))) {
-      $form_state->setErrorByName('maker_pays][amount', $this->t('Maker pays amount must be a positive integer.'));
-    }
-    if (!$this->isMosaicId(trim((string) ($maker_wants['mosaic_id'] ?? '')))) {
+    if (!$this->isMosaicId($maker_wants_mosaic_id)) {
       $form_state->setErrorByName('maker_wants][mosaic_id', $this->t('Maker wants mosaic ID must be 16 hex characters.'));
     }
-    if (!$this->isPositiveInteger(trim((string) ($maker_wants['amount'] ?? '')))) {
-      $form_state->setErrorByName('maker_wants][amount', $this->t('Maker wants amount must be a positive integer.'));
+
+    if ($this->isMosaicId($maker_pays_mosaic_id)) {
+      try {
+        $divisibility = $this->mosaicDivisibility($network, $maker_pays_mosaic_id);
+        $form_state->set('symbol_atomic_swap_maker_pays_amount_atomic', $this->toAtomicAmount(trim((string) ($maker_pays['amount'] ?? '')), $divisibility));
+      }
+      catch (SymbolEngineException | \RuntimeException | \InvalidArgumentException $exception) {
+        $form_state->setErrorByName('maker_pays][amount', $exception->getMessage());
+      }
+    }
+
+    if ($this->isMosaicId($maker_wants_mosaic_id)) {
+      try {
+        $divisibility = $this->mosaicDivisibility($network, $maker_wants_mosaic_id);
+        $form_state->set('symbol_atomic_swap_maker_wants_amount_atomic', $this->toAtomicAmount(trim((string) ($maker_wants['amount'] ?? '')), $divisibility));
+      }
+      catch (SymbolEngineException | \RuntimeException | \InvalidArgumentException $exception) {
+        $form_state->setErrorByName('maker_wants][amount', $exception->getMessage());
+      }
     }
   }
 
@@ -424,11 +482,11 @@ final class SwapOfferForm extends FormBase {
       'leg1_signer_public_key' => $maker_public_key,
       'leg1_recipient_address' => '',
       'leg1_mosaic_id' => strtoupper(trim((string) $maker_pays['mosaic_id'])),
-      'leg1_amount' => trim((string) $maker_pays['amount']),
+      'leg1_amount' => (string) ($form_state->get('symbol_atomic_swap_maker_pays_amount_atomic') ?: $maker_pays['amount']),
       'leg2_signer_public_key' => '',
       'leg2_recipient_address' => $maker_address,
       'leg2_mosaic_id' => strtoupper(trim((string) $maker_wants['mosaic_id'])),
-      'leg2_amount' => trim((string) $maker_wants['amount']),
+      'leg2_amount' => (string) ($form_state->get('symbol_atomic_swap_maker_wants_amount_atomic') ?: $maker_wants['amount']),
     ];
   }
 
@@ -449,12 +507,45 @@ final class SwapOfferForm extends FormBase {
     return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper(trim($value))) === 1;
   }
 
-  private function isPositiveInteger(string $value): bool {
-    return preg_match('/^[1-9][0-9]*$/', $value) === 1;
-  }
-
   private function resolveMakerPublicKey(string $maker_address, string $network): string {
     return $this->accountPublicKeyResolver->resolve($network, $maker_address);
+  }
+
+  private function mosaicDivisibility(string $network, string $mosaic_id): int {
+    $overrides = \Drupal::state()->get('symbol_atomic_swap.mosaic_metadata_test_overrides', []);
+    $override = $overrides[$network][strtoupper($mosaic_id)] ?? NULL;
+    if (is_array($override) && isset($override['divisibility']) && is_int($override['divisibility'])) {
+      return $override['divisibility'];
+    }
+
+    $metadata = $this->engineClient->mosaicMetadata($network, $mosaic_id);
+    $divisibility = $metadata['divisibility'] ?? NULL;
+    if (!is_int($divisibility) || $divisibility < 0 || $divisibility > 6) {
+      throw new \RuntimeException((string) $this->t('Mosaic divisibility could not be resolved.'));
+    }
+    return $divisibility;
+  }
+
+  private function toAtomicAmount(string $value, int $divisibility): string {
+    $value = trim($value);
+    if (!preg_match('/^(0|[1-9][0-9]*)(?:\\.([0-9]+))?$/', $value, $matches)) {
+      throw new \InvalidArgumentException((string) $this->t('Amount must be a positive decimal number.'));
+    }
+    $whole = $matches[1];
+    $fraction = $matches[2] ?? '';
+    if (strlen($fraction) > $divisibility) {
+      throw new \InvalidArgumentException((string) $this->t('Amount has more decimal places than the mosaic divisibility allows.'));
+    }
+
+    $atomic = ltrim($whole . str_pad($fraction, $divisibility, '0'), '0');
+    if ($atomic === '') {
+      throw new \InvalidArgumentException((string) $this->t('Amount must be greater than zero.'));
+    }
+    if (!preg_match('/^[1-9][0-9]*$/', $atomic)) {
+      throw new \InvalidArgumentException((string) $this->t('Amount must be greater than zero.'));
+    }
+
+    return $atomic;
   }
 
   /**

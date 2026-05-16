@@ -58,6 +58,27 @@ final class SymbolEngineClient {
     return $this->request('GET', '/v1/accounts/' . $network . '/' . strtoupper($address) . '/public-key');
   }
 
+  public function mosaicMetadata(string $network, string $mosaic_id): array {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+    if (!preg_match('/^[0-9A-Fa-f]{16}$/', $mosaic_id)) {
+      throw new \InvalidArgumentException('Invalid mosaic ID.');
+    }
+    return $this->request('GET', '/v1/mosaics/' . $network . '/' . strtoupper($mosaic_id));
+  }
+
+  public function accountMosaicBalance(string $network, string $address, string $mosaic_id): array {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+    $this->assertRawAddress($address, $network);
+    if (!preg_match('/^[0-9A-Fa-f]{16}$/', $mosaic_id)) {
+      throw new \InvalidArgumentException('Invalid mosaic ID.');
+    }
+    return $this->request('GET', '/v1/accounts/' . $network . '/' . strtoupper($address) . '/mosaics/' . strtoupper($mosaic_id));
+  }
+
   public function buildAccountVerification(string $network, string $address, string $signer_public_key, string $challenge): array {
     if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
       throw new \InvalidArgumentException('Network must be mainnet or testnet.');

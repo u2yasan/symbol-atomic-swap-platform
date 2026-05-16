@@ -26,7 +26,7 @@ import {
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
-import { accountPublicKeyParamsSchema, intentParamsSchema, projectionParamsSchema } from '../dto/readModels.js';
+import { accountPublicKeyParamsSchema, intentParamsSchema, mosaicMetadataParamsSchema, projectionParamsSchema } from '../dto/readModels.js';
 import { LARGE_PAYLOAD_BODY_LIMIT_BYTES, SMALL_BODY_LIMIT_BYTES } from './security.js';
 import { intentResponse } from './intentResponse.js';
 
@@ -89,6 +89,56 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
         error: 'account_public_key_not_found',
       });
     }
+
+    return reply.send(lookup);
+  });
+
+  app.get('/v1/mosaics/:network/:mosaicId', async (request, reply) => {
+    const params = mosaicMetadataParamsSchema.parse(request.params);
+    if (params.network !== dependencies.network) {
+      return reply.code(400).send({
+        error: 'network_mismatch',
+      });
+    }
+    if (!dependencies.nodeUrl) {
+      return reply.code(503).send({
+        error: 'symbol_node_unavailable',
+      });
+    }
+
+    const lookup = await new SymbolRestClient(
+      dependencies.nodeUrl,
+      fetch,
+      dependencies.nodeRequestTimeoutMs,
+    ).getMosaicMetadata(params.mosaicId);
+    if (!lookup.found) {
+      return reply.code(404).send({
+        error: 'mosaic_not_found',
+      });
+    }
+
+    return reply.send(lookup);
+  });
+
+  app.get('/v1/accounts/:network/:address/mosaics/:mosaicId', async (request, reply) => {
+    const accountParams = accountPublicKeyParamsSchema.parse(request.params);
+    const mosaicParams = mosaicMetadataParamsSchema.parse(request.params);
+    if (accountParams.network !== dependencies.network || mosaicParams.network !== dependencies.network) {
+      return reply.code(400).send({
+        error: 'network_mismatch',
+      });
+    }
+    if (!dependencies.nodeUrl) {
+      return reply.code(503).send({
+        error: 'symbol_node_unavailable',
+      });
+    }
+
+    const lookup = await new SymbolRestClient(
+      dependencies.nodeUrl,
+      fetch,
+      dependencies.nodeRequestTimeoutMs,
+    ).getAccountMosaicBalance(accountParams.address, mosaicParams.mosaicId);
 
     return reply.send(lookup);
   });

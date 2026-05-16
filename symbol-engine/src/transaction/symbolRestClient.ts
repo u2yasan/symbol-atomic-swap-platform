@@ -28,6 +28,20 @@ export type SymbolAccountPublicKeyLookup = {
   publicKey?: string;
 };
 
+export type SymbolMosaicMetadataLookup = {
+  found: boolean;
+  mosaicId: string;
+  divisibility?: number;
+  aliases: string[];
+};
+
+export type SymbolAccountMosaicBalanceLookup = {
+  found: boolean;
+  address: string;
+  mosaicId: string;
+  amount: string;
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};
 }
@@ -84,6 +98,44 @@ function extractAccountPublicKey(payload: unknown): string | undefined {
   return publicKey;
 }
 
+function extractMosaicDivisibility(payload: unknown): number | undefined {
+  const record = asRecord(payload);
+  const mosaic = asRecord(record.mosaic);
+  const divisibility = mosaic.divisibility;
+  return typeof divisibility === 'number' && Number.isInteger(divisibility) && divisibility >= 0 && divisibility <= 6
+    ? divisibility
+    : undefined;
+}
+
+function extractMosaicAliases(payload: unknown, mosaicId: string): string[] {
+  const record = asRecord(payload);
+  const mosaicNames = Array.isArray(record.mosaicNames) ? record.mosaicNames : [];
+  for (const item of mosaicNames) {
+    const mosaicName = asRecord(item);
+    if (readString(mosaicName.mosaicId)?.toUpperCase() !== mosaicId.toUpperCase()) {
+      continue;
+    }
+    const names = Array.isArray(mosaicName.names) ? mosaicName.names : [];
+    return names.filter((name): name is string => typeof name === 'string' && name.length > 0);
+  }
+  return [];
+}
+
+function extractMosaicBalance(payload: unknown, mosaicId: string): string {
+  const record = asRecord(payload);
+  const account = asRecord(record.account);
+  const mosaics = Array.isArray(account.mosaics) ? account.mosaics : [];
+  for (const item of mosaics) {
+    const mosaic = asRecord(item);
+    if (readString(mosaic.id)?.toUpperCase() !== mosaicId.toUpperCase()) {
+      continue;
+    }
+    const amount = readString(mosaic.amount);
+    return amount && /^[0-9]+$/.test(amount) ? amount : '0';
+  }
+  return '0';
+}
+
 async function readJson(response: Response): Promise<unknown> {
   return response.json().catch(() => null);
 }
@@ -95,12 +147,13 @@ export class SymbolRestClient {
     private readonly requestTimeoutMs = 10000,
   ) {}
 
-  private async request(path: string): Promise<Response> {
+  private async request(path: string, init: RequestInit = {}): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
 
     try {
       return await this.fetcher(new URL(path, this.nodeUrl), {
+        ...init,
         signal: controller.signal,
       });
     } catch (error) {
@@ -210,6 +263,61 @@ export class SymbolRestClient {
       found: Boolean(publicKey),
       address: normalizedAddress,
       ...(publicKey ? { publicKey } : {}),
+    };
+  }
+
+  public async getMosaicMetadata(mosaicId: string): Promise<SymbolMosaicMetadataLookup> {
+    const normalizedMosaicId = mosaicId.toUpperCase();
+    const mosaicResponse = await this.request(`/mosaics/${normalizedMosaicId}`);
+    if (mosaicResponse.status === 404) {
+      return { found: false, mosaicId: normalizedMosaicId, aliases: [] };
+    }
+    if (!mosaicResponse.ok) {
+      throw new Error(`mosaic lookup failed: ${mosaicResponse.status}`);
+    }
+
+    const divisibility = extractMosaicDivisibility(await readJson(mosaicResponse));
+    const aliasesResponse = await this.request('/namespaces/mosaic/names', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ mosaicIds: [normalizedMosaicId] }),
+    });
+    if (!aliasesResponse.ok) {
+      throw new Error(`mosaic alias lookup failed: ${aliasesResponse.status}`);
+    }
+
+    return {
+      found: divisibility !== undefined,
+      mosaicId: normalizedMosaicId,
+      ...(divisibility !== undefined ? { divisibility } : {}),
+      aliases: extractMosaicAliases(await readJson(aliasesResponse), normalizedMosaicId),
+    };
+  }
+
+  public async getAccountMosaicBalance(address: string, mosaicId: string): Promise<SymbolAccountMosaicBalanceLookup> {
+    const normalizedAddress = address.toUpperCase();
+    const normalizedMosaicId = mosaicId.toUpperCase();
+    const response = await this.request(`/accounts/${normalizedAddress}`);
+    if (response.status === 404) {
+      return {
+        found: false,
+        address: normalizedAddress,
+        mosaicId: normalizedMosaicId,
+        amount: '0',
+      };
+    }
+    if (!response.ok) {
+      throw new Error(`account mosaic balance lookup failed: ${response.status}`);
+    }
+
+    const amount = extractMosaicBalance(await readJson(response), normalizedMosaicId);
+    return {
+      found: amount !== '0',
+      address: normalizedAddress,
+      mosaicId: normalizedMosaicId,
+      amount,
     };
   }
 }

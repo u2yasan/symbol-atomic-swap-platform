@@ -26,6 +26,116 @@
     });
   }
 
+  function formatMosaicAmount(amountValue, divisibility) {
+    const raw = String(amountValue || '').replace(/\s+/g, '');
+    const amount = /^[0-9]+$/.test(raw) ? BigInt(raw) : 0n;
+    const scale = 10n ** BigInt(divisibility);
+    const whole = amount / scale;
+    const fraction = String(amount % scale).padStart(divisibility, '0');
+    return divisibility > 0 ? `${whole}.${fraction}` : String(whole);
+  }
+
+  function normalizeHumanAmount(value, divisibility) {
+    const raw = String(value || '').replace(/\s+/g, '');
+    const match = raw.match(/^(0|[1-9][0-9]*)(?:\.([0-9]*))?$/);
+    if (!match) {
+      return raw;
+    }
+    const whole = match[1];
+    const fraction = String(match[2] || '').slice(0, divisibility).padEnd(divisibility, '0');
+    return divisibility > 0 ? `${whole}.${fraction}` : whole;
+  }
+
+  function statusText(result) {
+    const alias = Array.isArray(result.aliases) && result.aliases.length ? result.aliases[0] : 'N/A';
+    const divisibility = Number.isInteger(result.divisibility) ? result.divisibility : null;
+    const balance = result.balance === null || result.balance === undefined || divisibility === null
+      ? 'N/A'
+      : formatMosaicAmount(result.balance, divisibility);
+    return Drupal.t('Alias: @alias. Divisibility: @divisibility. Balance: @balance', {
+      '@alias': alias,
+      '@divisibility': divisibility === null ? 'N/A' : String(divisibility),
+      '@balance': balance,
+    });
+  }
+
+  function bindMosaicMetadata(form, network) {
+    form.querySelectorAll('[data-symbol-mosaic-id]').forEach((mosaicField) => {
+      const container = mosaicField.closest('fieldset') || form;
+      const status = container.querySelector('[data-symbol-mosaic-status]');
+      const amount = container.querySelector('[data-symbol-mosaic-amount]');
+      if (!status) {
+        return;
+      }
+
+      let timer = 0;
+      let lastKey = '';
+      let lastResult = null;
+      const render = () => {
+        if (lastResult) {
+          status.textContent = statusText(lastResult);
+        }
+      };
+      const normalizeAmountField = () => {
+        if (amount && lastResult && Number.isInteger(lastResult.divisibility) && amount.value !== '') {
+          amount.value = normalizeHumanAmount(amount.value, lastResult.divisibility);
+        }
+      };
+      const update = () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(async () => {
+          const mosaicId = normalizeHex(mosaicField.value);
+          status.textContent = '';
+          if (!/^[0-9A-F]{16}$/.test(mosaicId)) {
+            return;
+          }
+
+          const key = `${network.value}:${mosaicId}`;
+          if (key === lastKey && lastResult) {
+            render();
+            return;
+          }
+
+          try {
+            const response = await fetch(Drupal.url(`symbol-atomic-swap/mosaic/${network.value}/${mosaicId}`), {
+              headers: { accept: 'application/json' },
+              credentials: 'same-origin',
+            });
+            if (!response.ok) {
+              lastKey = key;
+              lastResult = {
+                mosaicId,
+                aliases: [],
+                divisibility: null,
+              };
+              render();
+              return;
+            }
+            lastKey = key;
+            lastResult = await response.json();
+            render();
+          }
+          catch (error) {
+            status.textContent = Drupal.t('Mosaic metadata lookup failed.');
+          }
+        }, 150);
+      };
+
+      mosaicField.addEventListener('input', update);
+      mosaicField.addEventListener('change', update);
+      if (amount) {
+        amount.addEventListener('change', normalizeAmountField);
+        amount.addEventListener('blur', normalizeAmountField);
+      }
+      network.addEventListener('change', () => {
+        lastKey = '';
+        lastResult = null;
+        update();
+      });
+      update();
+    });
+  }
+
   Drupal.behaviors.symbolAtomicSwapOfferForm = {
     attach(context) {
       once('symbol-atomic-swap-maker-address', '[data-symbol-maker-address-form]', context).forEach((form) => {
@@ -81,6 +191,7 @@
           update();
         });
         updateDefaultMosaics(form, network.value);
+        bindMosaicMetadata(form, network);
         update();
       });
 

@@ -51,6 +51,16 @@ symbol_atomic_swap.public_key_from_address:
     network: 'mainnet|testnet'
     address: '[NT][A-Z2-7]{38}'
 
+symbol_atomic_swap.mosaic_metadata:
+  path: '/symbol-atomic-swap/mosaic/{network}/{mosaicId}'
+  defaults:
+    _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::mosaicMetadata'
+    _title: 'Symbol mosaic metadata'
+  requirements:
+    _permission: 'view symbol atomic swap offers'
+    network: 'mainnet|testnet'
+    mosaicId: '[0-9A-Fa-f]{16}'
+
 symbol_atomic_swap.account_verification:
   path: '/symbol-atomic-swap/account'
   defaults:

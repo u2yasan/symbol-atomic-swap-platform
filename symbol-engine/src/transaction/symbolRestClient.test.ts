@@ -98,3 +98,57 @@ test('SymbolRestClient treats unannounced account public key as not found', asyn
     address: 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
   });
 });
+
+test('SymbolRestClient resolves mosaic divisibility and aliases', async () => {
+  const requested: string[] = [];
+  const client = new SymbolRestClient('https://node.example.test', async (input, init) => {
+    requested.push(`${init?.method ?? 'GET'} ${String(input)}`);
+    if (String(input).endsWith('/mosaics/72C0212E67A08BCE')) {
+      return jsonResponse({
+        mosaic: {
+          id: '72C0212E67A08BCE',
+          divisibility: 6,
+        },
+      });
+    }
+    return jsonResponse({
+      mosaicNames: [
+        {
+          mosaicId: '72C0212E67A08BCE',
+          names: ['symbol.xym'],
+        },
+      ],
+    });
+  });
+
+  assert.deepEqual(await client.getMosaicMetadata('72c0212e67a08bce'), {
+    found: true,
+    mosaicId: '72C0212E67A08BCE',
+    divisibility: 6,
+    aliases: ['symbol.xym'],
+  });
+  assert.deepEqual(requested, [
+    'GET https://node.example.test/mosaics/72C0212E67A08BCE',
+    'POST https://node.example.test/namespaces/mosaic/names',
+  ]);
+});
+
+test('SymbolRestClient resolves account mosaic balance', async () => {
+  const client = new SymbolRestClient('https://node.example.test', async () => jsonResponse({
+    account: {
+      mosaics: [
+        {
+          id: '72C0212E67A08BCE',
+          amount: '719328436',
+        },
+      ],
+    },
+  }));
+
+  assert.deepEqual(await client.getAccountMosaicBalance('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', '72c0212e67a08bce'), {
+    found: true,
+    address: 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+    mosaicId: '72C0212E67A08BCE',
+    amount: '719328436',
+  });
+});

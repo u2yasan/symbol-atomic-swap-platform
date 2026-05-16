@@ -14,3 +14,8 @@ export const accountPublicKeyParamsSchema = z.object({
   network: z.enum(['mainnet', 'testnet']),
   address: z.string().regex(/^[NT][A-Z2-7]{38}$/),
 });
+
+export const mosaicMetadataParamsSchema = z.object({
+  network: z.enum(['mainnet', 'testnet']),
+  mosaicId: z.string().regex(/^[0-9A-Fa-f]{16}$/),
+});
