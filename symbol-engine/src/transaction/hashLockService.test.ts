@@ -51,7 +51,7 @@ function makeSignedBondedIntent(): { intent: SwapIntentRecord; lockPrivateKey: P
       },
     ],
   });
-  const signedPayload = attachSignature(built.unsignedPayload, initiator.keyPair.privateKey);
+  const signedPayload = attachSignature(built.unsignedPayload, counterparty.keyPair.privateKey);
   const verification = verifySignedPayload({
     payload: signedPayload,
     intentHash: built.intentHash,

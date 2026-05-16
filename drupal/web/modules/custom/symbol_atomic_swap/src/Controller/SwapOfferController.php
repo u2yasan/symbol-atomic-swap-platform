@@ -612,13 +612,9 @@ final class SwapOfferController extends ControllerBase {
    * @param array<string, mixed> $qr_payload
    */
   private function aggregateBondedWorkflow(array $offer, array $qr_payload): array {
-    $required_cosigners = array_values(array_filter(
-      array_map('strval', is_array($qr_payload['requiredCosigners'] ?? NULL) ? $qr_payload['requiredCosigners'] : []),
-      static fn (string $value): bool => $value !== '',
-    ));
-    $aggregate_signer = $required_cosigners[0] ?? (string) $offer['leg1_signer_public_key'];
-    $taker_cosigner = $required_cosigners[1] ?? (string) $offer['leg2_signer_public_key'];
-    $hash_lock_signer = $taker_cosigner;
+    $aggregate_signer = (string) $offer['leg2_signer_public_key'];
+    $maker_cosigner = (string) $offer['leg1_signer_public_key'];
+    $hash_lock_signer = $aggregate_signer;
     $hash_lock = is_array($qr_payload['hashLock'] ?? NULL) ? $qr_payload['hashLock'] : [];
 
     return [
@@ -634,7 +630,7 @@ final class SwapOfferController extends ControllerBase {
       ],
       'roles' => $this->keyValueTable([
         [$this->t('Aggregate signer'), $this->addressValue(strtoupper($aggregate_signer), (string) $offer['network'])],
-        [$this->t('Taker cosigner'), $this->addressValue(strtoupper($taker_cosigner), (string) $offer['network'])],
+        [$this->t('Maker cosigner'), $this->addressValue(strtoupper($maker_cosigner), (string) $offer['network'])],
         [$this->t('Hash lock signer'), $this->addressValue(strtoupper($hash_lock_signer), (string) $offer['network'])],
         [$this->t('Hash lock mosaic'), $this->hashValue(strtoupper((string) ($hash_lock['mosaicId'] ?? '')))],
         [$this->t('Hash lock amount'), (string) ($hash_lock['amount'] ?? '')],
@@ -646,13 +642,12 @@ final class SwapOfferController extends ControllerBase {
         '#list_type' => 'ol',
         '#items' => [
           $this->t('Taker initiates this aggregate bonded transaction from the accept page and pays the 10 XYM hash lock.'),
-          $this->t('Taker shares the QR URL, QR scan text, or unsigned payload with the aggregate signer.'),
-          $this->t('Aggregate signer root-signs the unsigned aggregate bonded payload. It must not be announced as aggregate complete.'),
+          $this->t('Taker root-signs the unsigned aggregate bonded payload. It must not be announced as aggregate complete.'),
           $this->t('Submit the root-signed aggregate payload or aggregate signer JSON in Drupal so Symbol Engine records the bonded transaction hash.'),
           $this->t('Taker builds the hash lock with Symbol Engine POST /v1/hash-lock/build using intentHash, the taker signerPublicKey, and deadlineHours, then signs that hash lock transaction.'),
           $this->t('Announce the signed hash lock with POST /v1/hash-lock/announce and wait until the node accepts it.'),
           $this->t('Announce the signed aggregate bonded transaction as partial with POST /v1/transactions/announce-partial using this intent hash.'),
-          $this->t('Taker cosigns the partial aggregate, then announces or submits that cosignature. After confirmation/finalization, sync the projection.'),
+          $this->t('Maker cosigns the partial aggregate, then announces or submits that cosignature. After confirmation/finalization, sync the projection.'),
         ],
       ],
       'api_payloads' => [

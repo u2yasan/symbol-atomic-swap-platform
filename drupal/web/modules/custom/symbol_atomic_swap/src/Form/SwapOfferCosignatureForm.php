@@ -48,6 +48,7 @@ final class SwapOfferCosignatureForm extends FormBase {
     }
     $this->offer = $offer;
     $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
+    $expected_cosigner = $this->expectedCosignerPublicKey($offer);
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -61,7 +62,7 @@ final class SwapOfferCosignatureForm extends FormBase {
     $form['expected_signer'] = [
       '#type' => 'item',
       '#title' => $this->t('Expected cosigner public key'),
-      '#markup' => (string) $offer['leg2_signer_public_key'],
+      '#markup' => $expected_cosigner,
     ];
     $form['payload'] = [
       '#type' => 'textarea',
@@ -117,9 +118,10 @@ final class SwapOfferCosignatureForm extends FormBase {
         return;
       }
       $signer_public_key = strtoupper((string) $normalized['signerPublicKey']);
-      if ($signer_public_key === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
-        $form_state->setErrorByName('payload', $this->t('This JSON is signed by the aggregate signer. Submit cosignature JSON requires the non-root signer public key @key.', [
-          '@key' => strtoupper((string) $this->offer['leg2_signer_public_key']),
+      $expected_signer_public_key = $this->expectedCosignerPublicKey($this->offer);
+      if ($signer_public_key !== $expected_signer_public_key) {
+        $form_state->setErrorByName('payload', $this->t('Submit cosignature JSON requires the non-root signer public key @key.', [
+          '@key' => $expected_signer_public_key,
         ]));
         return;
       }
@@ -194,6 +196,15 @@ final class SwapOfferCosignatureForm extends FormBase {
       return 'verification_failed';
     }
     return $reason;
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function expectedCosignerPublicKey(array $offer): string {
+    return strtoupper((string) ($this->offers->canSubmitBondedCosignature($offer)
+      ? ($offer['leg1_signer_public_key'] ?? '')
+      : ($offer['leg2_signer_public_key'] ?? '')));
   }
 
   /**

@@ -50,11 +50,12 @@ final class SwapOfferSssCosignForm extends FormBase {
     $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
     $payload_for_sss = $this->normalizeHex((string) ($is_bonded_cosignature ? ($offer['root_signed_payload'] ?? '') : ($offer['unsigned_payload'] ?? '')));
     $parent_hash = (string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?: ''));
+    $expected_cosigner = $this->expectedCosignerPublicKey($offer);
 
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $payload_for_sss;
-    $form['#attributes']['data-symbol-sss-required-signer'] = (string) $offer['leg2_signer_public_key'];
+    $form['#attributes']['data-symbol-sss-required-signer'] = $expected_cosigner;
     if ($is_bonded_cosignature) {
       $form['#attributes']['data-symbol-sss-cosign-auto-submit'] = '1';
     }
@@ -71,8 +72,10 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['expected_signer'] = [
       '#type' => 'item',
       '#title' => $this->t('Expected cosigner public key'),
-      '#markup' => (string) $offer['leg2_signer_public_key'],
-      '#description' => $this->t('SSS must be set to this taker account before cosigning. The maker account must use Sign with SSS instead.'),
+      '#markup' => $expected_cosigner,
+      '#description' => $is_bonded_cosignature
+        ? $this->t('SSS must be set to the maker account that has not signed the partial aggregate yet.')
+        : $this->t('SSS must be set to this taker account before cosigning. The maker account must use Sign with SSS instead.'),
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
@@ -188,9 +191,11 @@ final class SwapOfferSssCosignForm extends FormBase {
         $form_state->setErrorByName('payload', $this->t('Cosignature JSON must include parentHash, signerPublicKey, and signature.'));
         return;
       }
-      if (strtoupper((string) $normalized['signerPublicKey']) === strtoupper((string) $offer['leg1_signer_public_key'])) {
+      $signer_public_key = strtoupper((string) $normalized['signerPublicKey']);
+      $expected_signer_public_key = $this->expectedCosignerPublicKey($offer);
+      if ($signer_public_key !== $expected_signer_public_key) {
         $form_state->setErrorByName('payload', $this->t('SSS cosignature must be created by the non-root signer public key @key.', [
-          '@key' => strtoupper((string) $offer['leg2_signer_public_key']),
+          '@key' => $expected_signer_public_key,
         ]));
         return;
       }
@@ -261,6 +266,15 @@ final class SwapOfferSssCosignForm extends FormBase {
 
   private function normalizeHex(string $value): string {
     return strtoupper(preg_replace('/\s+/', '', $value) ?? '');
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function expectedCosignerPublicKey(array $offer): string {
+    return strtoupper((string) ($this->offers->canSubmitBondedCosignature($offer)
+      ? ($offer['leg1_signer_public_key'] ?? '')
+      : ($offer['leg2_signer_public_key'] ?? '')));
   }
 
   /**

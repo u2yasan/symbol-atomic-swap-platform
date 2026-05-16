@@ -203,9 +203,9 @@ test('verifyRootSignedPayload accepts aggregate signer payload before cosignatur
   assert.match(result.transactionHash ?? '', /^[0-9A-F]{64}$/);
 });
 
-test('verifySignedPayload accepts initiator-signed aggregate bonded payload', () => {
-  const { intent, initiatorPrivateKey } = makeBondedIntent();
-  const payload = signPayload(intent.unsignedPayload, initiatorPrivateKey);
+test('verifySignedPayload accepts taker-signed aggregate bonded payload', () => {
+  const { intent, counterpartyPrivateKey } = makeBondedIntent();
+  const payload = signPayload(intent.unsignedPayload, counterpartyPrivateKey);
   const result = verifySignedPayload({
     payload,
     intentHash: intent.intentHash,
@@ -217,12 +217,12 @@ test('verifySignedPayload accepts initiator-signed aggregate bonded payload', ()
 });
 
 test('verifyRootSignedPayload accepts non-first aggregate bonded cosigner as root signer', () => {
-  const { intent, initiatorPrivateKey } = makeBondedIntent();
+  const { intent, counterpartyPrivateKey } = makeBondedIntent();
   intent.requiredCosigners = [
     intent.requiredCosigners[1]!,
     intent.requiredCosigners[0]!,
   ];
-  const payload = signPayload(intent.unsignedPayload, initiatorPrivateKey);
+  const payload = signPayload(intent.unsignedPayload, counterpartyPrivateKey);
   const result = verifyRootSignedPayload({
     payload,
     intentHash: intent.intentHash,

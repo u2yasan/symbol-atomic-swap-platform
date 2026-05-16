@@ -36,8 +36,8 @@ test('buildAggregateBonded returns unsigned payload, QR JSON, and hash lock requ
   assert.equal(result.qrPayload.unsignedPayload, result.unsignedPayload);
   assert.deepEqual(result.qrPayload.hashLock, validRequest.hashLock);
   assert.deepEqual(result.requiredCosigners, [
-    validRequest.legs[0]!.signerPublicKey,
     validRequest.legs[1]!.signerPublicKey,
+    validRequest.legs[0]!.signerPublicKey,
   ]);
   assert.doesNotMatch(JSON.stringify(result), /privateKey|mnemonic|password/i);
 });

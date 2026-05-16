@@ -496,6 +496,14 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Root signed aggregate bonded payload sent to SSS');
     $assert_session->buttonExists('Cosign and announce partial with SSS');
+    $this->submitForm([
+      'payload' => json_encode([
+        'parentHash' => str_repeat('D', 64),
+        'signerPublicKey' => str_repeat('B', 64),
+        'signature' => str_repeat('E', 128),
+      ], JSON_THROW_ON_ERROR),
+    ], 'Announce aggregate bonded cosignature');
+    $assert_session->pageTextContains('SSS cosignature must be created by the non-root signer public key');
   }
 
   /**

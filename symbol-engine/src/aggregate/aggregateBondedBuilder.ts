@@ -28,7 +28,12 @@ function toMosaicId(value: string): bigint {
 
 export function normalizeAggregateBondedIntent(input: unknown): NormalizedBondedSwapIntent {
   const request = aggregateBondedBuildRequestSchema.parse(input);
-  const requiredCosigners = [...new Set(request.legs.map((leg) => leg.signerPublicKey.toUpperCase()))];
+  const legSigners = request.legs.map((leg) => leg.signerPublicKey.toUpperCase());
+  const aggregateSigner = legSigners[1] ?? legSigners[0];
+  const requiredCosigners = [
+    aggregateSigner,
+    ...legSigners.filter((signer) => signer !== aggregateSigner),
+  ];
 
   return {
     ...request,

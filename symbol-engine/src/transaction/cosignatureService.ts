@@ -1,10 +1,11 @@
-import { Hash256, PublicKey, Signature } from 'symbol-sdk';
-import { Verifier } from 'symbol-sdk/symbol';
+import { Hash256, PublicKey, Signature, utils } from 'symbol-sdk';
+import { SymbolTransactionFactory, Verifier } from 'symbol-sdk/symbol';
 import { z } from 'zod';
 import { dispatchBlockchainEvent } from '../listener/eventDispatcher.js';
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
+import type { SwapIntentRecord } from '../repository/types.js';
 import { InvalidAnnouncementError } from './announceService.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
@@ -25,6 +26,18 @@ export type CosignatureAnnouncementResult = {
   signerPublicKey: string;
   nodeResponse: PublicSymbolNodeResponse;
 };
+
+function aggregateSignerPublicKey(intent: SwapIntentRecord): string {
+  if (intent.signedPayload) {
+    try {
+      const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(intent.signedPayload));
+      return transaction.signerPublicKey.toString().toUpperCase();
+    } catch {
+      return intent.requiredCosigners[0]?.toUpperCase() ?? '';
+    }
+  }
+  return intent?.requiredCosigners[0]?.toUpperCase() ?? '';
+}
 
 export async function announceAggregateBondedCosignature(
   input: unknown,
@@ -58,8 +71,12 @@ export async function announceAggregateBondedCosignature(
     throw new InvalidAnnouncementError('cosignature parent hash mismatch');
   }
 
-  const aggregateSigner = intent.requiredCosigners[0]?.toUpperCase();
-  const expectedCosigners = new Set(intent.requiredCosigners.slice(1).map((cosigner) => cosigner.toUpperCase()));
+  const aggregateSigner = aggregateSignerPublicKey(intent);
+  const expectedCosigners = new Set(
+    intent.requiredCosigners
+      .map((cosigner) => cosigner.toUpperCase())
+      .filter((cosigner) => cosigner !== aggregateSigner),
+  );
   if (!expectedCosigners.has(signerPublicKey)) {
     const reason = signerPublicKey === aggregateSigner
       ? 'aggregate signer already signed the bonded transaction'

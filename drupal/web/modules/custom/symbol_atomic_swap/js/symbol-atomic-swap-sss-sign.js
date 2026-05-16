@@ -183,6 +183,10 @@
               setStatus(container, Drupal.t('SSS did not return enough cosignature data. Fill parent hash and signer public key manually, then verify.'), true);
               return;
             }
+            if (requiredSigner && signerPublicKey !== requiredSigner) {
+              setStatus(container, Drupal.t('SSS returned a cosignature from a different account. Switch SSS to the expected cosigner account and sign again.'), true);
+              return;
+            }
             payloadField.value = JSON.stringify({
               parentHash,
               signerPublicKey,
