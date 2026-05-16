@@ -285,6 +285,10 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
       : '';
     const intent = intentHash ? await dependencies.repositories.swapIntents.findByIntentHash(intentHash) : null;
     const result = verifyRootSignedPayload(request.body, intent);
+    if (result.accepted && intent?.aggregateType === 'aggregate_bonded' && result.transactionHash) {
+      const payload = (request.body as { payload: string }).payload;
+      await dependencies.repositories.swapIntents.markSigned(intent.intentHash, payload.toUpperCase(), result.transactionHash);
+    }
     return reply.code(result.accepted ? 200 : 400).send(result);
   });
 

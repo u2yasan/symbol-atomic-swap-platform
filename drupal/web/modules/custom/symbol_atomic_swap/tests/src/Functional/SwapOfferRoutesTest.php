@@ -463,6 +463,23 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate bonded is initiated by the taker.');
     $assert_session->pageTextContains(str_repeat('B', 64));
+
+    $repository->update($id, [
+      'state' => 'root_signed',
+      'root_signed_payload' => 'ABCD',
+      'root_transaction_hash' => str_repeat('D', 64),
+    ]);
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Sign hash lock and announce partial');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Sign hash lock and announce partial');
+    $this->drupalLogin($admin);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/bonded-partial-announce');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Sign and announce the taker-funded hash lock');
+    $assert_session->pageTextContains('Hash lock signer public key');
   }
 
   /**
@@ -747,6 +764,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $assert_session->statusCodeEquals(200);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/bonded-partial-announce');
     $assert_session->statusCodeEquals(200);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/announce');
     $assert_session->statusCodeEquals(403);

@@ -369,6 +369,14 @@ final class SwapOfferController extends ControllerBase {
           && $this->offers->canAnnounce($offer),
         '#attributes' => ['class' => ['button']],
       ],
+      'bonded_partial_announce' => [
+        '#type' => 'link',
+        '#title' => $this->t('Sign hash lock and announce partial'),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_bonded_partial_announce', ['offerId' => $offer['id']]),
+        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
+          && $this->canRunBondedPartialAnnouncement($offer, $qr_payload),
+        '#attributes' => ['class' => ['button', 'button--primary']],
+      ],
       'sync_projection' => [
         '#type' => 'link',
         '#title' => $this->t('Sync projection'),
@@ -590,6 +598,19 @@ final class SwapOfferController extends ControllerBase {
    * @param array<string, mixed> $offer
    * @param array<string, mixed> $qr_payload
    */
+  private function canRunBondedPartialAnnouncement(array $offer, array $qr_payload): bool {
+    return $this->isAggregateBondedPayload($qr_payload)
+      && in_array((string) ($offer['state'] ?? ''), ['root_signed', 'signed'], TRUE)
+      && !empty($offer['intent_hash'])
+      && !empty($offer['root_signed_payload'])
+      && !empty($offer['root_transaction_hash'])
+      && !empty($offer['leg2_signer_public_key']);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   * @param array<string, mixed> $qr_payload
+   */
   private function aggregateBondedWorkflow(array $offer, array $qr_payload): array {
     $required_cosigners = array_values(array_filter(
       array_map('strval', is_array($qr_payload['requiredCosigners'] ?? NULL) ? $qr_payload['requiredCosigners'] : []),
@@ -760,6 +781,9 @@ final class SwapOfferController extends ControllerBase {
       }
       if (!$is_aggregate_bonded && $this->offers->canAnnounce($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Announce transaction'), Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]))->toString();
+      }
+      if ($this->canRunBondedPartialAnnouncement($offer, $this->decodedQrPayload($offer))) {
+        $operations[] = Link::fromTextAndUrl($this->t('Sign hash lock and announce partial'), Url::fromRoute('symbol_atomic_swap.offer_bonded_partial_announce', ['offerId' => $offer['id']]))->toString();
       }
       if ($this->offers->canSyncProjection($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Sync projection'), Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]))->toString();

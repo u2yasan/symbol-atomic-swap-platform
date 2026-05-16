@@ -257,6 +257,26 @@ final class SwapOfferRepository {
     ]);
   }
 
+  public function markPartialAnnounced(int $id, string $transaction_hash): void {
+    $offer = $this->find($id);
+    if (!$offer) {
+      throw new \InvalidArgumentException('Swap offer not found.');
+    }
+    if (empty($offer['intent_hash']) || !$this->isHash((string) $offer['intent_hash'])) {
+      throw new \InvalidArgumentException('Only offers with an intent hash can be marked partial announced.');
+    }
+    if (!$this->isHash($transaction_hash)) {
+      throw new \InvalidArgumentException('Transaction hash must be 64 hex characters.');
+    }
+
+    $this->update($id, [
+      'state' => 'partial_announced',
+      'projection_state' => 'partial_announced',
+      'transaction_hash' => strtoupper($transaction_hash),
+      'changed' => \Drupal::time()->getRequestTime(),
+    ]);
+  }
+
   public function markExpired(int $id, int $expired_at): bool {
     $offer = $this->find($id);
     if (!$offer) {

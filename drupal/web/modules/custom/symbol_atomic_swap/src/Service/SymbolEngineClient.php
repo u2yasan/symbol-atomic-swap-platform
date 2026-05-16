@@ -197,6 +197,37 @@ final class SymbolEngineClient {
     ]);
   }
 
+  public function buildHashLock(string $intent_hash, string $signer_public_key, int $deadline_hours): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    $this->assertPublicKey($signer_public_key);
+    if ($deadline_hours < 1 || $deadline_hours > 48) {
+      throw new \InvalidArgumentException('Hash lock deadline hours must be between 1 and 48.');
+    }
+    return $this->request('POST', '/v1/hash-lock/build', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+      'signerPublicKey' => strtoupper($signer_public_key),
+      'deadlineHours' => $deadline_hours,
+    ]);
+  }
+
+  public function announceHashLock(string $intent_hash, string $payload): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    if (!preg_match('/^[0-9A-Fa-f]+$/', $payload) || strlen($payload) % 2 !== 0) {
+      throw new \InvalidArgumentException('Invalid signed hash lock payload.');
+    }
+    return $this->request('POST', '/v1/hash-lock/announce', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+      'payload' => strtoupper($payload),
+    ]);
+  }
+
+  public function announcePartial(string $intent_hash): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    return $this->request('POST', '/v1/transactions/announce-partial', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+    ]);
+  }
+
   private function baseUrl(): string {
     $base_url = getenv('SYMBOL_ENGINE_BASE_URL') ?: (string) ($this->configFactory->get('symbol_atomic_swap.settings')->get('engine_base_url') ?: 'http://symbol-engine:3000');
     return rtrim($base_url, '/');

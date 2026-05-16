@@ -150,6 +150,15 @@ symbol_atomic_swap.offer_announce:
     _symbol_atomic_swap_offer_access: 'operate'
     offerId: '\d+'
 
+symbol_atomic_swap.offer_bonded_partial_announce:
+  path: '/symbol-atomic-swap/offers/{offerId}/bonded-partial-announce'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferBondedPartialAnnounceForm'
+    _title: 'Announce Aggregate Bonded Partial'
+  requirements:
+    _symbol_atomic_swap_offer_access: 'sign'
+    offerId: '\d+'
+
 symbol_atomic_swap.offer_sync_projection:
   path: '/symbol-atomic-swap/offers/{offerId}/sync-projection'
   defaults:
