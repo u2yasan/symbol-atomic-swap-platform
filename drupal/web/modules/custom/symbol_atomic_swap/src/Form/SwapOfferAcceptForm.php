@@ -135,37 +135,23 @@ final class SwapOfferAcceptForm extends FormBase {
         ],
       ],
     ];
+    $hash_lock = $this->defaultHashLock((string) $offer['network']);
     $form['transaction']['hash_lock']['mosaic_id'] = [
-      '#type' => 'textfield',
+      '#type' => 'item',
       '#title' => $this->t('Hash lock mosaic ID'),
-      '#default_value' => $this->networkCurrencyMosaicId((string) $offer['network']),
-      '#maxlength' => 16,
-      '#size' => 20,
-      '#description' => $this->t('Use the network currency mosaic for the hash lock.'),
-      '#attributes' => [
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-      ],
+      '#markup' => $hash_lock['mosaicId'],
+      '#description' => $this->t('Fixed to the network currency mosaic.'),
     ];
     $form['transaction']['hash_lock']['amount'] = [
-      '#type' => 'textfield',
+      '#type' => 'item',
       '#title' => $this->t('Hash lock amount'),
-      '#default_value' => '10000000',
-      '#maxlength' => 32,
-      '#size' => 20,
-      '#description' => $this->t('Atomic amount. Default is 10 XYM for networks with 6 divisibility.'),
-      '#attributes' => [
-        'autocomplete' => 'off',
-        'inputmode' => 'numeric',
-      ],
+      '#markup' => $hash_lock['amount'],
+      '#description' => $this->t('Fixed atomic amount. This is 10 XYM for networks with 6 divisibility.'),
     ];
     $form['transaction']['hash_lock']['duration'] = [
-      '#type' => 'number',
+      '#type' => 'item',
       '#title' => $this->t('Hash lock duration blocks'),
-      '#default_value' => self::HASH_LOCK_MAX_DURATION_BLOCKS,
-      '#min' => 1,
-      '#max' => self::HASH_LOCK_MAX_DURATION_BLOCKS,
-      '#step' => 1,
+      '#markup' => (string) $hash_lock['duration'],
       '#description' => $this->t('Maximum 5760 blocks, approximately 48 hours on Symbol.'),
     ];
     $form['actions'] = ['#type' => 'actions'];
@@ -205,23 +191,6 @@ final class SwapOfferAcceptForm extends FormBase {
       $form_state->setErrorByName('transaction][deadline_hours', $this->t('Transaction deadline hours must be between 1 and @max for the selected aggregate transaction type.', [
         '@max' => (string) $max_deadline_hours,
       ]));
-    }
-
-    if ($aggregate_type === self::AGGREGATE_BONDED) {
-      $hash_lock = (array) ($transaction['hash_lock'] ?? []);
-      $mosaic_id = strtoupper(trim((string) ($hash_lock['mosaic_id'] ?? '')));
-      $amount = trim((string) ($hash_lock['amount'] ?? ''));
-      $duration = (int) ($hash_lock['duration'] ?? 0);
-
-      if (preg_match('/^[0-9A-F]{16}$/', $mosaic_id) !== 1) {
-        $form_state->setErrorByName('transaction][hash_lock][mosaic_id', $this->t('Hash lock mosaic ID must be 16 hexadecimal characters.'));
-      }
-      if (preg_match('/^[1-9][0-9]*$/', $amount) !== 1) {
-        $form_state->setErrorByName('transaction][hash_lock][amount', $this->t('Hash lock amount must be a positive atomic integer.'));
-      }
-      if ($duration < 1 || $duration > self::HASH_LOCK_MAX_DURATION_BLOCKS) {
-        $form_state->setErrorByName('transaction][hash_lock][duration', $this->t('Hash lock duration must be between 1 and 5760 blocks.'));
-      }
     }
 
     if (!$verified_symbol_account) {
@@ -272,12 +241,7 @@ final class SwapOfferAcceptForm extends FormBase {
       $aggregate_type = (string) $form_state->getValue(['transaction', 'aggregate_type']);
       $payload = $this->offers->toEngineBuildPayload($accepted);
       if ($aggregate_type === self::AGGREGATE_BONDED) {
-        $hash_lock = (array) $form_state->getValue(['transaction', 'hash_lock']);
-        $payload['hashLock'] = [
-          'mosaicId' => strtoupper(trim((string) ($hash_lock['mosaic_id'] ?? ''))),
-          'amount' => trim((string) ($hash_lock['amount'] ?? '')),
-          'duration' => (int) ($hash_lock['duration'] ?? 0),
-        ];
+        $payload['hashLock'] = $this->defaultHashLock((string) $accepted['network']);
         $engine_result = $this->engineClient->buildAggregateBonded($payload);
       }
       else {
@@ -317,6 +281,17 @@ final class SwapOfferAcceptForm extends FormBase {
       'testnet' => '72C0212E67A08BCE',
       default => '',
     };
+  }
+
+  /**
+   * @return array{mosaicId: string, amount: string, duration: int}
+   */
+  private function defaultHashLock(string $network): array {
+    return [
+      'mosaicId' => $this->networkCurrencyMosaicId($network),
+      'amount' => '10000000',
+      'duration' => self::HASH_LOCK_MAX_DURATION_BLOCKS,
+    ];
   }
 
   /**

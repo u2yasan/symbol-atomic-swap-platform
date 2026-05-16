@@ -224,18 +224,21 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate transaction type');
     $assert_session->fieldExists('transaction[aggregate_type]');
-    $assert_session->fieldExists('Hash lock mosaic ID');
-    $assert_session->fieldExists('Hash lock amount');
-    $assert_session->fieldExists('Hash lock duration blocks');
+    $assert_session->fieldNotExists('Hash lock mosaic ID');
+    $assert_session->fieldNotExists('Hash lock amount');
+    $assert_session->fieldNotExists('Hash lock duration blocks');
+    $assert_session->pageTextContains('Hash lock mosaic ID');
+    $assert_session->pageTextContains('72C0212E67A08BCE');
+    $assert_session->pageTextContains('Hash lock amount');
+    $assert_session->pageTextContains('10000000');
+    $assert_session->pageTextContains('Hash lock duration blocks');
+    $assert_session->pageTextContains('5760');
     $assert_session->pageTextContains('Aggregate bonded allows 1 to 48 hours.');
     $assert_session->pageTextContains('Maximum 5760 blocks, approximately 48 hours on Symbol.');
 
     $this->submitForm([
       'transaction[aggregate_type]' => 'aggregate_bonded',
       'transaction[deadline_hours]' => '48',
-      'transaction[hash_lock][mosaic_id]' => '72C0212E67A08BCE',
-      'transaction[hash_lock][amount]' => '10000000',
-      'transaction[hash_lock][duration]' => '5760',
     ], 'Accept and build QR');
 
     $offer = $repository->find($id);
