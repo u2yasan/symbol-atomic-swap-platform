@@ -165,6 +165,20 @@ final class SymbolEngineClient {
   }
 
   /**
+   * @param array<string, mixed> $cosignature
+   */
+  public function announceCosignature(string $intent_hash, array $cosignature): array {
+    $this->assertHash($intent_hash, 'intent hash');
+    return $this->request('POST', '/v1/transactions/cosignature', TRUE, [
+      'intentHash' => strtoupper($intent_hash),
+      'parentHash' => strtoupper((string) ($cosignature['parentHash'] ?? '')),
+      'signerPublicKey' => strtoupper((string) ($cosignature['signerPublicKey'] ?? '')),
+      'signature' => strtoupper((string) ($cosignature['signature'] ?? '')),
+      'version' => $cosignature['version'] ?? NULL,
+    ]);
+  }
+
+  /**
    * @param array<int, array<string, string>> $cosignatures
    */
   public function assembleCompletePayload(string $intent_hash, string $root_signed_payload, array $cosignatures): array {
@@ -200,8 +214,8 @@ final class SymbolEngineClient {
   public function buildHashLock(string $intent_hash, string $signer_public_key, int $deadline_hours): array {
     $this->assertHash($intent_hash, 'intent hash');
     $this->assertPublicKey($signer_public_key);
-    if ($deadline_hours < 1 || $deadline_hours > 48) {
-      throw new \InvalidArgumentException('Hash lock deadline hours must be between 1 and 48.');
+    if ($deadline_hours < 1 || $deadline_hours > 6) {
+      throw new \InvalidArgumentException('Hash lock transaction deadline hours must be between 1 and 6.');
     }
     return $this->request('POST', '/v1/hash-lock/build', TRUE, [
       'intentHash' => strtoupper($intent_hash),
@@ -210,7 +224,7 @@ final class SymbolEngineClient {
     ]);
   }
 
-  public function announceHashLock(string $intent_hash, string $payload): array {
+  public function announceHashLock(string $intent_hash, string $payload, bool $wait_for_confirmation = FALSE): array {
     $this->assertHash($intent_hash, 'intent hash');
     if (!preg_match('/^[0-9A-Fa-f]+$/', $payload) || strlen($payload) % 2 !== 0) {
       throw new \InvalidArgumentException('Invalid signed hash lock payload.');
@@ -218,7 +232,10 @@ final class SymbolEngineClient {
     return $this->request('POST', '/v1/hash-lock/announce', TRUE, [
       'intentHash' => strtoupper($intent_hash),
       'payload' => strtoupper($payload),
-    ]);
+      'waitForConfirmation' => $wait_for_confirmation,
+      'confirmationTimeoutMs' => 300000,
+      'confirmationPollIntervalMs' => 5000,
+    ], $wait_for_confirmation ? 330.0 : NULL);
   }
 
   public function announcePartial(string $intent_hash): array {
@@ -307,9 +324,9 @@ final class SymbolEngineClient {
     }
   }
 
-  private function request(string $method, string $path, bool $authenticated = TRUE, ?array $json = NULL): array {
+  private function request(string $method, string $path, bool $authenticated = TRUE, ?array $json = NULL, ?float $timeout = NULL): array {
     $options = [
-      'timeout' => $this->timeout(),
+      'timeout' => $timeout ?? $this->timeout(),
       'headers' => $authenticated ? $this->authHeaders() : [],
     ];
 

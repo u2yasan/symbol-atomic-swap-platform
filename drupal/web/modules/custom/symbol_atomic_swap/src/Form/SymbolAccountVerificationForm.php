@@ -285,6 +285,10 @@ final class SymbolAccountVerificationForm extends FormBase {
       $form_state->setErrorByName('address', $this->t('Symbol address must be a valid raw address for the selected network.'));
       return;
     }
+    if ($this->verifiedAddressBelongsToAnotherUser($network, $address)) {
+      $form_state->setErrorByName('address', $this->t('This Symbol address is already registered by another user.'));
+      return;
+    }
 
     try {
       $form_state->set('symbol_public_key', $this->publicKeyResolverService()->resolve($network, $address));
@@ -364,6 +368,10 @@ final class SymbolAccountVerificationForm extends FormBase {
       $form_state->setErrorByName('signed_payload', $this->t('Verification challenge expired. Generate a new payload.'));
       return;
     }
+    if ($this->verifiedAddressBelongsToAnotherUser((string) $challenge['network'], (string) $challenge['address'])) {
+      $form_state->setErrorByName('signed_payload', $this->t('This Symbol address is already registered by another user.'));
+      return;
+    }
     $payload = $this->signedPayloadValue($form_state);
     if (!preg_match('/^[0-9A-F]+$/', $payload) || strlen($payload) % 2 !== 0) {
       $form_state->setErrorByName('signed_payload', $this->t('Signed payload must be even-length hex.'));
@@ -395,6 +403,10 @@ final class SymbolAccountVerificationForm extends FormBase {
       $this->messenger()->addError($this->t('Verification failed: @message', ['@message' => (string) ($result['reason'] ?? 'rejected')]));
       return;
     }
+    if ($this->verifiedAddressBelongsToAnotherUser((string) $challenge['network'], (string) $challenge['address'])) {
+      $this->messenger()->addError($this->t('This Symbol address is already registered by another user.'));
+      return;
+    }
 
     $this->saveUserFields([
       'field_symbol_network' => (string) $challenge['network'],
@@ -418,6 +430,10 @@ final class SymbolAccountVerificationForm extends FormBase {
     }
     if ((int) $challenge['expires'] < \Drupal::time()->getRequestTime()) {
       $form_state->setErrorByName('transaction_hash', $this->t('Verification challenge expired. Generate a new payload.'));
+      return;
+    }
+    if ($this->verifiedAddressBelongsToAnotherUser((string) $challenge['network'], (string) $challenge['address'])) {
+      $form_state->setErrorByName('transaction_hash', $this->t('This Symbol address is already registered by another user.'));
       return;
     }
     if ($this->onChainRecipient((string) $challenge['network']) === '') {
@@ -458,6 +474,10 @@ final class SymbolAccountVerificationForm extends FormBase {
       $this->messenger()->addError($this->t('On-chain verification failed: @message', ['@message' => (string) ($result['reason'] ?? 'rejected')]));
       return;
     }
+    if ($this->verifiedAddressBelongsToAnotherUser($network, (string) $challenge['address'])) {
+      $this->messenger()->addError($this->t('This Symbol address is already registered by another user.'));
+      return;
+    }
 
     $this->saveUserFields([
       'field_symbol_network' => $network,
@@ -495,6 +515,25 @@ final class SymbolAccountVerificationForm extends FormBase {
       $transaction_hash = $form_state->getValue(['challenge', 'onchain', 'transaction_hash']);
     }
     return strtoupper(preg_replace('/\s+/', '', (string) $transaction_hash));
+  }
+
+  private function verifiedAddressBelongsToAnotherUser(string $network, string $address): bool {
+    $network = strtolower(trim($network));
+    $address = strtoupper(trim($address));
+    if ($network === '' || $address === '') {
+      return FALSE;
+    }
+
+    $matches = $this->entityTypeManagerService()->getStorage('user')->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('uid', (int) $this->currentUserService()->id(), '<>')
+      ->condition('field_symbol_network', $network)
+      ->condition('field_symbol_address', $address)
+      ->condition('field_symbol_address_verified', TRUE)
+      ->range(0, 1)
+      ->execute();
+
+    return $matches !== [];
   }
 
   private function plainValue(string $value): string {

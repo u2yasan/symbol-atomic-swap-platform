@@ -41,7 +41,7 @@
 
   Drupal.behaviors.symbolAtomicSwapSssSign = {
     attach(context) {
-      once('symbol-atomic-swap-bonded-partial', '[data-symbol-bonded-partial-announce]', context).forEach((button) => {
+      once('symbol-atomic-swap-bonded-hash-lock', '[data-symbol-bonded-hash-lock-announce="1"]', context).forEach((button) => {
         button.addEventListener('click', async (event) => {
           event.preventDefault();
           const container = button.closest('[data-symbol-sss-container]');
@@ -50,9 +50,10 @@
           }
 
           const payloadField = container.querySelector('[data-symbol-hash-lock-signed-payload]');
+          const submitTrigger = container.querySelector('[data-symbol-bonded-submit-trigger]');
           const unsignedPayload = normalizeHex(container.getAttribute('data-symbol-hash-lock-unsigned-payload'));
           const requiredSigner = normalizeHex(container.getAttribute('data-symbol-sss-required-signer'));
-          if (!payloadField || !unsignedPayload) {
+          if (!payloadField || !submitTrigger || !unsignedPayload) {
             setStatus(container, Drupal.t('Unsigned hash lock payload is not available.'), true);
             return;
           }
@@ -78,7 +79,13 @@
               return;
             }
             payloadField.value = signedPayload;
-            payloadField.form.submit();
+            setStatus(container, Drupal.t('Hash lock signed. Waiting for hash lock confirmation before partial announcement.'), false);
+            if (typeof payloadField.form.requestSubmit === 'function') {
+              payloadField.form.requestSubmit(submitTrigger);
+            }
+            else {
+              submitTrigger.click();
+            }
           }
           catch (error) {
             setStatus(container, Drupal.t('SSS hash lock signature request was cancelled or failed.'), true);
@@ -148,6 +155,7 @@
           const parentHashField = container.querySelector('[data-symbol-sss-parent-hash]');
           const unsignedPayload = normalizeHex(container.getAttribute('data-symbol-sss-unsigned-payload'));
           const requiredSigner = normalizeHex(container.getAttribute('data-symbol-sss-required-signer'));
+          const autoSubmit = container.getAttribute('data-symbol-sss-cosign-auto-submit') === '1';
           if (!payloadField || !parentHashField || !unsignedPayload) {
             setStatus(container, Drupal.t('Unsigned payload is not available.'), true);
             return;
@@ -182,6 +190,17 @@
               version: { lower: 0, higher: 0 },
             }, null, 2);
             payloadField.dispatchEvent(new Event('input', { bubbles: true }));
+            if (autoSubmit) {
+              const submitTrigger = container.querySelector('[data-symbol-sss-cosign-submit]');
+              setStatus(container, Drupal.t('SSS cosignature was created. Announcing aggregate bonded cosignature.'), false);
+              if (container.requestSubmit && submitTrigger) {
+                container.requestSubmit(submitTrigger);
+              }
+              else if (submitTrigger) {
+                submitTrigger.click();
+              }
+              return;
+            }
             setStatus(container, Drupal.t('SSS cosignature JSON was copied into the form. Verify it before assembling.'), false);
           }
           catch (error) {

@@ -37,7 +37,12 @@ final class SwapOfferAccessCheck implements AccessInterface {
       'operate' => $account->hasPermission('operate symbol atomic swap offers') && $owns_offer,
       'accept' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canAccept($offer),
       'sign' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canSubmitSignedPayload($offer),
-      'cosign' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canSubmitSignedPayload($offer),
+      'cosign' => $account->hasPermission('operate symbol atomic swap offers')
+        && ($this->offers->canSubmitSignedPayload($offer) || $this->offers->canSubmitBondedCosignature($offer)),
+      'bonded_partial' => $account->hasPermission('operate symbol atomic swap offers')
+        && in_array((string) ($offer['state'] ?? ''), ['root_signed', 'signed'], TRUE)
+        && !empty($offer['intent_hash']),
+      'sync' => $account->hasPermission('operate symbol atomic swap offers') && $this->offers->canSyncProjection($offer),
       default => FALSE,
     };
 

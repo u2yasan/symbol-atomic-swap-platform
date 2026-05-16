@@ -47,12 +47,17 @@ final class SwapOfferSssCosignForm extends FormBase {
       throw new NotFoundHttpException();
     }
     $this->offer = $offer;
-    $unsigned_payload = $this->normalizeHex((string) ($offer['unsigned_payload'] ?? ''));
+    $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
+    $payload_for_sss = $this->normalizeHex((string) ($is_bonded_cosignature ? ($offer['root_signed_payload'] ?? '') : ($offer['unsigned_payload'] ?? '')));
+    $parent_hash = (string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?: ''));
 
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
-    $form['#attributes']['data-symbol-sss-unsigned-payload'] = $unsigned_payload;
+    $form['#attributes']['data-symbol-sss-unsigned-payload'] = $payload_for_sss;
     $form['#attributes']['data-symbol-sss-required-signer'] = (string) $offer['leg2_signer_public_key'];
+    if ($is_bonded_cosignature) {
+      $form['#attributes']['data-symbol-sss-cosign-auto-submit'] = '1';
+    }
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -71,8 +76,8 @@ final class SwapOfferSssCosignForm extends FormBase {
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Unsigned payload sent to SSS'),
-      '#value' => $unsigned_payload,
+      '#title' => $is_bonded_cosignature ? $this->t('Root signed aggregate bonded payload sent to SSS') : $this->t('Unsigned payload sent to SSS'),
+      '#value' => $payload_for_sss,
       '#rows' => 8,
       '#attributes' => [
         'readonly' => 'readonly',
@@ -82,7 +87,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['parent_hash'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Parent hash fallback'),
-      '#default_value' => (string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?: '')),
+      '#default_value' => $parent_hash,
       '#description' => $this->t('Used only when SSS does not return a hash. This must be the root transaction hash produced by the maker signature.'),
       '#attributes' => [
         'autocomplete' => 'off',
@@ -106,7 +111,7 @@ final class SwapOfferSssCosignForm extends FormBase {
       'cosign' => [
         '#type' => 'html_tag',
         '#tag' => 'button',
-        '#value' => (string) $this->t('Cosign unsigned payload with SSS'),
+        '#value' => (string) ($is_bonded_cosignature ? $this->t('Cosign and announce partial with SSS') : $this->t('Cosign unsigned payload with SSS')),
         '#attributes' => [
           'type' => 'button',
           'class' => ['button', 'button--primary'],
@@ -128,7 +133,9 @@ final class SwapOfferSssCosignForm extends FormBase {
       '#title' => $this->t('Cosignature JSON'),
       '#rows' => 10,
       '#required' => TRUE,
-      '#description' => $this->t('SSS fills this field after cosignature approval. Submit it to verify and store the cosignature.'),
+      '#description' => $is_bonded_cosignature
+        ? $this->t('SSS fills this field after cosignature approval. The form then announces the aggregate bonded cosignature to the node.')
+        : $this->t('SSS fills this field after cosignature approval. Submit it to verify and store the cosignature.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
@@ -138,9 +145,12 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Verify and store SSS cosignature'),
+      '#value' => $is_bonded_cosignature ? $this->t('Announce aggregate bonded cosignature') : $this->t('Verify and store SSS cosignature'),
       '#button_type' => 'primary',
-      '#disabled' => !$this->offers->canSubmitSignedPayload($offer) || $unsigned_payload === '',
+      '#disabled' => (!$this->offers->canSubmitSignedPayload($offer) && !$is_bonded_cosignature) || $payload_for_sss === '',
+      '#attributes' => [
+        'data-symbol-sss-cosign-submit' => '1',
+      ],
     ];
     $form['actions']['cancel'] = [
       '#type' => 'link',
@@ -153,7 +163,9 @@ final class SwapOfferSssCosignForm extends FormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    if (!$this->offers->canSubmitSignedPayload($this->offer)) {
+    $offer = $this->offerForValidation($form_state);
+    $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
+    if (!$this->offers->canSubmitSignedPayload($offer) && !$is_bonded_cosignature) {
       $form_state->setErrorByName('payload', $this->t('Cosignatures can only be submitted for QR-generated or already signed offers with a valid intent hash.'));
     }
 
@@ -176,9 +188,9 @@ final class SwapOfferSssCosignForm extends FormBase {
         $form_state->setErrorByName('payload', $this->t('Cosignature JSON must include parentHash, signerPublicKey, and signature.'));
         return;
       }
-      if (strtoupper((string) $normalized['signerPublicKey']) === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
+      if (strtoupper((string) $normalized['signerPublicKey']) === strtoupper((string) $offer['leg1_signer_public_key'])) {
         $form_state->setErrorByName('payload', $this->t('SSS cosignature must be created by the non-root signer public key @key.', [
-          '@key' => strtoupper((string) $this->offer['leg2_signer_public_key']),
+          '@key' => strtoupper((string) $offer['leg2_signer_public_key']),
         ]));
         return;
       }
@@ -203,8 +215,11 @@ final class SwapOfferSssCosignForm extends FormBase {
       return;
     }
 
+    $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
     try {
-      $result = $this->engineClient->verifyCosignature((string) $offer['intent_hash'], $cosignature);
+      $result = $is_bonded_cosignature
+        ? $this->engineClient->announceCosignature((string) $offer['intent_hash'], $cosignature)
+        : $this->engineClient->verifyCosignature((string) $offer['intent_hash'], $cosignature);
       if (($result['accepted'] ?? FALSE) !== TRUE) {
         $this->messenger()->addError($this->t('SSS cosignature was rejected: @reason', [
           '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason')),
@@ -215,13 +230,19 @@ final class SwapOfferSssCosignForm extends FormBase {
 
       $this->cosignatures->upsert([
         'offer_id' => $offer_id,
-        'parent_hash' => (string) $result['parentHash'],
+        'parent_hash' => (string) ($result['parentHash'] ?? $cosignature['parentHash']),
         'signer_public_key' => (string) $result['signerPublicKey'],
         'signature' => (string) $cosignature['signature'],
         'trusted_parent_hash' => !empty($result['trustedParentHash']),
         'uid' => (int) $this->currentUser()->id(),
       ]);
-      $this->messenger()->addStatus($this->t('SSS cosignature was verified and stored.'));
+      if ($is_bonded_cosignature) {
+        $this->offers->markPartialCosigned($offer_id, (string) ($result['transactionHash'] ?? $offer['transaction_hash']));
+        $this->messenger()->addStatus($this->t('Aggregate bonded cosignature was announced. Wait for confirmation or sync the projection.'));
+      }
+      else {
+        $this->messenger()->addStatus($this->t('SSS cosignature was verified and stored.'));
+      }
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
     }
     catch (SymbolEngineException $exception) {
@@ -240,6 +261,22 @@ final class SwapOfferSssCosignForm extends FormBase {
 
   private function normalizeHex(string $value): string {
     return strtoupper(preg_replace('/\s+/', '', $value) ?? '');
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function offerForValidation(FormStateInterface $form_state): array {
+    if ($this->offer !== []) {
+      return $this->offer;
+    }
+    $offer_id = (int) $form_state->getValue('offer_id');
+    $offer = $this->offers->find($offer_id);
+    if (!$offer) {
+      throw new NotFoundHttpException();
+    }
+    $this->offer = $offer;
+    return $offer;
   }
 
   /**

@@ -277,6 +277,26 @@ final class SwapOfferRepository {
     ]);
   }
 
+  public function markPartialCosigned(int $id, string $transaction_hash): void {
+    $offer = $this->find($id);
+    if (!$offer) {
+      throw new \InvalidArgumentException('Swap offer not found.');
+    }
+    if (empty($offer['intent_hash']) || !$this->isHash((string) $offer['intent_hash'])) {
+      throw new \InvalidArgumentException('Only offers with an intent hash can be marked partial cosigned.');
+    }
+    if (!$this->isHash($transaction_hash)) {
+      throw new \InvalidArgumentException('Transaction hash must be 64 hex characters.');
+    }
+
+    $this->update($id, [
+      'state' => 'partial_cosigned',
+      'projection_state' => 'partial_cosigned',
+      'transaction_hash' => strtoupper($transaction_hash),
+      'changed' => \Drupal::time()->getRequestTime(),
+    ]);
+  }
+
   public function markExpired(int $id, int $expired_at): bool {
     $offer = $this->find($id);
     if (!$offer) {
@@ -303,6 +323,19 @@ final class SwapOfferRepository {
     return !empty($offer['intent_hash'])
       && $this->isHash((string) $offer['intent_hash'])
       && in_array((string) ($offer['state'] ?? ''), self::SIGNABLE_STATES, TRUE);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  public function canSubmitBondedCosignature(array $offer): bool {
+    return !empty($offer['intent_hash'])
+      && $this->isHash((string) $offer['intent_hash'])
+      && !empty($offer['transaction_hash'])
+      && $this->isHash((string) $offer['transaction_hash'])
+      && !empty($offer['root_signed_payload'])
+      && !empty($offer['leg2_signer_public_key'])
+      && in_array((string) ($offer['state'] ?? ''), ['partial_announced', 'partial_cosigned'], TRUE);
   }
 
   /**

@@ -156,7 +156,7 @@ symbol_atomic_swap.offer_bonded_partial_announce:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferBondedPartialAnnounceForm'
     _title: 'Announce Aggregate Bonded Partial'
   requirements:
-    _symbol_atomic_swap_offer_access: 'sign'
+    _symbol_atomic_swap_offer_access: 'bonded_partial'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_sync_projection:
@@ -165,7 +165,7 @@ symbol_atomic_swap.offer_sync_projection:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSyncProjectionForm'
     _title: 'Sync Projection'
   requirements:
-    _symbol_atomic_swap_offer_access: 'operate'
+    _symbol_atomic_swap_offer_access: 'sync'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_delete:

@@ -79,4 +79,30 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $assert_session->buttonExists('Generate verification payload');
   }
 
+  public function testAddressAlreadyVerifiedByAnotherUserCannotBeRegistered(): void {
+    $address = 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ';
+    $existing = $this->drupalCreateUser();
+    $existing->set('field_symbol_network', 'testnet');
+    $existing->set('field_symbol_address', $address);
+    $existing->set('field_symbol_public_key', '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D');
+    $existing->set('field_symbol_address_verified', TRUE);
+    $existing->set('field_symbol_address_verified_at', 1700000000);
+    $existing->set('field_symbol_verification_method', 'sss_zero_fee_transfer');
+    $existing->set('field_symbol_challenge_hash', str_repeat('A', 64));
+    $existing->save();
+
+    $account = $this->drupalCreateUser();
+    $this->drupalLogin($account);
+    $this->drupalGet('/symbol-atomic-swap/account');
+    $this->submitForm([
+      'network' => 'testnet',
+      'address' => $address,
+    ], 'Generate verification payload');
+
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('This Symbol address is already registered by another user.');
+    $assert_session->pageTextContains('Not verified.');
+  }
+
 }

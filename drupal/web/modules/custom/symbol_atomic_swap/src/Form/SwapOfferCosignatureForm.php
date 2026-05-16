@@ -47,6 +47,7 @@ final class SwapOfferCosignatureForm extends FormBase {
       throw new NotFoundHttpException();
     }
     $this->offer = $offer;
+    $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -76,9 +77,9 @@ final class SwapOfferCosignatureForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Verify and store cosignature'),
+      '#value' => $is_bonded_cosignature ? $this->t('Announce aggregate bonded cosignature') : $this->t('Verify and store cosignature'),
       '#button_type' => 'primary',
-      '#disabled' => !$this->offers->canSubmitSignedPayload($offer),
+      '#disabled' => !$this->offers->canSubmitSignedPayload($offer) && !$is_bonded_cosignature,
     ];
     $form['actions']['cancel'] = [
       '#type' => 'link',
@@ -91,7 +92,8 @@ final class SwapOfferCosignatureForm extends FormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    if (!$this->offers->canSubmitSignedPayload($this->offer)) {
+    $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($this->offer);
+    if (!$this->offers->canSubmitSignedPayload($this->offer) && !$is_bonded_cosignature) {
       $form_state->setErrorByName('payload', $this->t('Cosignatures can only be submitted for QR-generated or already signed offers with a valid intent hash.'));
     }
 
@@ -142,8 +144,11 @@ final class SwapOfferCosignatureForm extends FormBase {
       return;
     }
 
+    $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
     try {
-      $result = $this->engineClient->verifyCosignature((string) $offer['intent_hash'], $cosignature);
+      $result = $is_bonded_cosignature
+        ? $this->engineClient->announceCosignature((string) $offer['intent_hash'], $cosignature)
+        : $this->engineClient->verifyCosignature((string) $offer['intent_hash'], $cosignature);
       if (($result['accepted'] ?? FALSE) !== TRUE) {
         $this->messenger()->addError($this->t('Cosignature was rejected: @reason', [
           '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason')),
@@ -154,13 +159,19 @@ final class SwapOfferCosignatureForm extends FormBase {
 
       $this->cosignatures->upsert([
         'offer_id' => $offer_id,
-        'parent_hash' => (string) $result['parentHash'],
+        'parent_hash' => (string) ($result['parentHash'] ?? $cosignature['parentHash']),
         'signer_public_key' => (string) $result['signerPublicKey'],
         'signature' => (string) $cosignature['signature'],
         'trusted_parent_hash' => !empty($result['trustedParentHash']),
         'uid' => (int) $this->currentUser()->id(),
       ]);
-      $this->messenger()->addStatus($this->t('Cosignature was verified and stored.'));
+      if ($is_bonded_cosignature) {
+        $this->offers->markPartialCosigned($offer_id, (string) ($result['transactionHash'] ?? $offer['transaction_hash']));
+        $this->messenger()->addStatus($this->t('Aggregate bonded cosignature was announced. Wait for confirmation or sync the projection.'));
+      }
+      else {
+        $this->messenger()->addStatus($this->t('Cosignature was verified and stored.'));
+      }
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
     }
     catch (SymbolEngineException $exception) {

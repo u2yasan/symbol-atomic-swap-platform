@@ -7,19 +7,25 @@ import type { NormalizedBondedSwapIntent, SwapIntentRecord } from '../repository
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
 import { publicSymbolNodeResponse, type PublicSymbolNodeResponse } from './symbolNodeResponse.js';
+import { SymbolRestClient } from './symbolRestClient.js';
 
 const intentHashSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/);
+const DEFAULT_CONFIRMATION_TIMEOUT_MS = 300_000;
+const DEFAULT_CONFIRMATION_POLL_INTERVAL_MS = 5_000;
 
 const hashLockBuildRequestSchema = z.object({
   intentHash: intentHashSchema,
   signerPublicKey: publicKeySchema,
-  deadlineHours: z.number().int().min(1).max(48),
+  deadlineHours: z.number().int().min(1).max(6),
   maxFee: integerStringSchema.optional(),
 });
 
 const signedHashLockAnnouncementSchema = z.object({
   intentHash: intentHashSchema,
   payload: z.string().regex(/^[0-9A-Fa-f]+$/, 'payload must be hex').min(2),
+  waitForConfirmation: z.boolean().optional(),
+  confirmationTimeoutMs: z.number().int().min(1_000).max(300_000).optional(),
+  confirmationPollIntervalMs: z.number().int().min(250).max(30_000).optional(),
 });
 
 export type HashLockBuildResult = {
@@ -41,6 +47,7 @@ export type HashLockAnnouncementResult = {
   intentHash: string;
   aggregateTransactionHash: string;
   hashLockTransactionHash: string;
+  hashLockConfirmed: boolean;
   nodeResponse: PublicSymbolNodeResponse;
 };
 
@@ -232,6 +239,68 @@ export function verifySignedHashLockPayload(input: unknown, intent: SwapIntentRe
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForConfirmedHashLock(
+  transactionHash: string,
+  dependencies: {
+    nodeUrl: string;
+    nodeRequestTimeoutMs?: number;
+  },
+  options: {
+    timeoutMs: number;
+    pollIntervalMs: number;
+  },
+): Promise<void> {
+  const client = new SymbolRestClient(dependencies.nodeUrl, fetch, dependencies.nodeRequestTimeoutMs);
+  const deadline = Date.now() + options.timeoutMs;
+  let sawUnconfirmed = false;
+
+  while (Date.now() <= deadline) {
+    const status = await client.getTransactionStatus(transactionHash);
+    if (status.found && status.code && status.code !== 'Success') {
+      throw new InvalidHashLockError(`hash lock transaction failed: ${status.code}`);
+    }
+
+    const confirmed = await client.getConfirmedTransaction(transactionHash);
+    if (confirmed.found) {
+      return;
+    }
+
+    const unconfirmed = await client.getUnconfirmedTransaction(transactionHash);
+    if (unconfirmed.found) {
+      sawUnconfirmed = true;
+    }
+
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      break;
+    }
+    await sleep(Math.min(options.pollIntervalMs, remaining));
+  }
+
+  throw new InvalidHashLockError(sawUnconfirmed
+    ? `hash lock stayed unconfirmed until timeout: ${transactionHash}`
+    : `hash lock was not found on the node after announcement: ${transactionHash}`);
+}
+
+async function isConfirmedHashLock(
+  transactionHash: string,
+  dependencies: {
+    nodeUrl: string;
+    nodeRequestTimeoutMs?: number;
+  },
+): Promise<boolean> {
+  const client = new SymbolRestClient(dependencies.nodeUrl, fetch, dependencies.nodeRequestTimeoutMs);
+  const status = await client.getTransactionStatus(transactionHash);
+  if (status.found && status.code && status.code !== 'Success') {
+    throw new InvalidHashLockError(`hash lock transaction failed: ${status.code}: ${transactionHash}`);
+  }
+  return (await client.getConfirmedTransaction(transactionHash)).found;
+}
+
 export async function announceSignedHashLock(
   input: unknown,
   dependencies: {
@@ -251,13 +320,56 @@ export async function announceSignedHashLock(
     throw new InvalidHashLockError(verification.reason);
   }
 
+  if (request.waitForConfirmation && await isConfirmedHashLock(verification.transactionHash, {
+    nodeUrl: dependencies.nodeUrl,
+    nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
+  })) {
+    return {
+      accepted: true,
+      intentHash: intent.intentHash,
+      aggregateTransactionHash: intent.transactionHash,
+      hashLockTransactionHash: verification.transactionHash,
+      hashLockConfirmed: true,
+      nodeResponse: {
+        status: 200,
+        message: 'hash lock already confirmed',
+      },
+    };
+  }
+
   const response = await putJsonToSymbolNode(dependencies.nodeUrl, '/transactions', {
     payload: verification.payload,
   }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 
   const nodeResponse = await publicSymbolNodeResponse(response);
   if (!response.ok) {
+    if (request.waitForConfirmation && await isConfirmedHashLock(verification.transactionHash, {
+      nodeUrl: dependencies.nodeUrl,
+      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
+    })) {
+      return {
+        accepted: true,
+        intentHash: intent.intentHash,
+        aggregateTransactionHash: intent.transactionHash,
+        hashLockTransactionHash: verification.transactionHash,
+        hashLockConfirmed: true,
+        nodeResponse: {
+          status: 200,
+          message: 'hash lock already confirmed',
+        },
+      };
+    }
     throw new InvalidHashLockError('symbol node rejected hash lock announcement');
+  }
+
+  if (request.waitForConfirmation) {
+    await waitForConfirmedHashLock(verification.transactionHash, {
+      nodeUrl: dependencies.nodeUrl,
+      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
+    }, {
+      timeoutMs: request.confirmationTimeoutMs ?? DEFAULT_CONFIRMATION_TIMEOUT_MS,
+      pollIntervalMs: request.confirmationPollIntervalMs ?? DEFAULT_CONFIRMATION_POLL_INTERVAL_MS,
+    });
   }
 
   return {
@@ -265,6 +377,7 @@ export async function announceSignedHashLock(
     intentHash: intent.intentHash,
     aggregateTransactionHash: intent.transactionHash,
     hashLockTransactionHash: verification.transactionHash,
+    hashLockConfirmed: Boolean(request.waitForConfirmation),
     nodeResponse,
   };
 }

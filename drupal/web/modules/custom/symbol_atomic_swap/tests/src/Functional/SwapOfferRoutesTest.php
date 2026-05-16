@@ -478,8 +478,24 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($admin);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/bonded-partial-announce');
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Sign and announce the taker-funded hash lock');
+    $assert_session->pageTextContains('wait for hash lock confirmation');
     $assert_session->pageTextContains('Hash lock signer public key');
+    $assert_session->buttonExists('Sign hash lock and announce partial');
+
+    $repository->update($id, [
+      'state' => 'partial_announced',
+      'projection_state' => 'partial_announced',
+      'transaction_hash' => str_repeat('D', 64),
+    ]);
+    $this->drupalLogin($operator);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Cosign and announce partial with SSS');
+    $assert_session->linkNotExists('Submit signed payload');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->fieldExists('Root signed aggregate bonded payload sent to SSS');
+    $assert_session->buttonExists('Cosign and announce partial with SSS');
   }
 
   /**

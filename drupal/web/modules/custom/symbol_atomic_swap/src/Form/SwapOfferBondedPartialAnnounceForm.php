@@ -44,7 +44,7 @@ final class SwapOfferBondedPartialAnnounceForm extends FormBase {
   }
 
   public function buildForm(array $form, FormStateInterface $form_state, $offerId = NULL): array {
-    $offer = $offerId !== NULL ? $this->offers->find((int) $offerId) : NULL;
+    $offer = $offerId !== NULL ? $this->offers()->find((int) $offerId) : NULL;
     if (!$offer) {
       throw new NotFoundHttpException();
     }
@@ -57,10 +57,10 @@ final class SwapOfferBondedPartialAnnounceForm extends FormBase {
     }
     else {
       try {
-        $hash_lock = $this->engineClient->buildHashLock(
+        $hash_lock = $this->engineClient()->buildHashLock(
           (string) $offer['intent_hash'],
           (string) $offer['leg2_signer_public_key'],
-          max(1, min(48, (int) $offer['deadline_hours'])),
+          2,
         );
       }
       catch (SymbolEngineException | \InvalidArgumentException | \RuntimeException $exception) {
@@ -82,7 +82,7 @@ final class SwapOfferBondedPartialAnnounceForm extends FormBase {
     $form['summary'] = [
       '#type' => 'item',
       '#title' => $this->t('Action'),
-      '#markup' => $this->t('Sign and announce the taker-funded hash lock, then announce the aggregate bonded transaction as partial.'),
+      '#markup' => $this->t('Sign and announce the taker-funded hash lock, wait for hash lock confirmation, then announce the aggregate bonded transaction as partial.'),
     ];
     $form['signer'] = [
       '#type' => 'item',
@@ -126,14 +126,30 @@ final class SwapOfferBondedPartialAnnounceForm extends FormBase {
     ];
 
     $form['actions'] = ['#type' => 'actions'];
+    $submit_attributes = [
+      'type' => 'button',
+      'class' => ['button', 'button--primary'],
+      'data-symbol-bonded-hash-lock-announce' => '1',
+    ];
+    if ($build_error !== '' || $unsigned_payload === '') {
+      $submit_attributes['disabled'] = 'disabled';
+    }
+    $form['actions']['sign'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'button',
+      '#value' => $this->t('Sign hash lock and announce partial'),
+      '#attributes' => $submit_attributes,
+    ];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Sign hash lock and announce partial'),
+      '#value' => $this->t('Submit signed hash lock'),
       '#button_type' => 'primary',
       '#attributes' => [
-        'data-symbol-bonded-partial-announce' => '1',
+        'class' => ['visually-hidden'],
+        'data-symbol-bonded-submit-trigger' => '1',
+        'tabindex' => '-1',
+        'aria-hidden' => 'true',
       ],
-      '#disabled' => $build_error !== '' || $unsigned_payload === '',
     ];
     $form['actions']['cancel'] = [
       '#type' => 'link',
@@ -146,11 +162,15 @@ final class SwapOfferBondedPartialAnnounceForm extends FormBase {
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    if (!$this->canRun($this->offer)) {
+    $offer = $this->offerForValidation($form_state);
+    if (!$offer || !$this->canRun($offer)) {
       $form_state->setErrorByName('signed_hash_lock_payload', $this->t('Aggregate bonded partial announcement requires a root-signed bonded offer.'));
     }
     $payload = $this->normalizeHex((string) $form_state->getValue('signed_hash_lock_payload', ''));
-    if ($payload === '' || preg_match('/^[0-9A-F]+$/', $payload) !== 1 || strlen($payload) % 2 !== 0) {
+    if ($payload === '') {
+      $form_state->setErrorByName('signed_hash_lock_payload', $this->t('Signed hash lock payload is missing. Click "Sign hash lock and announce partial" and approve the SSS signature.'));
+    }
+    elseif (preg_match('/^[0-9A-F]+$/', $payload) !== 1 || strlen($payload) % 2 !== 0) {
       $form_state->setErrorByName('signed_hash_lock_payload', $this->t('Signed hash lock payload must be even-length hex.'));
     }
     if (strlen($payload) > self::MAX_SIGNED_PAYLOAD_HEX_LENGTH) {
@@ -160,20 +180,22 @@ final class SwapOfferBondedPartialAnnounceForm extends FormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $offer_id = (int) $form_state->getValue('offer_id');
-    $offer = $this->offers->find($offer_id);
+    $offer = $this->offers()->find($offer_id);
     if (!$offer) {
       throw new NotFoundHttpException();
     }
 
     try {
-      $this->engineClient->announceHashLock(
+      @set_time_limit(360);
+      $this->engineClient()->announceHashLock(
         (string) $offer['intent_hash'],
         $this->normalizeHex((string) $form_state->getValue('signed_hash_lock_payload')),
+        TRUE,
       );
-      $partial = $this->engineClient->announcePartial((string) $offer['intent_hash']);
+      $partial = $this->engineClient()->announcePartial((string) $offer['intent_hash']);
       $transaction_hash = (string) ($partial['transactionHash'] ?? $offer['root_transaction_hash'] ?? $offer['transaction_hash'] ?? '');
-      $this->offers->markPartialAnnounced($offer_id, $transaction_hash);
-      $this->messenger()->addStatus($this->t('Hash lock was announced and the aggregate bonded transaction was announced as partial.'));
+      $this->offers()->markPartialAnnounced($offer_id, $transaction_hash);
+      $this->messenger()->addStatus($this->t('Hash lock was confirmed and the aggregate bonded transaction was announced as partial.'));
     }
     catch (SymbolEngineException | \InvalidArgumentException | \RuntimeException $exception) {
       $this->messenger()->addError($this->t('Aggregate bonded partial announcement failed: @message', [
@@ -195,6 +217,31 @@ final class SwapOfferBondedPartialAnnounceForm extends FormBase {
       && !empty($offer['root_signed_payload'])
       && !empty($offer['root_transaction_hash'])
       && !empty($offer['leg2_signer_public_key']);
+  }
+
+  private function offers(): SwapOfferRepository {
+    if (!isset($this->offers)) {
+      $this->offers = \Drupal::service('symbol_atomic_swap.offer_repository');
+    }
+    return $this->offers;
+  }
+
+  private function engineClient(): SymbolEngineClient {
+    if (!isset($this->engineClient)) {
+      $this->engineClient = \Drupal::service('symbol_atomic_swap.engine_client');
+    }
+    return $this->engineClient;
+  }
+
+  /**
+   * @return array<string, mixed>|null
+   */
+  private function offerForValidation(FormStateInterface $form_state): ?array {
+    $offer_id = (int) $form_state->getValue('offer_id', 0);
+    if ($offer_id > 0) {
+      return $this->offers()->find($offer_id);
+    }
+    return $this->offer ?: NULL;
   }
 
   /**

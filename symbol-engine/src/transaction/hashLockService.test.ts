@@ -6,7 +6,7 @@ import { buildAggregateBonded } from '../aggregate/aggregateBondedBuilder.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { SwapIntentRecord } from '../repository/types.js';
 import { verifySignedPayload } from './signedPayloadVerifier.js';
-import { buildHashLockTransaction, verifySignedHashLockPayload } from './hashLockService.js';
+import { announceSignedHashLock, buildHashLockTransaction, verifySignedHashLockPayload } from './hashLockService.js';
 
 function attachSignature(unsignedPayload: string, privateKey: PrivateKey): string {
   const facade = new SymbolFacade('testnet');
@@ -156,6 +156,101 @@ test('verifySignedHashLockPayload rejects unsigned hash lock', async () => {
   assert.equal(result.reason, 'hash lock signature is missing');
 });
 
+test('announceSignedHashLock waits for confirmed hash lock when requested', async () => {
+  const { intent, lockPrivateKey } = makeSignedBondedIntent();
+  const facade = new SymbolFacade('testnet');
+  const lockSigner = facade.createAccount(lockPrivateKey);
+  const built = await buildHashLockTransaction({
+    intentHash: intent.intentHash,
+    signerPublicKey: lockSigner.publicKey.toString(),
+    deadlineHours: 2,
+  }, repoReturning(intent));
+  const payload = attachSignature(built.unsignedPayload, lockPrivateKey);
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (url: URL | string) => {
+    const value = url.toString();
+    calls.push(value);
+    if (value.endsWith('/transactions')) {
+      return new Response(JSON.stringify({ message: 'accepted' }), { status: 202 });
+    }
+    if (value.includes('/transactionStatus/')) {
+      return new Response(JSON.stringify({ message: 'missing' }), { status: 404 });
+    }
+    if (value.includes('/transactions/confirmed/')) {
+      return new Response(JSON.stringify({ meta: { height: 123 } }), { status: 200 });
+    }
+    if (value.includes('/transactions/unconfirmed/')) {
+      return new Response(JSON.stringify({ message: 'missing' }), { status: 404 });
+    }
+    return new Response(JSON.stringify({ message: 'unexpected' }), { status: 500 });
+  }) as typeof fetch;
+
+  try {
+    const result = await announceSignedHashLock({
+      intentHash: intent.intentHash,
+      payload,
+      waitForConfirmation: true,
+      confirmationTimeoutMs: 1000,
+      confirmationPollIntervalMs: 250,
+    }, {
+      nodeUrl: 'https://node.example.test',
+      swapIntents: repoReturning(intent),
+    });
+
+    assert.equal(result.accepted, true);
+    assert.equal(result.hashLockConfirmed, true);
+    assert.ok(calls.some((call) => call.includes('/transactions/confirmed/')));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('announceSignedHashLock skips reannounce when hash lock is already confirmed', async () => {
+  const { intent, lockPrivateKey } = makeSignedBondedIntent();
+  const facade = new SymbolFacade('testnet');
+  const lockSigner = facade.createAccount(lockPrivateKey);
+  const built = await buildHashLockTransaction({
+    intentHash: intent.intentHash,
+    signerPublicKey: lockSigner.publicKey.toString(),
+    deadlineHours: 2,
+  }, repoReturning(intent));
+  const payload = attachSignature(built.unsignedPayload, lockPrivateKey);
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (url: URL | string) => {
+    const value = url.toString();
+    calls.push(value);
+    if (value.includes('/transactionStatus/')) {
+      return new Response(JSON.stringify({ message: 'missing' }), { status: 404 });
+    }
+    if (value.includes('/transactions/confirmed/')) {
+      return new Response(JSON.stringify({ meta: { height: 123 } }), { status: 200 });
+    }
+    return new Response(JSON.stringify({ message: 'unexpected announce' }), { status: 500 });
+  }) as typeof fetch;
+
+  try {
+    const result = await announceSignedHashLock({
+      intentHash: intent.intentHash,
+      payload,
+      waitForConfirmation: true,
+      confirmationTimeoutMs: 1000,
+      confirmationPollIntervalMs: 250,
+    }, {
+      nodeUrl: 'https://node.example.test',
+      swapIntents: repoReturning(intent),
+    });
+
+    assert.equal(result.accepted, true);
+    assert.equal(result.hashLockConfirmed, true);
+    assert.equal(result.nodeResponse.message, 'hash lock already confirmed');
+    assert.ok(!calls.some((call) => call.endsWith('/transactions')));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('verifySignedHashLockPayload hides malformed transaction decoder details', () => {
   const { intent } = makeSignedBondedIntent();
   const result = verifySignedHashLockPayload({
@@ -165,6 +260,15 @@ test('verifySignedHashLockPayload hides malformed transaction decoder details', 
 
   assert.equal(result.accepted, false);
   assert.equal(result.reason, 'hash lock verification failed');
+});
+
+test('buildHashLockTransaction rejects future transaction deadlines above Symbol limit', async () => {
+  const { intent } = makeSignedBondedIntent();
+  await assert.rejects(() => buildHashLockTransaction({
+    intentHash: intent.intentHash,
+    signerPublicKey: intent.requiredCosigners[0]!,
+    deadlineHours: 48,
+  }, repoReturning(intent)), /less than or equal to 6/);
 });
 
 test('buildHashLockTransaction rejects unsigned bonded intent', async () => {
