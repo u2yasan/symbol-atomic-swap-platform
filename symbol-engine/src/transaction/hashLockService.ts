@@ -320,10 +320,12 @@ export async function announceSignedHashLock(
     throw new InvalidHashLockError(verification.reason);
   }
 
-  if (request.waitForConfirmation && await isConfirmedHashLock(verification.transactionHash, {
+  const nodeLookupDependencies = {
     nodeUrl: dependencies.nodeUrl,
-    nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
-  })) {
+    ...(dependencies.nodeRequestTimeoutMs === undefined ? {} : { nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs }),
+  };
+
+  if (request.waitForConfirmation && await isConfirmedHashLock(verification.transactionHash, nodeLookupDependencies)) {
     return {
       accepted: true,
       intentHash: intent.intentHash,
@@ -343,10 +345,7 @@ export async function announceSignedHashLock(
 
   const nodeResponse = await publicSymbolNodeResponse(response);
   if (!response.ok) {
-    if (request.waitForConfirmation && await isConfirmedHashLock(verification.transactionHash, {
-      nodeUrl: dependencies.nodeUrl,
-      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
-    })) {
+    if (request.waitForConfirmation && await isConfirmedHashLock(verification.transactionHash, nodeLookupDependencies)) {
       return {
         accepted: true,
         intentHash: intent.intentHash,
@@ -363,10 +362,7 @@ export async function announceSignedHashLock(
   }
 
   if (request.waitForConfirmation) {
-    await waitForConfirmedHashLock(verification.transactionHash, {
-      nodeUrl: dependencies.nodeUrl,
-      nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
-    }, {
+    await waitForConfirmedHashLock(verification.transactionHash, nodeLookupDependencies, {
       timeoutMs: request.confirmationTimeoutMs ?? DEFAULT_CONFIRMATION_TIMEOUT_MS,
       pollIntervalMs: request.confirmationPollIntervalMs ?? DEFAULT_CONFIRMATION_POLL_INTERVAL_MS,
     });

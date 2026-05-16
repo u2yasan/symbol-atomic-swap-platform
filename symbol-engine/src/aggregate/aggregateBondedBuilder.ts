@@ -30,6 +30,9 @@ export function normalizeAggregateBondedIntent(input: unknown): NormalizedBonded
   const request = aggregateBondedBuildRequestSchema.parse(input);
   const legSigners = request.legs.map((leg) => leg.signerPublicKey.toUpperCase());
   const aggregateSigner = legSigners[1] ?? legSigners[0];
+  if (!aggregateSigner) {
+    throw new Error('aggregate bonded intent requires at least one signer');
+  }
   const requiredCosigners = [
     aggregateSigner,
     ...legSigners.filter((signer) => signer !== aggregateSigner),

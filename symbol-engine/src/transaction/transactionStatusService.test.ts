@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { reconcileTransactionStatus } from './transactionStatusService.js';
+import { reconcileTransactionProjection, reconcileTransactionStatus } from './transactionStatusService.js';
 import type { TransactionProjection } from '../repository/projectionRepository.js';
 import { DuplicateEventError } from '../repository/eventRepository.js';
+import type { SwapIntentRecord } from '../repository/types.js';
 
 const transactionHash = 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC';
 
@@ -15,6 +16,7 @@ function repositories() {
     failedIntents,
     repositories: {
       swapIntents: {
+        findByTransactionHash: async (): Promise<SwapIntentRecord | null> => null,
         findReconciliationCandidates: async () => [],
         markFailed: async (_intentHash: string, nodeResponse: unknown) => {
           failedIntents.push(nodeResponse);
@@ -173,4 +175,70 @@ test('reconcileTransactionStatus leaves REST 404 as missing', async () => {
 
   assert.equal(result, 'missing');
   assert.equal(context.projections.size, 0);
+});
+
+test('reconcileTransactionProjection resolves intent by transaction hash before reconciling failure', async () => {
+  const context = repositories();
+  const intent = {
+    id: 'intent-1',
+    correlationId: 'swap-1',
+    network: 'testnet' as const,
+    intentHash: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+    state: 'partial_cosigned' as const,
+    aggregateType: 'aggregate_bonded' as const,
+    unsignedPayload: 'AA',
+    qrPayload: {
+      type: 'symbol-aggregate-bonded' as const,
+      network: 'testnet' as const,
+      unsignedPayload: 'AA',
+      deadline: '1',
+      requiredCosigners: [],
+      callback: null,
+      intentHash: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      hashLock: {
+        mosaicId: '72C0212E67A08BCE',
+        amount: '10000000',
+        duration: 5760,
+      },
+    },
+    requiredCosigners: [],
+    intent: {
+      network: 'testnet' as const,
+      deadlineHours: 48,
+      correlationId: 'swap-1',
+      legs: [],
+      aggregateType: 'aggregate_bonded' as const,
+      requiredCosigners: [],
+      hashLock: {
+        mosaicId: '72C0212E67A08BCE',
+        amount: '10000000',
+        duration: 5760,
+      },
+    },
+    signedPayload: 'AA',
+    transactionHash,
+    nodeResponse: null,
+  };
+  context.repositories.swapIntents.findByTransactionHash = async () => intent;
+
+  const result = await reconcileTransactionProjection({
+    transactionHash,
+    network: 'testnet',
+    repositories: context.repositories,
+    client: {
+      getTransactionStatus: async () => ({
+        found: true,
+        transactionHash,
+        code: 'Failure_Mosaic_Non_Transferable',
+      }),
+      getConfirmedTransaction: async () => ({ found: false, transactionHash }),
+      getUnconfirmedTransaction: async () => ({ found: false, transactionHash }),
+      getFinalizedHeight: async () => 30,
+    },
+    observedAt: '2026-05-17T00:00:00.000Z',
+  });
+
+  assert.equal(result.result, 'failed');
+  assert.deepEqual(context.failedIntents, [{ code: 'Failure_Mosaic_Non_Transferable' }]);
+  assert.equal(result.projection?.state, 'failed');
 });

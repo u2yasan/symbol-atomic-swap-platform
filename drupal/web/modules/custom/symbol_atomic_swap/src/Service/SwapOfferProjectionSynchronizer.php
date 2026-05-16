@@ -40,7 +40,7 @@ final class SwapOfferProjectionSynchronizer {
     }
 
     try {
-      $projection = $this->engineClient->projection((string) $offer['network'], (string) $offer['transaction_hash']);
+      $projection = $this->engineClient->reconcileProjection((string) $offer['network'], (string) $offer['transaction_hash']);
     }
     catch (SymbolEngineException $exception) {
       if ($exception->statusCode === 404) {

@@ -6,7 +6,7 @@ import type { SwapIntentRecord } from '../repository/types.js';
 import type { SymbolRestClient, SymbolStatusLookup, SymbolTransactionLookup } from './symbolRestClient.js';
 
 export type ReconciliationRepositories = {
-  swapIntents: Pick<SwapIntentRepository, 'findReconciliationCandidates' | 'markFailed'>;
+  swapIntents: Pick<SwapIntentRepository, 'findByTransactionHash' | 'findReconciliationCandidates' | 'markFailed'>;
   events: Pick<EventRepository, 'insert'>;
   projections: Pick<ProjectionRepository, 'find' | 'findReconciliationCandidates' | 'findConfirmedAtOrBelow' | 'upsert'>;
 };
@@ -141,4 +141,35 @@ export async function reconcileTransactionStatus(input: {
   }
 
   return 'missing';
+}
+
+export async function reconcileTransactionProjection(input: {
+  network: 'mainnet' | 'testnet';
+  transactionHash: string;
+  client: ReconciliationClient;
+  repositories: ReconciliationRepositories;
+  observedAt?: string;
+}): Promise<{
+  result: 'confirmed' | 'unconfirmed' | 'failed' | 'finalized' | 'missing';
+  projection: Awaited<ReturnType<ProjectionRepository['find']>>;
+}> {
+  const transactionHash = input.transactionHash.toUpperCase();
+  const [intent, finalizedHeight] = await Promise.all([
+    input.repositories.swapIntents.findByTransactionHash(input.network, transactionHash),
+    input.client.getFinalizedHeight(),
+  ]);
+  const reconciliationInput = {
+    candidate: {
+      transactionHash,
+      network: input.network,
+      ...(intent ? { intent } : {}),
+    },
+    finalizedHeight,
+    client: input.client,
+    repositories: input.repositories,
+    ...(input.observedAt === undefined ? {} : { observedAt: input.observedAt }),
+  };
+  const result = await reconcileTransactionStatus(reconciliationInput);
+  const projection = await input.repositories.projections.find(input.network, transactionHash);
+  return { result, projection };
 }

@@ -229,6 +229,27 @@ final class SymbolEngineClientTest extends KernelTestBase {
   }
 
   /**
+   * Manual projection sync must ask Symbol Engine to reconcile node state first.
+   */
+  public function testReconcileProjectionRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
+
+    $hash = str_repeat('a', 64);
+    $history = [];
+    $client = $this->client([
+      new Response(200, [], '{"transactionHash":"' . strtoupper($hash) . '","network":"testnet","state":"failed","lastEventKey":"testnet:' . strtoupper($hash) . ':TransactionFailed:0:0:Failure_Mosaic_Non_Transferable","updatedAt":"2026-05-17T00:00:00.000Z"}'),
+    ], $history);
+
+    $result = $client->reconcileProjection('testnet', $hash);
+
+    $this->assertSame('failed', $result['state']);
+    $request = $history[0]['request'];
+    $this->assertSame('POST', $request->getMethod());
+    $this->assertSame('http://engine.local/v1/projections/testnet/' . strtoupper($hash) . '/reconcile', (string) $request->getUri());
+  }
+
+  /**
    * Engine state errors should be normalized without losing engine details.
    */
   public function testRequestExceptionIsNormalized(): void {

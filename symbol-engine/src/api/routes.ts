@@ -17,6 +17,7 @@ import {
   verifyOnChainAccountVerificationTransaction,
 } from '../transaction/accountVerificationService.js';
 import { SymbolRestClient } from '../transaction/symbolRestClient.js';
+import { reconcileTransactionProjection } from '../transaction/transactionStatusService.js';
 import {
   announceSignedSecretLock,
   announceSignedSecretProof,
@@ -45,6 +46,38 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   app.get('/v1/projections/:network/:transactionHash', async (request, reply) => {
     const params = projectionParamsSchema.parse(request.params);
     const projection = await dependencies.repositories.projections.find(params.network, params.transactionHash);
+    if (!projection) {
+      return reply.code(404).send({
+        error: 'projection_not_found',
+      });
+    }
+
+    return reply.send(projection);
+  });
+
+  app.post('/v1/projections/:network/:transactionHash/reconcile', async (request, reply) => {
+    const params = projectionParamsSchema.parse(request.params);
+    if (params.network !== dependencies.network) {
+      return reply.code(400).send({
+        error: 'network_mismatch',
+      });
+    }
+    if (!dependencies.nodeUrl) {
+      return reply.code(503).send({
+        error: 'symbol_node_unavailable',
+      });
+    }
+
+    const { projection } = await reconcileTransactionProjection({
+      network: params.network,
+      transactionHash: params.transactionHash,
+      client: new SymbolRestClient(
+        dependencies.nodeUrl,
+        fetch,
+        dependencies.nodeRequestTimeoutMs,
+      ),
+      repositories: dependencies.repositories,
+    });
     if (!projection) {
       return reply.code(404).send({
         error: 'projection_not_found',

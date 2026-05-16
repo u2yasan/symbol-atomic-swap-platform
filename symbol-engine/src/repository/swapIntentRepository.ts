@@ -82,6 +82,14 @@ export class SwapIntentRepository {
     return result.rows[0] ? toRecord(result.rows[0]) : null;
   }
 
+  public async findByTransactionHash(network: string, transactionHash: string): Promise<SwapIntentRecord | null> {
+    const result = await this.db.query<SwapIntentRow>(
+      'SELECT * FROM swap_intents WHERE network = $1 AND transaction_hash = $2',
+      [network, transactionHash.toUpperCase()],
+    );
+    return result.rows[0] ? toRecord(result.rows[0]) : null;
+  }
+
   public async findReconciliationCandidates(): Promise<SwapIntentRecord[]> {
     const result = await this.db.query<SwapIntentRow>(
       `SELECT *

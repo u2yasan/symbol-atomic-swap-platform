@@ -11,12 +11,22 @@ import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
 import { publicSymbolNodeResponse, type PublicSymbolNodeResponse } from './symbolNodeResponse.js';
 
+const cosignatureVersionSchema = z.union([
+  z.literal(0),
+  z.literal('0'),
+  z.literal('0n'),
+  z.object({
+    lower: z.union([z.literal(0), z.literal('0')]),
+    higher: z.union([z.literal(0), z.literal('0')]),
+  }),
+]).optional();
+
 const cosignatureAnnouncementSchema = z.object({
   intentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
   parentHash: z.string().regex(/^[0-9A-Fa-f]{64}$/),
   signerPublicKey: z.string().regex(/^[0-9A-Fa-f]{64}$/),
   signature: z.string().regex(/^[0-9A-Fa-f]{128}$/),
-  version: z.union([z.literal(0), z.literal('0'), z.literal('0n')]).optional(),
+  version: cosignatureVersionSchema,
 });
 
 export type CosignatureAnnouncementResult = {

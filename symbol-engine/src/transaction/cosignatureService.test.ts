@@ -160,6 +160,7 @@ test('announceAggregateBondedCosignature verifies and announces detached cosigna
     const result = await announceAggregateBondedCosignature({
       intentHash: intent.intentHash,
       ...cosignature,
+      version: { lower: 0, higher: 0 },
     }, dependencies);
 
     assert.equal(result.accepted, true);

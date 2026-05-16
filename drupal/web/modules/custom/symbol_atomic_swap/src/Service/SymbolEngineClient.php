@@ -54,6 +54,14 @@ final class SymbolEngineClient {
     return $this->request('GET', '/v1/projections/' . $network . '/' . strtoupper($transaction_hash));
   }
 
+  public function reconcileProjection(string $network, string $transaction_hash): array {
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    }
+    $this->assertHash($transaction_hash, 'transaction hash');
+    return $this->request('POST', '/v1/projections/' . $network . '/' . strtoupper($transaction_hash) . '/reconcile');
+  }
+
   public function accountPublicKey(string $network, string $address): array {
     if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
       throw new \InvalidArgumentException('Network must be mainnet or testnet.');
