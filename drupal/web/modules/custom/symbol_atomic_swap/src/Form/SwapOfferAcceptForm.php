@@ -57,10 +57,10 @@ final class SwapOfferAcceptForm extends FormBase {
       '#type' => 'item',
       '#title' => $this->t('Offer terms'),
       '#markup' => $this->t('Maker pays @pay_amount of @pay_mosaic and wants @want_amount of @want_mosaic.', [
-        '@pay_amount' => (string) $offer['leg1_amount'],
-        '@pay_mosaic' => (string) $offer['leg1_mosaic_id'],
-        '@want_amount' => (string) $offer['leg2_amount'],
-        '@want_mosaic' => (string) $offer['leg2_mosaic_id'],
+        '@pay_amount' => $this->formatMosaicAmount((string) $offer['leg1_amount'], (string) $offer['network'], (string) $offer['leg1_mosaic_id']),
+        '@pay_mosaic' => $this->formatMosaicName((string) $offer['network'], (string) $offer['leg1_mosaic_id']),
+        '@want_amount' => $this->formatMosaicAmount((string) $offer['leg2_amount'], (string) $offer['network'], (string) $offer['leg2_mosaic_id']),
+        '@want_mosaic' => $this->formatMosaicName((string) $offer['network'], (string) $offer['leg2_mosaic_id']),
       ]),
     ];
     $form['taker'] = [
@@ -208,6 +208,52 @@ final class SwapOfferAcceptForm extends FormBase {
       default => '',
     };
     return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', $value) === 1;
+  }
+
+  private function formatMosaicAmount(string $atomic_amount, string $network, string $mosaic_id): string {
+    $metadata = $this->mosaicMetadata($network, $mosaic_id);
+    $divisibility = $metadata['divisibility'] ?? NULL;
+    if (!is_int($divisibility) || $divisibility < 0 || $divisibility > 6 || preg_match('/^\d+$/', $atomic_amount) !== 1) {
+      return $atomic_amount;
+    }
+
+    if ($divisibility === 0) {
+      return ltrim($atomic_amount, '0') ?: '0';
+    }
+
+    $padded = str_pad($atomic_amount, $divisibility + 1, '0', STR_PAD_LEFT);
+    $whole = substr($padded, 0, -$divisibility);
+    $fraction = substr($padded, -$divisibility);
+    return (ltrim($whole, '0') ?: '0') . '.' . $fraction;
+  }
+
+  private function formatMosaicName(string $network, string $mosaic_id): string {
+    $normalized = strtoupper($mosaic_id);
+    $metadata = $this->mosaicMetadata($network, $normalized);
+    $aliases = $metadata['aliases'] ?? [];
+    if (is_array($aliases) && isset($aliases[0]) && is_string($aliases[0]) && $aliases[0] !== '') {
+      return $aliases[0] . ' (' . $normalized . ')';
+    }
+    return $normalized;
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function mosaicMetadata(string $network, string $mosaic_id): array {
+    $normalized = strtoupper($mosaic_id);
+    $overrides = \Drupal::state()->get('symbol_atomic_swap.mosaic_metadata_test_overrides', []);
+    $override = $overrides[$network][$normalized] ?? NULL;
+    if (is_array($override)) {
+      return $override + ['mosaicId' => $normalized, 'aliases' => []];
+    }
+
+    try {
+      return $this->engineClient->mosaicMetadata($network, $normalized);
+    }
+    catch (SymbolEngineException) {
+      return ['mosaicId' => $normalized, 'aliases' => []];
+    }
   }
 
 }

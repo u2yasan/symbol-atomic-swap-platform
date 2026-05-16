@@ -150,6 +150,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'uuid' => 'offer-accept-address',
       'label' => 'Accept address offer',
       'state' => 'open',
+      'leg1_mosaic_id' => '72C0212E67A08BCF',
+      'leg1_amount' => '100',
+      'leg2_mosaic_id' => '72C0212E67A08BCE',
+      'leg2_amount' => '1000000',
       'intent_hash' => NULL,
       'unsigned_payload' => NULL,
       'qr_payload' => NULL,
@@ -166,6 +170,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldNotExists('Resolved taker public key');
     $assert_session->fieldExists('Transaction deadline hours');
     $assert_session->buttonExists('Accept and build QR');
+    $assert_session->pageTextContains('Maker pays 1.00 of 72C0212E67A08BCF and wants 1.000000 of symbol.xym (72C0212E67A08BCE).');
 
     $this->submitForm([
       'taker[recipient_address]' => 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
