@@ -145,6 +145,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'view symbol atomic swap offers',
       'operate symbol atomic swap offers',
     ]);
+    $this->verifySymbolAccount(
+      $operator,
+      'testnet',
+      'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
+      'D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16',
+    );
     $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
     $id = $repository->insert($this->offerValues([
       'uuid' => 'offer-accept-address',
@@ -166,19 +172,74 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session = $this->assertSession();
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/accept');
     $assert_session->statusCodeEquals(200);
-    $assert_session->fieldExists('Taker recipient address');
+    $assert_session->fieldNotExists('Taker recipient address');
+    $assert_session->pageTextContains('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI');
+    $assert_session->pageTextContains('Uses the verified address from My Symbol Account.');
     $assert_session->fieldNotExists('Resolved taker public key');
     $assert_session->fieldExists('Transaction deadline hours');
     $assert_session->buttonExists('Accept and build QR');
     $assert_session->pageTextContains('Maker pays 1.00 of 72C0212E67A08BCF and wants 1.000000 of symbol.xym (72C0212E67A08BCE).');
 
     $this->submitForm([
-      'taker[recipient_address]' => 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
       'transaction[deadline_hours]' => '6',
     ], 'Accept and build QR');
 
     $offer = $repository->find($id);
     $this->assertSame('6', (string) $offer['deadline_hours']);
+    $this->assertSame('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', $offer['leg1_recipient_address']);
+    $this->assertSame('D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16', $offer['leg2_signer_public_key']);
+  }
+
+  /**
+   * Accepting an offer can request an aggregate bonded payload.
+   */
+  public function testAcceptOfferSupportsAggregateBondedSettings(): void {
+    $this->installAccountPublicKeyResolverStub();
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $this->verifySymbolAccount(
+      $operator,
+      'testnet',
+      'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
+      'D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16',
+    );
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-accept-bonded',
+      'label' => 'Accept bonded offer',
+      'state' => 'open',
+      'intent_hash' => NULL,
+      'unsigned_payload' => NULL,
+      'qr_payload' => NULL,
+      'transaction_hash' => NULL,
+      'uid' => (int) $operator->id(),
+    ]));
+
+    $this->drupalLogin($operator);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/accept');
+
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Aggregate transaction type');
+    $assert_session->fieldExists('transaction[aggregate_type]');
+    $assert_session->fieldExists('Hash lock mosaic ID');
+    $assert_session->fieldExists('Hash lock amount');
+    $assert_session->fieldExists('Hash lock duration blocks');
+    $assert_session->pageTextContains('Aggregate bonded allows 1 to 48 hours.');
+    $assert_session->pageTextContains('Maximum 5760 blocks, approximately 48 hours on Symbol.');
+
+    $this->submitForm([
+      'transaction[aggregate_type]' => 'aggregate_bonded',
+      'transaction[deadline_hours]' => '48',
+      'transaction[hash_lock][mosaic_id]' => '72C0212E67A08BCE',
+      'transaction[hash_lock][amount]' => '10000000',
+      'transaction[hash_lock][duration]' => '5760',
+    ], 'Accept and build QR');
+
+    $offer = $repository->find($id);
+    $this->assertSame('48', (string) $offer['deadline_hours']);
     $this->assertSame('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', $offer['leg1_recipient_address']);
     $this->assertSame('D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16', $offer['leg2_signer_public_key']);
   }
@@ -697,10 +758,15 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     ]);
   }
 
-  private function verifySymbolAccount($account): void {
-    $account->set('field_symbol_network', 'testnet');
-    $account->set('field_symbol_address', 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
-    $account->set('field_symbol_public_key', '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D');
+  private function verifySymbolAccount(
+    $account,
+    string $network = 'testnet',
+    string $address = 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+    string $public_key = '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D',
+  ): void {
+    $account->set('field_symbol_network', $network);
+    $account->set('field_symbol_address', $address);
+    $account->set('field_symbol_public_key', $public_key);
     $account->set('field_symbol_address_verified', TRUE);
     $account->set('field_symbol_address_verified_at', 1700000000);
     $account->set('field_symbol_verification_method', 'on_chain_transfer');

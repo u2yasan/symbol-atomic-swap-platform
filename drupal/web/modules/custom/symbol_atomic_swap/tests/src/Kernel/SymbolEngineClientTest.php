@@ -177,6 +177,40 @@ final class SymbolEngineClientTest extends KernelTestBase {
   }
 
   /**
+   * Aggregate bonded builds must call the bonded build endpoint.
+   */
+  public function testBuildAggregateBondedRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
+
+    $history = [];
+    $client = $this->client([
+      new Response(201, [], '{"intentHash":"' . str_repeat('A', 64) . '","unsignedPayload":"BEEF","qrPayload":{"type":"symbol-aggregate-bonded"}}'),
+    ], $history);
+
+    $result = $client->buildAggregateBonded([
+      'network' => 'testnet',
+      'deadlineHours' => 48,
+      'correlationId' => 'swap-testnet-000001',
+      'legs' => [],
+      'hashLock' => [
+        'mosaicId' => '72C0212E67A08BCE',
+        'amount' => '10000000',
+        'duration' => 5760,
+      ],
+    ]);
+
+    $this->assertSame('symbol-aggregate-bonded', $result['qrPayload']['type']);
+    $request = $history[0]['request'];
+    $this->assertSame('http://engine.local/v1/aggregate-bonded/build', (string) $request->getUri());
+    $body = json_decode((string) $request->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+    $this->assertSame(48, $body['deadlineHours']);
+    $this->assertSame('72C0212E67A08BCE', $body['hashLock']['mosaicId']);
+    $this->assertSame('10000000', $body['hashLock']['amount']);
+    $this->assertSame(5760, $body['hashLock']['duration']);
+  }
+
+  /**
    * Account mosaic balance requests are routed through Symbol Engine.
    */
   public function testAccountMosaicBalanceRequest(): void {

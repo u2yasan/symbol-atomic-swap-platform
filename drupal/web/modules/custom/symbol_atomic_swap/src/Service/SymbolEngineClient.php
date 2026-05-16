@@ -37,6 +37,10 @@ final class SymbolEngineClient {
     return $this->request('POST', '/v1/aggregate-complete/build', TRUE, $payload);
   }
 
+  public function buildAggregateBonded(array $payload): array {
+    return $this->request('POST', '/v1/aggregate-bonded/build', TRUE, $payload);
+  }
+
   public function intent(string $intent_hash): array {
     $this->assertHash($intent_hash, 'intent hash');
     return $this->request('GET', '/v1/intents/' . strtoupper($intent_hash));

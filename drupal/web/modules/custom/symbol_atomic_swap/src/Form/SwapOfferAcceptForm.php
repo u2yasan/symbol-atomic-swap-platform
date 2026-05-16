@@ -6,15 +6,21 @@ namespace Drupal\symbol_atomic_swap\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class SwapOfferAcceptForm extends FormBase {
+
+  private const AGGREGATE_COMPLETE = 'aggregate_complete';
+  private const AGGREGATE_BONDED = 'aggregate_bonded';
+  private const AGGREGATE_COMPLETE_MAX_DEADLINE_HOURS = 6;
+  private const AGGREGATE_BONDED_MAX_DEADLINE_HOURS = 48;
+  private const HASH_LOCK_MAX_DURATION_BLOCKS = 5760;
 
   /**
    * @var array<string, mixed>
@@ -24,14 +30,14 @@ final class SwapOfferAcceptForm extends FormBase {
   public function __construct(
     private readonly SwapOfferRepository $offers,
     private readonly SymbolEngineClient $engineClient,
-    private readonly SymbolAccountPublicKeyResolverInterface $accountPublicKeyResolver,
+    private readonly AccountProxyInterface $currentUser,
   ) {}
 
   public static function create(ContainerInterface $container): self {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.engine_client'),
-      $container->get('symbol_atomic_swap.account_public_key_resolver'),
+      $container->get('current_user'),
     );
   }
 
@@ -48,6 +54,9 @@ final class SwapOfferAcceptForm extends FormBase {
       throw new NotFoundHttpException();
     }
     $this->offer = $offer;
+    $verified_symbol_account = $this->verifiedSymbolAccount();
+    $can_use_verified_account = $verified_symbol_account !== NULL
+      && $verified_symbol_account['network'] === (string) $offer['network'];
 
     $form['offer_id'] = [
       '#type' => 'value',
@@ -66,53 +75,105 @@ final class SwapOfferAcceptForm extends FormBase {
     $form['taker'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Taker details'),
-      '#attributes' => [
-        'data-symbol-taker-address-form' => '1',
-        'data-symbol-taker-network' => (string) $offer['network'],
-      ],
     ];
     $form['taker']['recipient_address'] = [
-      '#type' => 'textfield',
+      '#type' => 'item',
       '#title' => $this->t('Taker recipient address'),
-      '#maxlength' => 46,
-      '#size' => 52,
-      '#required' => TRUE,
-      '#description' => $this->t('Maker payment will be sent to this address. The account must have sent at least one signed transaction on the offer network.'),
-      '#attributes' => [
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-        'data-symbol-taker-address' => '1',
-      ],
+      '#markup' => $this->plainValue((string) ($verified_symbol_account['address'] ?? '')),
+      '#description' => $this->t('Uses the verified address from My Symbol Account. Remove and re-register that account to change it.'),
     ];
-    $form['taker']['address_status'] = [
-      '#type' => 'html_tag',
-      '#tag' => 'div',
-      '#value' => '',
-      '#attributes' => [
-        'data-symbol-taker-address-status' => '1',
-        'aria-live' => 'polite',
-      ],
-    ];
+    if (!$can_use_verified_account) {
+      $form['taker']['account_verification_required'] = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['messages', 'messages--warning']],
+        'message' => [
+          '#type' => 'item',
+          '#markup' => $verified_symbol_account
+            ? $this->t('My Symbol Account network must match this offer network before accepting the offer.')
+            : $this->t('Accept Swap Offer requires a verified Symbol address in My Symbol Account.'),
+        ],
+        'link' => [
+          '#type' => 'link',
+          '#title' => $this->t('Open My Symbol Account'),
+          '#url' => Url::fromRoute('symbol_atomic_swap.account_verification'),
+          '#attributes' => ['class' => ['button']],
+        ],
+      ];
+    }
     $form['transaction'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Transaction settings'),
+    ];
+    $form['transaction']['aggregate_type'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Aggregate transaction type'),
+      '#default_value' => self::AGGREGATE_COMPLETE,
+      '#required' => TRUE,
+      '#options' => [
+        self::AGGREGATE_COMPLETE => $this->t('Aggregate complete'),
+        self::AGGREGATE_BONDED => $this->t('Aggregate bonded'),
+      ],
+      '#description' => $this->t('Aggregate complete requires all cosignatures before announcement. Aggregate bonded can be announced partially and then cosigned on-chain.'),
     ];
     $form['transaction']['deadline_hours'] = [
       '#type' => 'number',
       '#title' => $this->t('Transaction deadline hours'),
       '#default_value' => 2,
       '#min' => 1,
-      '#max' => 6,
+      '#max' => self::AGGREGATE_BONDED_MAX_DEADLINE_HOURS,
       '#step' => 1,
       '#required' => TRUE,
-      '#description' => $this->t('Symbol aggregate complete transactions must be announced within 1 to 6 hours after this payload is generated. The maker offer itself does not expire from this value.'),
+      '#description' => $this->t('Aggregate complete allows 1 to 6 hours. Aggregate bonded allows 1 to 48 hours. The maker offer itself does not expire from this value.'),
+    ];
+    $form['transaction']['hash_lock'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Hash lock settings'),
+      '#open' => TRUE,
+      '#states' => [
+        'visible' => [
+          ':input[name="transaction[aggregate_type]"]' => ['value' => self::AGGREGATE_BONDED],
+        ],
+      ],
+    ];
+    $form['transaction']['hash_lock']['mosaic_id'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Hash lock mosaic ID'),
+      '#default_value' => $this->networkCurrencyMosaicId((string) $offer['network']),
+      '#maxlength' => 16,
+      '#size' => 20,
+      '#description' => $this->t('Use the network currency mosaic for the hash lock.'),
+      '#attributes' => [
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+      ],
+    ];
+    $form['transaction']['hash_lock']['amount'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Hash lock amount'),
+      '#default_value' => '10000000',
+      '#maxlength' => 32,
+      '#size' => 20,
+      '#description' => $this->t('Atomic amount. Default is 10 XYM for networks with 6 divisibility.'),
+      '#attributes' => [
+        'autocomplete' => 'off',
+        'inputmode' => 'numeric',
+      ],
+    ];
+    $form['transaction']['hash_lock']['duration'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Hash lock duration blocks'),
+      '#default_value' => self::HASH_LOCK_MAX_DURATION_BLOCKS,
+      '#min' => 1,
+      '#max' => self::HASH_LOCK_MAX_DURATION_BLOCKS,
+      '#step' => 1,
+      '#description' => $this->t('Maximum 5760 blocks, approximately 48 hours on Symbol.'),
     ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
       '#value' => $this->t('Accept and build QR'),
       '#button_type' => 'primary',
-      '#disabled' => !$this->offers->canAccept($offer),
+      '#disabled' => !$this->offers->canAccept($offer) || !$can_use_verified_account,
     ];
     $form['actions']['cancel'] = [
       '#type' => 'link',
@@ -128,35 +189,58 @@ final class SwapOfferAcceptForm extends FormBase {
     if (!$this->offers->canAccept($this->offer)) {
       $form_state->setErrorByName('taker][signer_public_key', $this->t('Only open offers can be accepted.'));
     }
-    $taker = (array) $form_state->getValue('taker', []);
     $transaction = (array) $form_state->getValue('transaction', []);
-    $address = strtoupper(trim((string) ($taker['recipient_address'] ?? '')));
+    $aggregate_type = (string) ($transaction['aggregate_type'] ?? '');
     $deadline_hours = (int) ($transaction['deadline_hours'] ?? 0);
+    $verified_symbol_account = $this->verifiedSymbolAccount();
 
-    if ($deadline_hours < 1 || $deadline_hours > 6) {
-      $form_state->setErrorByName('transaction][deadline_hours', $this->t('Transaction deadline hours must be between 1 and 6 for aggregate complete transactions.'));
+    if (!in_array($aggregate_type, [self::AGGREGATE_COMPLETE, self::AGGREGATE_BONDED], TRUE)) {
+      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Choose a valid aggregate transaction type.'));
     }
 
-    if (!$this->isNetworkAddress($address, (string) $this->offer['network'])) {
-      $form_state->setErrorByName('taker][recipient_address', $this->t('Taker recipient address must be a valid raw Symbol address for the offer network.'));
+    $max_deadline_hours = $aggregate_type === self::AGGREGATE_BONDED
+      ? self::AGGREGATE_BONDED_MAX_DEADLINE_HOURS
+      : self::AGGREGATE_COMPLETE_MAX_DEADLINE_HOURS;
+    if ($deadline_hours < 1 || $deadline_hours > $max_deadline_hours) {
+      $form_state->setErrorByName('transaction][deadline_hours', $this->t('Transaction deadline hours must be between 1 and @max for the selected aggregate transaction type.', [
+        '@max' => (string) $max_deadline_hours,
+      ]));
+    }
+
+    if ($aggregate_type === self::AGGREGATE_BONDED) {
+      $hash_lock = (array) ($transaction['hash_lock'] ?? []);
+      $mosaic_id = strtoupper(trim((string) ($hash_lock['mosaic_id'] ?? '')));
+      $amount = trim((string) ($hash_lock['amount'] ?? ''));
+      $duration = (int) ($hash_lock['duration'] ?? 0);
+
+      if (preg_match('/^[0-9A-F]{16}$/', $mosaic_id) !== 1) {
+        $form_state->setErrorByName('transaction][hash_lock][mosaic_id', $this->t('Hash lock mosaic ID must be 16 hexadecimal characters.'));
+      }
+      if (preg_match('/^[1-9][0-9]*$/', $amount) !== 1) {
+        $form_state->setErrorByName('transaction][hash_lock][amount', $this->t('Hash lock amount must be a positive atomic integer.'));
+      }
+      if ($duration < 1 || $duration > self::HASH_LOCK_MAX_DURATION_BLOCKS) {
+        $form_state->setErrorByName('transaction][hash_lock][duration', $this->t('Hash lock duration must be between 1 and 5760 blocks.'));
+      }
+    }
+
+    if (!$verified_symbol_account) {
+      $form_state->setErrorByName('taker][recipient_address', $this->t('Register and verify My Symbol Account before accepting a swap offer.'));
       return;
     }
 
-    try {
-      $signer = $this->accountPublicKeyResolver->resolve((string) $this->offer['network'], $address);
-      if (strtoupper($signer) === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
-        $form_state->setErrorByName('taker][recipient_address', $this->t('Taker account must differ from maker account.'));
-        return;
-      }
-      $form_state->set('symbol_atomic_swap_taker_address', $address);
-      $form_state->set('symbol_atomic_swap_taker_public_key', $signer);
+    if ((string) $verified_symbol_account['network'] !== (string) $this->offer['network']) {
+      $form_state->setErrorByName('taker][recipient_address', $this->t('My Symbol Account network must match the offer network.'));
+      return;
     }
-    catch (SymbolEngineException) {
-      $form_state->setErrorByName('taker][recipient_address', $this->t('Taker recipient address must have a public key on the offer network. Use an account that has sent at least one signed transaction.'));
+
+    if (strtoupper((string) $verified_symbol_account['public_key']) === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
+      $form_state->setErrorByName('taker][recipient_address', $this->t('Taker account must differ from maker account.'));
+      return;
     }
-    catch (\InvalidArgumentException) {
-      $form_state->setErrorByName('taker][recipient_address', $this->t('Taker public key could not be verified.'));
-    }
+
+    $form_state->set('symbol_atomic_swap_taker_address', (string) $verified_symbol_account['address']);
+    $form_state->set('symbol_atomic_swap_taker_public_key', (string) $verified_symbol_account['public_key']);
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
@@ -165,9 +249,9 @@ final class SwapOfferAcceptForm extends FormBase {
     if (!$offer) {
       throw new NotFoundHttpException();
     }
-    $taker = (array) $form_state->getValue('taker', []);
-    $taker_address = (string) ($form_state->get('symbol_atomic_swap_taker_address') ?: strtoupper(trim((string) ($taker['recipient_address'] ?? ''))));
-    $taker_public_key = (string) ($form_state->get('symbol_atomic_swap_taker_public_key') ?: $this->accountPublicKeyResolver->resolve((string) $offer['network'], $taker_address));
+    $verified_symbol_account = $this->verifiedSymbolAccount();
+    $taker_address = (string) ($form_state->get('symbol_atomic_swap_taker_address') ?: ($verified_symbol_account['address'] ?? ''));
+    $taker_public_key = (string) ($form_state->get('symbol_atomic_swap_taker_public_key') ?: ($verified_symbol_account['public_key'] ?? ''));
 
     $values = [
       'deadline_hours' => (int) $form_state->getValue(['transaction', 'deadline_hours']),
@@ -185,7 +269,20 @@ final class SwapOfferAcceptForm extends FormBase {
     }
 
     try {
-      $engine_result = $this->engineClient->buildAggregateComplete($this->offers->toEngineBuildPayload($accepted));
+      $aggregate_type = (string) $form_state->getValue(['transaction', 'aggregate_type']);
+      $payload = $this->offers->toEngineBuildPayload($accepted);
+      if ($aggregate_type === self::AGGREGATE_BONDED) {
+        $hash_lock = (array) $form_state->getValue(['transaction', 'hash_lock']);
+        $payload['hashLock'] = [
+          'mosaicId' => strtoupper(trim((string) ($hash_lock['mosaic_id'] ?? ''))),
+          'amount' => trim((string) ($hash_lock['amount'] ?? '')),
+          'duration' => (int) ($hash_lock['duration'] ?? 0),
+        ];
+        $engine_result = $this->engineClient->buildAggregateBonded($payload);
+      }
+      else {
+        $engine_result = $this->engineClient->buildAggregateComplete($payload);
+      }
       $this->offers->update($offer_id, $this->offers->engineFields($accepted, $engine_result) + [
         'changed' => \Drupal::time()->getRequestTime(),
       ]);
@@ -208,6 +305,43 @@ final class SwapOfferAcceptForm extends FormBase {
       default => '',
     };
     return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', $value) === 1;
+  }
+
+  private function plainValue(string $value): string {
+    return $value !== '' ? $value : (string) $this->t('Not set');
+  }
+
+  private function networkCurrencyMosaicId(string $network): string {
+    return match ($network) {
+      'mainnet' => '6BED913FA20223F8',
+      'testnet' => '72C0212E67A08BCE',
+      default => '',
+    };
+  }
+
+  /**
+   * @return array{network: string, address: string, public_key: string}|null
+   */
+  private function verifiedSymbolAccount(): ?array {
+    $account = \Drupal::entityTypeManager()->getStorage('user')->load((int) $this->currentUser->id());
+    if (!$account || !(bool) ($account->get('field_symbol_address_verified')->value ?? FALSE)) {
+      return NULL;
+    }
+
+    $network = (string) ($account->get('field_symbol_network')->value ?? '');
+    $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
+    $public_key = strtoupper((string) ($account->get('field_symbol_public_key')->value ?? ''));
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE)
+      || !$this->isNetworkAddress($address, $network)
+      || !preg_match('/^[0-9A-F]{64}$/', $public_key)) {
+      return NULL;
+    }
+
+    return [
+      'network' => $network,
+      'address' => $address,
+      'public_key' => $public_key,
+    ];
   }
 
   private function formatMosaicAmount(string $atomic_amount, string $network, string $mosaic_id): string {
