@@ -86,6 +86,40 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $this->assertSame(AdListingRepository::CANCELLED, $listing['status']);
   }
 
+  public function testBalanceCheckCandidatesReturnOnlyActiveListingsOldestFirst(): void {
+    $old_id = $this->repository->create($this->listingValues([
+      'label' => 'Old check',
+      'seller_balance_checked_at' => 1700000000,
+    ]));
+    $new_id = $this->repository->create($this->listingValues([
+      'label' => 'New check',
+      'seller_balance_checked_at' => 1700000100,
+    ]));
+    $cancelled_id = $this->repository->create($this->listingValues([
+      'label' => 'Cancelled',
+      'seller_balance_checked_at' => 1699999999,
+    ]));
+    $this->repository->cancel($cancelled_id);
+
+    $this->assertSame([$old_id, $new_id], $this->repository->activeBalanceCheckCandidateIds());
+  }
+
+  public function testUpdateSellerBalanceCheckUpdatesActiveListingOnly(): void {
+    $id = $this->repository->create($this->listingValues());
+    $cancelled_id = $this->repository->create($this->listingValues(['label' => 'Cancelled']));
+    $this->repository->cancel($cancelled_id);
+
+    $this->repository->updateSellerBalanceCheck($id, '9000000');
+    $this->repository->updateSellerBalanceCheck($cancelled_id, '9000000');
+
+    $listing = $this->repository->find($id);
+    $this->assertSame('9000000', $listing['seller_balance_checked_amount']);
+    $this->assertNotEmpty($listing['seller_balance_checked_at']);
+
+    $cancelled = $this->repository->find($cancelled_id);
+    $this->assertSame('5000000', $cancelled['seller_balance_checked_amount']);
+  }
+
   /**
    * @param array<string, mixed> $overrides
    *

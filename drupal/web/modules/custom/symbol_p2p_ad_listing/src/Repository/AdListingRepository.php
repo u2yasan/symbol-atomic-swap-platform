@@ -168,6 +168,36 @@ final class AdListingRepository {
       ->execute();
   }
 
+  /**
+   * @return int[]
+   */
+  public function activeBalanceCheckCandidateIds(int $limit = 50): array {
+    $query = $this->database->select(self::TABLE, 'l')
+      ->fields('l', ['id'])
+      ->condition('status', self::ACTIVE)
+      ->orderBy('seller_balance_checked_at', 'ASC')
+      ->orderBy('changed', 'ASC')
+      ->range(0, $limit);
+
+    return array_map('intval', $query->execute()->fetchCol());
+  }
+
+  public function updateSellerBalanceCheck(int $id, string $amount): void {
+    if (!preg_match('/^(0|[1-9][0-9]*)$/', $amount)) {
+      throw new \InvalidArgumentException('Balance amount must be an atomic integer string.');
+    }
+
+    $this->database->update(self::TABLE)
+      ->fields([
+        'seller_balance_checked_amount' => $amount,
+        'seller_balance_checked_at' => $this->time->getRequestTime(),
+        'changed' => $this->time->getRequestTime(),
+      ])
+      ->condition('id', $id)
+      ->condition('status', self::ACTIVE)
+      ->execute();
+  }
+
   private function isMosaicId(string $value): bool {
     return preg_match('/^[0-9A-Fa-f]{16}$/', $value) === 1;
   }

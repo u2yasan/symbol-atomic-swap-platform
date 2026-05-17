@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Hooks for Symbol P2P ad listings.
+ */
+
+/**
+ * Implements hook_cron().
+ */
+function symbol_p2p_ad_listing_cron(): void {
+  \Drupal::service('symbol_p2p_ad_listing.balance_check_manager')->checkActiveListings(50);
+}

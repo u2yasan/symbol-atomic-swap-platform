@@ -32,6 +32,15 @@ symbol_p2p_ad_listing.take:
     _permission: 'operate symbol p2p ad listings'
     listingId: '\d+'
 
+symbol_p2p_ad_listing.check_balance:
+  path: '/symbol-p2p/listings/{listingId}/check-balance'
+  defaults:
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\CheckBalanceForm'
+    _title: 'Check Seller Balance'
+  requirements:
+    _permission: 'operate symbol p2p ad listings'
+    listingId: '\d+'
+
 symbol_p2p_ad_listing.cancel:
   path: '/symbol-p2p/listings/{listingId}/cancel'
   defaults:
