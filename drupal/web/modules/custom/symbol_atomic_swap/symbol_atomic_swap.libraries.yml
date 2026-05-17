@@ -18,7 +18,7 @@ sss_sign:
     - core/once
 
 offer_form:
-  version: 1.x
+  version: 1.1
   js:
     js/symbol-atomic-swap-offer-form.js: {}
   dependencies:
