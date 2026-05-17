@@ -17,6 +17,7 @@ final class AdListingRepository {
   public const MATCHING = 'matching';
   public const MATCHED = 'matched';
   public const CANCELLED = 'cancelled';
+  public const EXPIRED = 'expired';
 
   public function __construct(
     private readonly Connection $database,
@@ -100,6 +101,9 @@ final class AdListingRepository {
     if ((string) $listing['status'] !== self::ACTIVE) {
       throw new \InvalidArgumentException('Only active listings can be matched.');
     }
+    if ($this->isExpired($listing)) {
+      throw new \InvalidArgumentException('Listing is expired.');
+    }
     if ((int) $listing['seller_uid'] === (int) $taker['uid']) {
       throw new \InvalidArgumentException('Seller cannot take their own listing.');
     }
@@ -171,6 +175,32 @@ final class AdListingRepository {
   /**
    * @return int[]
    */
+  public function expirationCandidateIds(int $now, int $limit = 50): array {
+    $query = $this->database->select(self::TABLE, 'l')
+      ->fields('l', ['id'])
+      ->condition('status', self::ACTIVE)
+      ->isNotNull('expires_at')
+      ->condition('expires_at', $now, '<=')
+      ->orderBy('expires_at', 'ASC')
+      ->range(0, $limit);
+
+    return array_map('intval', $query->execute()->fetchCol());
+  }
+
+  public function markExpired(int $id): void {
+    $this->database->update(self::TABLE)
+      ->fields([
+        'status' => self::EXPIRED,
+        'changed' => $this->time->getRequestTime(),
+      ])
+      ->condition('id', $id)
+      ->condition('status', self::ACTIVE)
+      ->execute();
+  }
+
+  /**
+   * @return int[]
+   */
   public function activeBalanceCheckCandidateIds(int $limit = 50): array {
     $query = $this->database->select(self::TABLE, 'l')
       ->fields('l', ['id'])
@@ -195,6 +225,13 @@ final class AdListingRepository {
       ->condition('id', $id)
       ->condition('status', self::ACTIVE)
       ->execute();
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  public function isExpired(array $listing): bool {
+    return !empty($listing['expires_at']) && (int) $listing['expires_at'] <= $this->time->getRequestTime();
   }
 
   private function isMosaicId(string $value): bool {

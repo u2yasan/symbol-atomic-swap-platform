@@ -13,6 +13,7 @@ Implemented:
 - Seller balance is checked at listing creation.
 - Seller balance can be checked manually before taking a listing.
 - Cron refreshes seller balances for active listings.
+- Listings can expire after a seller-selected duration or be set to no expiration.
 - Mosaic metadata is checked for `transferable` and valid divisibility.
 - Taker can take an active listing.
 - Seller and taker balances are checked again before match.
@@ -77,6 +78,7 @@ active
 matching
 matched
 cancelled
+expired
 ```
 
 State transitions:
@@ -84,9 +86,11 @@ State transitions:
 ```text
 active -> matching -> matched
 active -> cancelled
+active -> expired
 ```
 
 `matching` is an internal transient state used to claim an active listing before creating the backing atomic settlement.
+`expired` is a terminal local state for listings whose optional expiration time has passed.
 
 ## Data Model
 
@@ -103,6 +107,7 @@ Key fields:
 - `requested_mosaic_id`
 - `requested_amount`
 - `swap_window_minutes`
+- `expires_at`
 - `seller_balance_checked_amount`
 - `seller_balance_checked_at`
 - `matched_offer_id`
@@ -112,7 +117,7 @@ Amounts are stored as atomic integer strings, not display decimals.
 ## Create Flow
 
 1. User must have a verified Symbol account from `symbol_atomic_swap`.
-2. Seller enters offered mosaic, offered amount, requested mosaic, requested amount, and settlement window.
+2. Seller enters offered mosaic, offered amount, requested mosaic, requested amount, settlement window, and listing expiration.
 3. Module checks both mosaics via Symbol Engine metadata.
 4. Module rejects non-transferable mosaics.
 5. Module converts display amounts to atomic integer strings using mosaic divisibility.
@@ -120,6 +125,12 @@ Amounts are stored as atomic integer strings, not display decimals.
 7. Listing is saved as `active`.
 
 No asset is locked.
+
+Expiration rules:
+
+- Fixed duration listings must last at least 1 hour.
+- No-expiration listings are allowed.
+- Expiration affects whether the listing can be taken; it does not lock or unlock assets.
 
 ## Balance Refresh
 
@@ -134,22 +145,24 @@ Manual refresh:
 Automatic refresh:
 
 1. Drupal cron calls `symbol_p2p_ad_listing_cron()`.
-2. The module selects active listings ordered by oldest balance check.
-3. The module refreshes up to 50 listings per cron run.
-4. Failures are logged and do not block other listings.
+2. The module marks active listings with expired `expires_at` values as `expired`.
+3. The module selects remaining active listings ordered by oldest balance check.
+4. The module refreshes up to 50 listings per cron run.
+5. Failures are logged and do not block other listings.
 
 ## Take Flow
 
 1. Taker must have a verified Symbol account on the same network.
 2. Taker cannot be the seller.
-3. Buyer may manually refresh seller balance before submitting the take form.
-4. Module rechecks offered and requested mosaic metadata.
-5. Module rechecks seller balance for the offered mosaic.
-6. Module checks taker balance for the requested mosaic.
-7. Listing is claimed with `active -> matching`.
-8. Module inserts a `symbol_atomic_swap_offer`.
-9. Listing becomes `matched`.
-10. User is redirected to the existing atomic settlement accept/finalization route.
+3. Listing must still be active and unexpired.
+4. Buyer may manually refresh seller balance before submitting the take form.
+5. Module rechecks offered and requested mosaic metadata.
+6. Module rechecks seller balance for the offered mosaic.
+7. Module checks taker balance for the requested mosaic.
+8. Listing is claimed with `active -> matching`.
+9. Module inserts a `symbol_atomic_swap_offer`.
+10. Listing becomes `matched`.
+11. User is redirected to the existing atomic settlement accept/finalization route.
 
 The generated atomic settlement maps terms as:
 
@@ -179,7 +192,8 @@ The main remaining risks are not atomic-settlement risks. They are marketplace r
 - Seller spends assets after the last balance check.
 - Taker spends assets before take.
 - Repeated failed matches waste user time.
+- No-expiration listings can become stale if sellers do not maintain them.
 - Listings can still become stale between balance refresh and take submission.
 - No reputation or rate limiting exists yet.
 
-The next practical hardening step is to add failure counters and expiry for stale active listings.
+The next practical hardening step is to add failure counters and seller-side stale listing warnings.

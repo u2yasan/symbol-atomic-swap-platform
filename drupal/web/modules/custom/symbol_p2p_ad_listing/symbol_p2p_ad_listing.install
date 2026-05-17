@@ -27,6 +27,7 @@ function symbol_p2p_ad_listing_schema(): array {
       'requested_mosaic_id' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE],
       'requested_amount' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE],
       'swap_window_minutes' => ['type' => 'int', 'size' => 'small', 'not null' => TRUE, 'default' => 120],
+      'expires_at' => ['type' => 'int', 'not null' => FALSE],
       'seller_balance_checked_amount' => ['type' => 'varchar', 'length' => 32, 'not null' => FALSE],
       'seller_balance_checked_at' => ['type' => 'int', 'not null' => FALSE],
       'matched_offer_id' => ['type' => 'int', 'not null' => FALSE],
@@ -43,9 +44,24 @@ function symbol_p2p_ad_listing_schema(): array {
       'seller_uid' => ['seller_uid'],
       'offered_mosaic' => ['network', 'offered_mosaic_id'],
       'requested_mosaic' => ['network', 'requested_mosaic_id'],
+      'expires_at' => ['expires_at'],
       'matched_offer_id' => ['matched_offer_id'],
     ],
   ];
 
   return $schema;
+}
+
+/**
+ * Adds optional listing expiration timestamp.
+ */
+function symbol_p2p_ad_listing_update_11001(): void {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->fieldExists('symbol_p2p_ad_listing', 'expires_at')) {
+    $fields = symbol_p2p_ad_listing_schema()['symbol_p2p_ad_listing']['fields'];
+    $schema->addField('symbol_p2p_ad_listing', 'expires_at', $fields['expires_at']);
+  }
+  if (!$schema->indexExists('symbol_p2p_ad_listing', 'expires_at')) {
+    $schema->addIndex('symbol_p2p_ad_listing', 'expires_at', ['expires_at'], symbol_p2p_ad_listing_schema()['symbol_p2p_ad_listing']);
+  }
 }

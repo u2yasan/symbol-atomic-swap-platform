@@ -71,6 +71,10 @@ final class TakeListingForm extends ConfirmFormBase {
       $form_state->setErrorByName('listing_id', $this->t('Listing is no longer active.'));
       return;
     }
+    if ($this->listings->isExpired($listing)) {
+      $form_state->setErrorByName('listing_id', $this->t('Listing is expired.'));
+      return;
+    }
     if ((int) $listing['seller_uid'] === (int) $this->currentUser->id()) {
       $form_state->setErrorByName('listing_id', $this->t('Seller cannot take their own listing.'));
       return;

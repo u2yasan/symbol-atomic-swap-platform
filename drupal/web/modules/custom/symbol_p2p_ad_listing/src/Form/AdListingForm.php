@@ -192,6 +192,37 @@ final class AdListingForm extends FormBase {
       '#step' => 15,
       '#required' => TRUE,
     ];
+    $form['expiration'] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Listing expiration'),
+    ];
+    $form['expiration']['mode'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Expiration'),
+      '#default_value' => 'duration',
+      '#required' => TRUE,
+      '#options' => [
+        'duration' => $this->t('Expire after a fixed duration'),
+        'never' => $this->t('No expiration'),
+      ],
+    ];
+    $form['expiration']['duration_hours'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Listing duration hours'),
+      '#default_value' => 24,
+      '#min' => 1,
+      '#max' => 8760,
+      '#step' => 1,
+      '#states' => [
+        'visible' => [
+          ':input[name="expiration[mode]"]' => ['value' => 'duration'],
+        ],
+        'required' => [
+          ':input[name="expiration[mode]"]' => ['value' => 'duration'],
+        ],
+      ],
+      '#description' => $this->t('Minimum listing duration is 1 hour. Use no expiration only for actively maintained listings.'),
+    ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
@@ -213,6 +244,7 @@ final class AdListingForm extends FormBase {
     $network = (string) $account['network'];
     $offered = (array) $form_state->getValue('offered', []);
     $requested = (array) $form_state->getValue('requested', []);
+    $expiration = (array) $form_state->getValue('expiration', []);
     $offered_mosaic_id = strtoupper(trim((string) ($offered['mosaic_id'] ?? '')));
     $requested_mosaic_id = strtoupper(trim((string) ($requested['mosaic_id'] ?? '')));
 
@@ -233,6 +265,15 @@ final class AdListingForm extends FormBase {
 
     $form_state->set('offered_amount_atomic', $offered_amount);
     $form_state->set('requested_amount_atomic', $requested_amount);
+    if (($expiration['mode'] ?? '') === 'duration') {
+      $duration_hours = (int) ($expiration['duration_hours'] ?? 0);
+      if ($duration_hours < 1) {
+        $form_state->setErrorByName('expiration][duration_hours', $this->t('Listing duration must be at least 1 hour.'));
+      }
+    }
+    elseif (($expiration['mode'] ?? '') !== 'never') {
+      $form_state->setErrorByName('expiration][mode', $this->t('Choose a valid expiration option.'));
+    }
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
@@ -243,6 +284,11 @@ final class AdListingForm extends FormBase {
 
     $offered = (array) $form_state->getValue('offered', []);
     $requested = (array) $form_state->getValue('requested', []);
+    $expiration = (array) $form_state->getValue('expiration', []);
+    $expires_at = NULL;
+    if (($expiration['mode'] ?? '') === 'duration') {
+      $expires_at = \Drupal::time()->getRequestTime() + ((int) $expiration['duration_hours'] * 3600);
+    }
     $id = $this->listings->create([
       'label' => trim((string) $form_state->getValue('label')),
       'network' => (string) $account['network'],
@@ -254,6 +300,7 @@ final class AdListingForm extends FormBase {
       'requested_mosaic_id' => strtoupper(trim((string) $requested['mosaic_id'])),
       'requested_amount' => (string) $form_state->get('requested_amount_atomic'),
       'swap_window_minutes' => (int) $form_state->getValue('swap_window_minutes'),
+      'expires_at' => $expires_at,
       'seller_balance_checked_amount' => (string) $form_state->get('seller_balance_checked_amount'),
       'seller_balance_checked_at' => \Drupal::time()->getRequestTime(),
     ]);

@@ -66,6 +66,9 @@ final class CheckBalanceForm extends ConfirmFormBase {
     if (!$listing || (string) $listing['status'] !== AdListingRepository::ACTIVE) {
       $form_state->setErrorByName('listing_id', $this->t('Only active listings can be balance checked.'));
     }
+    elseif ($this->listings->isExpired($listing)) {
+      $form_state->setErrorByName('listing_id', $this->t('Expired listings cannot be balance checked.'));
+    }
     $this->listing = $listing ?: [];
   }
 

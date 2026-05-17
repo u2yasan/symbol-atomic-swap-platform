@@ -122,6 +122,45 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $this->assertSame('5000000', $cancelled['seller_balance_checked_amount']);
   }
 
+  public function testExpirationCandidatesAndMarkExpired(): void {
+    $expired_id = $this->repository->create($this->listingValues([
+      'label' => 'Expired',
+      'expires_at' => 1700000000,
+    ]));
+    $this->repository->create($this->listingValues([
+      'label' => 'Future',
+      'expires_at' => 1700007200,
+    ]));
+    $this->repository->create($this->listingValues([
+      'label' => 'Never',
+      'expires_at' => NULL,
+    ]));
+
+    $this->assertSame([$expired_id], $this->repository->expirationCandidateIds(1700003600));
+
+    $this->repository->markExpired($expired_id);
+    $listing = $this->repository->find($expired_id);
+    $this->assertSame(AdListingRepository::EXPIRED, $listing['status']);
+  }
+
+  public function testExpiredListingCannotCreateAtomicSettlement(): void {
+    $id = $this->repository->create($this->listingValues([
+      'expires_at' => 1,
+    ]));
+    $listing = $this->repository->find($id);
+    $this->assertNotNull($listing);
+    $this->assertTrue($this->repository->isExpired($listing));
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Listing is expired.');
+
+    $this->repository->matchToAtomicSettlement($listing, [
+      'uid' => 20,
+      'address' => 'TBOB3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'public_key' => str_repeat('B', 64),
+    ]);
+  }
+
   /**
    * @param array<string, mixed> $overrides
    *

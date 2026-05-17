@@ -42,6 +42,7 @@ final class AdListingController extends ControllerBase {
         (string) $listing['network'],
         $this->mosaicPair($listing),
         $this->statusLabel((string) $listing['status']),
+        $this->expirationLabel($listing),
         $this->balanceCheckSummary($listing),
         $listing['changed'] ? $this->dateFormatter->format((int) $listing['changed'], 'short') : '',
         ['data' => ['#markup' => implode(' | ', $this->operationLinks($listing))]],
@@ -68,6 +69,7 @@ final class AdListingController extends ControllerBase {
           $this->t('Network'),
           $this->t('Terms'),
           $this->t('Status'),
+          $this->t('Expires'),
           $this->t('Seller balance check'),
           $this->t('Changed'),
           $this->t('Operations'),
@@ -87,6 +89,7 @@ final class AdListingController extends ControllerBase {
       [$this->t('Seller offers'), $this->formatMosaicAmount((string) $listing['offered_amount'], (string) $listing['network'], (string) $listing['offered_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['offered_mosaic_id'])],
       [$this->t('Seller wants'), $this->formatMosaicAmount((string) $listing['requested_amount'], (string) $listing['network'], (string) $listing['requested_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['requested_mosaic_id'])],
       [$this->t('Settlement window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
+      [$this->t('Expires'), $this->expirationLabel($listing)],
       [$this->t('Balance checked amount'), $this->formatBalanceCheckedAmount($listing)],
       [$this->t('Balance checked at'), !empty($listing['seller_balance_checked_at']) ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'short') : ''],
       [$this->t('Created'), $this->dateFormatter->format((int) $listing['created'], 'short')],
@@ -168,6 +171,7 @@ final class AdListingController extends ControllerBase {
           AdListingRepository::ACTIVE => $this->t('Active'),
           AdListingRepository::MATCHED => $this->t('Matched'),
           AdListingRepository::CANCELLED => $this->t('Cancelled'),
+          AdListingRepository::EXPIRED => $this->t('Expired'),
         ],
         '#default_value' => $filters['status'],
       ],
@@ -263,6 +267,7 @@ final class AdListingController extends ControllerBase {
    */
   private function canTakeListing(array $listing): bool {
     return (string) $listing['status'] === AdListingRepository::ACTIVE
+      && !$this->listings->isExpired($listing)
       && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
       && $this->currentUser()->hasPermission('operate symbol p2p ad listings');
   }
@@ -272,12 +277,23 @@ final class AdListingController extends ControllerBase {
    */
   private function canCheckSellerBalance(array $listing): bool {
     return (string) $listing['status'] === AdListingRepository::ACTIVE
+      && !$this->listings->isExpired($listing)
       && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
       && $this->currentUser()->hasPermission('view symbol p2p ad listings');
   }
 
   private function atomicAmount(string $amount): string {
     return $amount !== '' ? $amount : (string) $this->t('Not checked');
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  private function expirationLabel(array $listing): string {
+    if (empty($listing['expires_at'])) {
+      return (string) $this->t('No expiration');
+    }
+    return $this->dateFormatter->format((int) $listing['expires_at'], 'short');
   }
 
   private function formatMosaicAmount(string $atomic_amount, string $network, string $mosaic_id): string {
