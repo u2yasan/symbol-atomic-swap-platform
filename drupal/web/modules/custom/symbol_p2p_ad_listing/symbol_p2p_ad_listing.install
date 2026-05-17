@@ -1,0 +1,51 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * @file
+ * Install hooks for Symbol P2P ad listings.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function symbol_p2p_ad_listing_schema(): array {
+  $schema['symbol_p2p_ad_listing'] = [
+    'description' => 'Stores non-custodial Symbol mosaic swap advertisements.',
+    'fields' => [
+      'id' => ['type' => 'serial', 'not null' => TRUE],
+      'uuid' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE],
+      'label' => ['type' => 'varchar', 'length' => 128, 'not null' => TRUE],
+      'status' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE, 'default' => 'active'],
+      'network' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE],
+      'seller_uid' => ['type' => 'int', 'not null' => TRUE, 'default' => 0],
+      'seller_address' => ['type' => 'varchar', 'length' => 46, 'not null' => TRUE],
+      'seller_public_key' => ['type' => 'varchar', 'length' => 64, 'not null' => TRUE],
+      'offered_mosaic_id' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE],
+      'offered_amount' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE],
+      'requested_mosaic_id' => ['type' => 'varchar', 'length' => 16, 'not null' => TRUE],
+      'requested_amount' => ['type' => 'varchar', 'length' => 32, 'not null' => TRUE],
+      'swap_window_minutes' => ['type' => 'int', 'size' => 'small', 'not null' => TRUE, 'default' => 120],
+      'seller_balance_checked_amount' => ['type' => 'varchar', 'length' => 32, 'not null' => FALSE],
+      'seller_balance_checked_at' => ['type' => 'int', 'not null' => FALSE],
+      'matched_offer_id' => ['type' => 'int', 'not null' => FALSE],
+      'created' => ['type' => 'int', 'not null' => TRUE],
+      'changed' => ['type' => 'int', 'not null' => TRUE],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uuid' => ['uuid'],
+    ],
+    'indexes' => [
+      'status' => ['status'],
+      'network_status' => ['network', 'status'],
+      'seller_uid' => ['seller_uid'],
+      'offered_mosaic' => ['network', 'offered_mosaic_id'],
+      'requested_mosaic' => ['network', 'requested_mosaic_id'],
+      'matched_offer_id' => ['matched_offer_id'],
+    ],
+  ];
+
+  return $schema;
+}

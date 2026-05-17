@@ -25,6 +25,7 @@
   <testsuites>
     <testsuite name="symbol-atomic-swap-kernel">
       <directory>web/modules/custom/symbol_atomic_swap/tests/src/Kernel</directory>
+      <directory>web/modules/custom/symbol_p2p_ad_listing/tests/src/Kernel</directory>
     </testsuite>
     <testsuite name="symbol-atomic-swap-functional">
       <directory>web/modules/custom/symbol_atomic_swap/tests/src/Functional</directory>

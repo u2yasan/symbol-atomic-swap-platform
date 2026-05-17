@@ -1,0 +1,4 @@
+services:
+  symbol_p2p_ad_listing.repository:
+    class: Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository
+    arguments: ['@database', '@datetime.time', '@uuid', '@symbol_atomic_swap.offer_repository']

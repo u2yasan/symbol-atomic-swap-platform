@@ -1,0 +1,42 @@
+symbol_p2p_ad_listing.list:
+  path: '/symbol-p2p/listings'
+  defaults:
+    _controller: '\Drupal\symbol_p2p_ad_listing\Controller\AdListingController::list'
+    _title: 'P2P Listings'
+  requirements:
+    _permission: 'view symbol p2p ad listings'
+
+symbol_p2p_ad_listing.add:
+  path: '/symbol-p2p/listings/add'
+  defaults:
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\AdListingForm'
+    _title: 'Create P2P Listing'
+  requirements:
+    _permission: 'create symbol p2p ad listings'
+
+symbol_p2p_ad_listing.view:
+  path: '/symbol-p2p/listings/{listingId}'
+  defaults:
+    _controller: '\Drupal\symbol_p2p_ad_listing\Controller\AdListingController::view'
+    _title_callback: '\Drupal\symbol_p2p_ad_listing\Controller\AdListingController::title'
+  requirements:
+    _permission: 'view symbol p2p ad listings'
+    listingId: '\d+'
+
+symbol_p2p_ad_listing.take:
+  path: '/symbol-p2p/listings/{listingId}/take'
+  defaults:
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\TakeListingForm'
+    _title: 'Take P2P Listing'
+  requirements:
+    _permission: 'operate symbol p2p ad listings'
+    listingId: '\d+'
+
+symbol_p2p_ad_listing.cancel:
+  path: '/symbol-p2p/listings/{listingId}/cancel'
+  defaults:
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\CancelListingForm'
+    _title: 'Cancel P2P Listing'
+  requirements:
+    _permission: 'administer symbol p2p ad listings'
+    listingId: '\d+'
