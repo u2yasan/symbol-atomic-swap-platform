@@ -12,7 +12,9 @@ declare(strict_types=1);
  */
 function symbol_p2p_ad_listing_cron(): void {
   $repository = \Drupal::service('symbol_p2p_ad_listing.repository');
-  foreach ($repository->expirationCandidateIds(\Drupal::time()->getRequestTime(), 50) as $listing_id) {
+  $now = \Drupal::time()->getRequestTime();
+  $repository->releaseFailedMatches($now, 50);
+  foreach ($repository->expirationCandidateIds($now, 50) as $listing_id) {
     $repository->markExpired($listing_id);
   }
   \Drupal::service('symbol_p2p_ad_listing.balance_check_manager')->checkActiveListings(50);

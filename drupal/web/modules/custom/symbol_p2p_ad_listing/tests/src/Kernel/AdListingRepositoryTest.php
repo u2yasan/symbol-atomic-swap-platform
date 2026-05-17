@@ -194,6 +194,91 @@ final class AdListingRepositoryTest extends KernelTestBase {
     ]);
   }
 
+  public function testFailedAtomicSettlementReleasesUnexpiredMatchedListing(): void {
+    $now = \Drupal::time()->getRequestTime();
+    $id = $this->repository->create($this->listingValues([
+      'expires_at' => $now + 7200,
+    ]));
+    $offer_id = $this->repository->matchToAtomicSettlement($this->repository->find($id), [
+      'uid' => 20,
+      'address' => 'TBOB3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'public_key' => str_repeat('B', 64),
+    ]);
+    $this->container->get('symbol_atomic_swap.offer_repository')->update($offer_id, [
+      'state' => 'failed',
+    ]);
+
+    $result = $this->repository->releaseFailedMatches($now + 3600);
+
+    $this->assertSame([$id], $result['released']);
+    $this->assertSame([], $result['expired']);
+    $listing = $this->repository->find($id);
+    $this->assertSame(AdListingRepository::ACTIVE, $listing['status']);
+    $this->assertEmpty($listing['matched_offer_id']);
+  }
+
+  public function testMissingAtomicSettlementReleasesUnexpiredMatchedListing(): void {
+    $now = \Drupal::time()->getRequestTime();
+    $id = $this->repository->create($this->listingValues([
+      'expires_at' => $now + 7200,
+    ]));
+    $offer_id = $this->repository->matchToAtomicSettlement($this->repository->find($id), [
+      'uid' => 20,
+      'address' => 'TBOB3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'public_key' => str_repeat('B', 64),
+    ]);
+    $this->container->get('symbol_atomic_swap.offer_repository')->delete($offer_id);
+
+    $result = $this->repository->releaseFailedMatches($now + 3600);
+
+    $this->assertSame([$id], $result['released']);
+    $this->assertSame(AdListingRepository::ACTIVE, $this->repository->find($id)['status']);
+  }
+
+  public function testFailedAtomicSettlementExpiresListingPastListingDeadline(): void {
+    $now = \Drupal::time()->getRequestTime();
+    $id = $this->repository->create($this->listingValues([
+      'expires_at' => $now + 1800,
+    ]));
+    $offer_id = $this->repository->matchToAtomicSettlement($this->repository->find($id), [
+      'uid' => 20,
+      'address' => 'TBOB3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'public_key' => str_repeat('B', 64),
+    ]);
+    $this->container->get('symbol_atomic_swap.offer_repository')->update($offer_id, [
+      'state' => 'expired',
+    ]);
+
+    $result = $this->repository->releaseFailedMatches($now + 3600);
+
+    $this->assertSame([], $result['released']);
+    $this->assertSame([$id], $result['expired']);
+    $listing = $this->repository->find($id);
+    $this->assertSame(AdListingRepository::EXPIRED, $listing['status']);
+    $this->assertSame($offer_id, (int) $listing['matched_offer_id']);
+  }
+
+  public function testFinalizedAtomicSettlementDoesNotReleaseMatchedListing(): void {
+    $now = \Drupal::time()->getRequestTime();
+    $id = $this->repository->create($this->listingValues([
+      'expires_at' => $now + 7200,
+    ]));
+    $offer_id = $this->repository->matchToAtomicSettlement($this->repository->find($id), [
+      'uid' => 20,
+      'address' => 'TBOB3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'public_key' => str_repeat('B', 64),
+    ]);
+    $this->container->get('symbol_atomic_swap.offer_repository')->update($offer_id, [
+      'state' => 'finalized',
+    ]);
+
+    $result = $this->repository->releaseFailedMatches($now + 3600);
+
+    $this->assertSame([], $result['released']);
+    $this->assertSame([], $result['expired']);
+    $this->assertSame(AdListingRepository::MATCHED, $this->repository->find($id)['status']);
+  }
+
   /**
    * @param array<string, mixed> $overrides
    *

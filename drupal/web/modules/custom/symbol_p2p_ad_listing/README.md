@@ -87,11 +87,14 @@ State transitions:
 
 ```text
 active -> matching -> matched
+matched -> active
+matched -> expired
 active -> cancelled
 active -> expired
 ```
 
 `matching` is an internal transient state used to claim an active listing before creating the backing atomic settlement.
+`matched -> active` happens only when the backing atomic settlement cannot complete and the listing has not expired.
 `expired` is a terminal local state for listings whose optional expiration time has passed.
 
 ## Data Model
@@ -153,10 +156,11 @@ Manual refresh:
 Automatic refresh:
 
 1. Drupal cron calls `symbol_p2p_ad_listing_cron()`.
-2. The module marks active listings with expired `expires_at` values as `expired`.
-3. The module selects remaining active listings ordered by oldest balance check.
-4. The module refreshes up to 50 listings per cron run.
-5. Failures are logged and do not block other listings.
+2. The module reopens matched listings whose backing atomic settlement is `expired`, `cancelled`, `failed`, `rolled_back`, or deleted, if the listing has not expired.
+3. The module marks matched or active listings with expired `expires_at` values as `expired`.
+4. The module selects remaining active listings ordered by oldest balance check.
+5. The module refreshes up to 50 listings per cron run.
+6. Failures are logged and do not block other listings.
 
 ## Take Flow
 
@@ -171,6 +175,7 @@ Automatic refresh:
 9. Module inserts a `symbol_atomic_swap_offer`.
 10. Listing becomes `matched`.
 11. User is redirected to the existing atomic settlement accept/finalization route.
+12. If that settlement later cannot complete and the listing is still within `expires_at`, cron clears `matched_offer_id` and returns the listing to `active`.
 
 The generated atomic settlement maps terms as:
 

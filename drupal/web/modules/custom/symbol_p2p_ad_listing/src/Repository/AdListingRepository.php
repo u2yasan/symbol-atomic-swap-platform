@@ -18,6 +18,7 @@ final class AdListingRepository {
   public const MATCHED = 'matched';
   public const CANCELLED = 'cancelled';
   public const EXPIRED = 'expired';
+  private const RELEASABLE_OFFER_STATES = ['expired', 'cancelled', 'failed', 'rolled_back'];
 
   public function __construct(
     private readonly Connection $database,
@@ -216,6 +217,62 @@ final class AdListingRepository {
       ->condition('id', $id)
       ->condition('status', self::ACTIVE)
       ->execute();
+  }
+
+  /**
+   * Reopens matched listings whose backing atomic settlement cannot complete.
+   *
+   * @return array{released: int[], expired: int[]}
+   */
+  public function releaseFailedMatches(int $now, int $limit = 50): array {
+    $query = $this->database->select(self::TABLE, 'l')
+      ->fields('l', ['id', 'expires_at'])
+      ->condition('l.status', self::MATCHED)
+      ->isNotNull('l.matched_offer_id')
+      ->orderBy('l.changed', 'ASC')
+      ->range(0, $limit);
+    $query->leftJoin('symbol_atomic_swap_offer', 'o', 'o.id = l.matched_offer_id');
+    $query->addField('o', 'id', 'offer_id');
+    $query->addField('o', 'state', 'offer_state');
+    $terminal = $query->orConditionGroup()
+      ->isNull('o.id')
+      ->condition('o.state', self::RELEASABLE_OFFER_STATES, 'IN');
+    $query->condition($terminal);
+
+    $released = [];
+    $expired = [];
+    foreach ($query->execute()->fetchAll(FetchAs::Associative) as $record) {
+      $id = (int) $record['id'];
+      if (!empty($record['expires_at']) && (int) $record['expires_at'] <= $now) {
+        $updated = (int) $this->database->update(self::TABLE)
+          ->fields([
+            'status' => self::EXPIRED,
+            'changed' => $this->time->getRequestTime(),
+          ])
+          ->condition('id', $id)
+          ->condition('status', self::MATCHED)
+          ->execute();
+        if ($updated === 1) {
+          $expired[] = $id;
+        }
+        continue;
+      }
+
+      $updated = (int) $this->database->update(self::TABLE)
+        ->fields([
+          'status' => self::ACTIVE,
+          'matched_offer_id' => NULL,
+          'changed' => $this->time->getRequestTime(),
+        ])
+        ->condition('id', $id)
+        ->condition('status', self::MATCHED)
+        ->execute();
+      if ($updated === 1) {
+        $released[] = $id;
+      }
+    }
+
+    return ['released' => $released, 'expired' => $expired];
   }
 
   /**
