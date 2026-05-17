@@ -300,22 +300,17 @@ final class SwapOfferController extends ControllerBase {
 
     $is_aggregate_bonded = $this->isAggregateBondedPayload($qr_payload);
     $can_submit_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
+    $can_submit_signed_payload = $this->offers->canSubmitSignedPayload($offer);
+    $state = (string) ($offer['state'] ?? '');
     $build['actions'] = [
       '#type' => 'actions',
-      'submit_signed_payload' => [
-        '#type' => 'link',
-        '#title' => $this->t('Submit signed payload'),
-        '#url' => Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]),
-        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && $this->offers->canSubmitSignedPayload($offer),
-        '#attributes' => ['class' => ['button', 'button--primary']],
-      ],
       'sign_with_sss' => [
         '#type' => 'link',
         '#title' => $this->t('Sign with SSS'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_sign_with_sss', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && $this->offers->canSubmitSignedPayload($offer),
+          && $can_submit_signed_payload
+          && ($state === 'qr_generated' || ($is_aggregate_bonded && $state === 'root_signed')),
         '#attributes' => ['class' => ['button', 'button--primary']],
       ],
       'accept' => [
@@ -326,39 +321,13 @@ final class SwapOfferController extends ControllerBase {
           && $this->offers->canAccept($offer),
         '#attributes' => ['class' => ['button', 'button--primary']],
       ],
-      'submit_aggregate_signer_json' => [
-        '#type' => 'link',
-        '#title' => $this->t('Submit aggregate signer JSON'),
-        '#url' => Url::fromRoute('symbol_atomic_swap.offer_submit_aggregate_signer_json', ['offerId' => $offer['id']]),
-        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && $this->offers->canSubmitSignedPayload($offer),
-        '#attributes' => ['class' => ['button']],
-      ],
-      'submit_cosignature' => [
-        '#type' => 'link',
-        '#title' => $this->t('Submit cosignature JSON'),
-        '#url' => Url::fromRoute('symbol_atomic_swap.offer_submit_cosignature', ['offerId' => $offer['id']]),
-        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && !$is_aggregate_bonded
-          && $this->offers->canSubmitSignedPayload($offer),
-        '#attributes' => ['class' => ['button']],
-      ],
       'cosign_with_sss' => [
         '#type' => 'link',
         '#title' => $can_submit_bonded_cosignature ? $this->t('Cosign and announce partial with SSS') : $this->t('Cosign with SSS'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && ((!$is_aggregate_bonded && $this->offers->canSubmitSignedPayload($offer)) || $can_submit_bonded_cosignature),
-        '#attributes' => ['class' => ['button']],
-      ],
-      'assemble_signed_payload' => [
-        '#type' => 'link',
-        '#title' => $this->t('Assemble signed payload'),
-        '#url' => Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]),
-        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && !$is_aggregate_bonded
-          && $this->offers->canSubmitSignedPayload($offer),
-        '#attributes' => ['class' => ['button']],
+          && ((!$is_aggregate_bonded && $can_submit_signed_payload && $state === 'root_signed') || $can_submit_bonded_cosignature),
+        '#attributes' => ['class' => ['button', 'button--primary']],
       ],
       'announce' => [
         '#type' => 'link',
@@ -766,13 +735,12 @@ final class SwapOfferController extends ControllerBase {
         $operations[] = Link::fromTextAndUrl($this->t('Finalize settlement'), Url::fromRoute('symbol_atomic_swap.offer_accept', ['offerId' => $offer['id']]))->toString();
       }
       if ($this->offers->canSubmitSignedPayload($offer)) {
-        $operations[] = Link::fromTextAndUrl($this->t('Submit signed payload'), Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]))->toString();
-        $operations[] = Link::fromTextAndUrl($this->t('Sign with SSS'), Url::fromRoute('symbol_atomic_swap.offer_sign_with_sss', ['offerId' => $offer['id']]))->toString();
-        $operations[] = Link::fromTextAndUrl($this->t('Submit aggregate signer JSON'), Url::fromRoute('symbol_atomic_swap.offer_submit_aggregate_signer_json', ['offerId' => $offer['id']]))->toString();
-        if (!$is_aggregate_bonded) {
-          $operations[] = Link::fromTextAndUrl($this->t('Submit cosignature JSON'), Url::fromRoute('symbol_atomic_swap.offer_submit_cosignature', ['offerId' => $offer['id']]))->toString();
+        $state = (string) ($offer['state'] ?? '');
+        if ($state === 'qr_generated' || ($is_aggregate_bonded && $state === 'root_signed')) {
+          $operations[] = Link::fromTextAndUrl($this->t('Sign with SSS'), Url::fromRoute('symbol_atomic_swap.offer_sign_with_sss', ['offerId' => $offer['id']]))->toString();
+        }
+        if (!$is_aggregate_bonded && $state === 'root_signed') {
           $operations[] = Link::fromTextAndUrl($this->t('Cosign with SSS'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
-          $operations[] = Link::fromTextAndUrl($this->t('Assemble signed payload'), Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]))->toString();
         }
       }
       if ($can_submit_bonded_cosignature) {
