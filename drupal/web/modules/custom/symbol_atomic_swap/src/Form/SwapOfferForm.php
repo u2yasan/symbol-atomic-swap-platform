@@ -410,21 +410,39 @@ final class SwapOfferForm extends FormBase {
 
     if ($this->isMosaicId($maker_pays_mosaic_id)) {
       try {
-        $divisibility = $this->mosaicDivisibility($network, $maker_pays_mosaic_id);
-        $form_state->set('symbol_atomic_swap_maker_pays_amount_atomic', $this->toAtomicAmount(trim((string) ($maker_pays['amount'] ?? '')), $divisibility));
+        $metadata = $this->transferableMosaicMetadata($network, $maker_pays_mosaic_id);
+        $divisibility = $this->mosaicDivisibilityFromMetadata($metadata);
       }
       catch (SymbolEngineException | \RuntimeException | \InvalidArgumentException $exception) {
-        $form_state->setErrorByName('maker_pays][amount', $exception->getMessage());
+        $form_state->setErrorByName('maker_pays][mosaic_id', $exception->getMessage());
+        $divisibility = NULL;
+      }
+      if (isset($divisibility)) {
+        try {
+          $form_state->set('symbol_atomic_swap_maker_pays_amount_atomic', $this->toAtomicAmount(trim((string) ($maker_pays['amount'] ?? '')), $divisibility));
+        }
+        catch (\InvalidArgumentException $exception) {
+          $form_state->setErrorByName('maker_pays][amount', $exception->getMessage());
+        }
       }
     }
 
     if ($this->isMosaicId($maker_wants_mosaic_id)) {
       try {
-        $divisibility = $this->mosaicDivisibility($network, $maker_wants_mosaic_id);
-        $form_state->set('symbol_atomic_swap_maker_wants_amount_atomic', $this->toAtomicAmount(trim((string) ($maker_wants['amount'] ?? '')), $divisibility));
+        $metadata = $this->transferableMosaicMetadata($network, $maker_wants_mosaic_id);
+        $divisibility = $this->mosaicDivisibilityFromMetadata($metadata);
       }
       catch (SymbolEngineException | \RuntimeException | \InvalidArgumentException $exception) {
-        $form_state->setErrorByName('maker_wants][amount', $exception->getMessage());
+        $form_state->setErrorByName('maker_wants][mosaic_id', $exception->getMessage());
+        $divisibility = NULL;
+      }
+      if (isset($divisibility)) {
+        try {
+          $form_state->set('symbol_atomic_swap_maker_wants_amount_atomic', $this->toAtomicAmount(trim((string) ($maker_wants['amount'] ?? '')), $divisibility));
+        }
+        catch (\InvalidArgumentException $exception) {
+          $form_state->setErrorByName('maker_wants][amount', $exception->getMessage());
+        }
       }
     }
   }
@@ -512,13 +530,42 @@ final class SwapOfferForm extends FormBase {
   }
 
   private function mosaicDivisibility(string $network, string $mosaic_id): int {
+    return $this->mosaicDivisibilityFromMetadata($this->mosaicMetadata($network, $mosaic_id));
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function transferableMosaicMetadata(string $network, string $mosaic_id): array {
+    $metadata = $this->mosaicMetadata($network, $mosaic_id);
+    if (($metadata['transferable'] ?? TRUE) !== TRUE) {
+      throw new \RuntimeException((string) $this->t('Mosaic is not transferable and cannot be used in a swap offer.'));
+    }
+    return $metadata;
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function mosaicMetadata(string $network, string $mosaic_id): array {
     $overrides = \Drupal::state()->get('symbol_atomic_swap.mosaic_metadata_test_overrides', []);
     $override = $overrides[$network][strtoupper($mosaic_id)] ?? NULL;
-    if (is_array($override) && isset($override['divisibility']) && is_int($override['divisibility'])) {
-      return $override['divisibility'];
+    if (is_array($override)) {
+      return $override + [
+        'found' => TRUE,
+        'mosaicId' => strtoupper($mosaic_id),
+        'transferable' => TRUE,
+        'aliases' => [],
+      ];
     }
 
-    $metadata = $this->engineClient->mosaicMetadata($network, $mosaic_id);
+    return $this->engineClient->mosaicMetadata($network, $mosaic_id);
+  }
+
+  /**
+   * @param array<string, mixed> $metadata
+   */
+  private function mosaicDivisibilityFromMetadata(array $metadata): int {
     $divisibility = $metadata['divisibility'] ?? NULL;
     if (!is_int($divisibility) || $divisibility < 0 || $divisibility > 6) {
       throw new \RuntimeException((string) $this->t('Mosaic divisibility could not be resolved.'));

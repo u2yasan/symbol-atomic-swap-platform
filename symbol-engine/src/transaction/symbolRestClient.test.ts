@@ -107,6 +107,7 @@ test('SymbolRestClient resolves mosaic divisibility and aliases', async () => {
       return jsonResponse({
         mosaic: {
           id: '72C0212E67A08BCE',
+          flags: 2,
           divisibility: 6,
         },
       });
@@ -125,12 +126,38 @@ test('SymbolRestClient resolves mosaic divisibility and aliases', async () => {
     found: true,
     mosaicId: '72C0212E67A08BCE',
     divisibility: 6,
+    transferable: true,
     aliases: ['symbol.xym'],
   });
   assert.deepEqual(requested, [
     'GET https://node.example.test/mosaics/72C0212E67A08BCE',
     'POST https://node.example.test/namespaces/mosaic/names',
   ]);
+});
+
+test('SymbolRestClient resolves non-transferable mosaic flag', async () => {
+  const client = new SymbolRestClient('https://node.example.test', async (input) => {
+    if (String(input).endsWith('/mosaics/72C0212E67A08BCF')) {
+      return jsonResponse({
+        mosaic: {
+          id: '72C0212E67A08BCF',
+          flags: 0,
+          divisibility: 2,
+        },
+      });
+    }
+    return jsonResponse({
+      mosaicNames: [],
+    });
+  });
+
+  assert.deepEqual(await client.getMosaicMetadata('72c0212e67a08bcf'), {
+    found: true,
+    mosaicId: '72C0212E67A08BCF',
+    divisibility: 2,
+    transferable: false,
+    aliases: [],
+  });
 });
 
 test('SymbolRestClient resolves account mosaic balance', async () => {

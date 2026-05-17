@@ -32,6 +32,7 @@ export type SymbolMosaicMetadataLookup = {
   found: boolean;
   mosaicId: string;
   divisibility?: number;
+  transferable?: boolean;
   aliases: string[];
 };
 
@@ -105,6 +106,24 @@ function extractMosaicDivisibility(payload: unknown): number | undefined {
   return typeof divisibility === 'number' && Number.isInteger(divisibility) && divisibility >= 0 && divisibility <= 6
     ? divisibility
     : undefined;
+}
+
+function extractMosaicTransferable(payload: unknown): boolean | undefined {
+  const record = asRecord(payload);
+  const mosaic = asRecord(record.mosaic);
+  const flags = mosaic.flags;
+  if (typeof flags === 'number' && Number.isInteger(flags) && flags >= 0) {
+    return (flags & 0x02) !== 0;
+  }
+  if (typeof flags === 'string' && /^[0-9]+$/.test(flags)) {
+    return (Number(flags) & 0x02) !== 0;
+  }
+
+  const flagRecord = asRecord(flags);
+  if (typeof flagRecord.transferable === 'boolean') {
+    return flagRecord.transferable;
+  }
+  return undefined;
 }
 
 function extractMosaicAliases(payload: unknown, mosaicId: string): string[] {
@@ -276,7 +295,9 @@ export class SymbolRestClient {
       throw new Error(`mosaic lookup failed: ${mosaicResponse.status}`);
     }
 
-    const divisibility = extractMosaicDivisibility(await readJson(mosaicResponse));
+    const mosaicPayload = await readJson(mosaicResponse);
+    const divisibility = extractMosaicDivisibility(mosaicPayload);
+    const transferable = extractMosaicTransferable(mosaicPayload);
     const aliasesResponse = await this.request('/namespaces/mosaic/names', {
       method: 'POST',
       headers: {
@@ -292,6 +313,7 @@ export class SymbolRestClient {
       found: divisibility !== undefined,
       mosaicId: normalizedMosaicId,
       ...(divisibility !== undefined ? { divisibility } : {}),
+      ...(transferable !== undefined ? { transferable } : {}),
       aliases: extractMosaicAliases(await readJson(aliasesResponse), normalizedMosaicId),
     };
   }

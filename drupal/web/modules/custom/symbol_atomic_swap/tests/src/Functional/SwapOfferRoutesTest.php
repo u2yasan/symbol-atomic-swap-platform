@@ -118,6 +118,40 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
+   * Creating an offer must reject non-transferable mosaics before chain failure.
+   */
+  public function testCreateOfferRejectsNonTransferableMosaic(): void {
+    $this->installAccountPublicKeyResolverStub();
+    $overrides = \Drupal::state()->get('symbol_atomic_swap.mosaic_metadata_test_overrides');
+    $overrides['testnet']['72C0212E67A08BCF']['transferable'] = FALSE;
+    \Drupal::state()->set('symbol_atomic_swap.mosaic_metadata_test_overrides', $overrides);
+
+    $creator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'create symbol atomic swap offers',
+    ]);
+    $this->verifySymbolAccount($creator);
+    $this->drupalLogin($creator);
+
+    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->submitForm([
+      'label' => 'Non-transferable mosaic offer',
+      'maker_pays[mosaic_id]' => '72C0212E67A08BCF',
+      'maker_pays[amount]' => '100',
+      'maker_wants[mosaic_id]' => '72C0212E67A08BCE',
+      'maker_wants[amount]' => '200',
+    ], 'Create trade offer');
+
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Mosaic is not transferable and cannot be used in a swap offer.');
+    $records = \Drupal::service('symbol_atomic_swap.offer_repository')->search([
+      'q' => 'Non-transferable mosaic offer',
+    ]);
+    $this->assertCount(0, $records);
+  }
+
+  /**
    * Creating an offer requires a verified Symbol account.
    */
   public function testCreateOfferWarnsWhenMySymbolAccountIsNotVerified(): void {

@@ -166,13 +166,14 @@ final class SymbolEngineClientTest extends KernelTestBase {
 
     $history = [];
     $client = $this->client([
-      new Response(200, [], '{"found":true,"mosaicId":"72C0212E67A08BCE","divisibility":6,"aliases":["symbol.xym"]}'),
+      new Response(200, [], '{"found":true,"mosaicId":"72C0212E67A08BCE","divisibility":6,"transferable":true,"aliases":["symbol.xym"]}'),
     ], $history);
 
     $result = $client->mosaicMetadata('testnet', '72c0212e67a08bce');
 
     $this->assertSame('symbol.xym', $result['aliases'][0]);
     $this->assertSame(6, $result['divisibility']);
+    $this->assertTrue($result['transferable']);
     $this->assertSame('http://engine.local/v1/mosaics/testnet/72C0212E67A08BCE', (string) $history[0]['request']->getUri());
   }
 

@@ -52,9 +52,13 @@
     const balance = result.balance === null || result.balance === undefined || divisibility === null
       ? 'N/A'
       : formatMosaicAmount(result.balance, divisibility);
-    return Drupal.t('Alias: @alias. Divisibility: @divisibility. Balance: @balance', {
+    const transferable = result.transferable === true
+      ? Drupal.t('yes')
+      : (result.transferable === false ? Drupal.t('no') : 'N/A');
+    return Drupal.t('Alias: @alias. Divisibility: @divisibility. Transferable: @transferable. Balance: @balance', {
       '@alias': alias,
       '@divisibility': divisibility === null ? 'N/A' : String(divisibility),
+      '@transferable': transferable,
       '@balance': balance,
     });
   }
