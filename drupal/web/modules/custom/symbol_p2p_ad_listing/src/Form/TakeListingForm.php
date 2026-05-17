@@ -62,25 +62,10 @@ final class TakeListingForm extends ConfirmFormBase {
       '#type' => 'item',
       '#markup' => $this->t('The listing is not locked. Seller and taker balances will be checked again before the settlement is created.'),
     ];
-    if (!$this->currentUser->hasPermission('operate symbol atomic swap offers')) {
-      $form['atomic_permission_required'] = [
-        '#type' => 'container',
-        '#attributes' => ['class' => ['messages', 'messages--warning']],
-        'message' => [
-          '#type' => 'item',
-          '#markup' => $this->t('Taking a listing requires permission to operate Symbol atomic settlements.'),
-        ],
-      ];
-      $form['actions']['submit']['#disabled'] = TRUE;
-    }
     return $form;
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
-    if (!$this->currentUser->hasPermission('operate symbol atomic swap offers')) {
-      $form_state->setErrorByName('listing_id', $this->t('Taking a listing requires permission to operate Symbol atomic settlements.'));
-      return;
-    }
     $listing = $this->listings->find((int) $form_state->getValue('listing_id'));
     if (!$listing || (string) $listing['status'] !== AdListingRepository::ACTIVE) {
       $form_state->setErrorByName('listing_id', $this->t('Listing is no longer active.'));

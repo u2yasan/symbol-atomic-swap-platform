@@ -38,7 +38,7 @@ symbol_p2p_ad_listing.check_balance:
     _form: '\Drupal\symbol_p2p_ad_listing\Form\CheckBalanceForm'
     _title: 'Check Seller Balance'
   requirements:
-    _permission: 'operate symbol p2p ad listings'
+    _permission: 'view symbol p2p ad listings'
     listingId: '\d+'
 
 symbol_p2p_ad_listing.cancel:

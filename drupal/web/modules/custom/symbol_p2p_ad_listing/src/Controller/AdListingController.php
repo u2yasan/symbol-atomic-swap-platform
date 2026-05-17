@@ -119,8 +119,7 @@ final class AdListingController extends ControllerBase {
           '#type' => 'link',
           '#title' => $this->t('Check seller balance'),
           '#url' => Url::fromRoute('symbol_p2p_ad_listing.check_balance', ['listingId' => $listing['id']]),
-          '#access' => (string) $listing['status'] === AdListingRepository::ACTIVE
-            && $this->currentUser()->hasPermission('operate symbol p2p ad listings'),
+          '#access' => $this->canCheckSellerBalance($listing),
           '#attributes' => ['class' => ['button']],
         ],
         'cancel' => [
@@ -197,8 +196,7 @@ final class AdListingController extends ControllerBase {
     if ($this->canTakeListing($listing)) {
       $links[] = Link::fromTextAndUrl($this->t('Take'), Url::fromRoute('symbol_p2p_ad_listing.take', ['listingId' => $listing['id']]))->toString();
     }
-    if ((string) $listing['status'] === AdListingRepository::ACTIVE
-      && $this->currentUser()->hasPermission('operate symbol p2p ad listings')) {
+    if ($this->canCheckSellerBalance($listing)) {
       $links[] = Link::fromTextAndUrl($this->t('Check balance'), Url::fromRoute('symbol_p2p_ad_listing.check_balance', ['listingId' => $listing['id']]))->toString();
     }
     return $links;
@@ -243,8 +241,16 @@ final class AdListingController extends ControllerBase {
   private function canTakeListing(array $listing): bool {
     return (string) $listing['status'] === AdListingRepository::ACTIVE
       && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
-      && $this->currentUser()->hasPermission('operate symbol p2p ad listings')
-      && $this->currentUser()->hasPermission('operate symbol atomic swap offers');
+      && $this->currentUser()->hasPermission('operate symbol p2p ad listings');
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  private function canCheckSellerBalance(array $listing): bool {
+    return (string) $listing['status'] === AdListingRepository::ACTIVE
+      && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
+      && $this->currentUser()->hasPermission('view symbol p2p ad listings');
   }
 
   private function atomicAmount(string $amount): string {
