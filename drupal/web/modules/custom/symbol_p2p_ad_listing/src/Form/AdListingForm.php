@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_p2p_ad_listing\Form;
 
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
@@ -19,6 +20,7 @@ final class AdListingForm extends FormBase {
     private readonly AdListingRepository $listings,
     private readonly SymbolEngineClient $engineClient,
     private readonly AccountProxyInterface $currentUser,
+    private readonly EntityTypeManagerInterface $entityTypeManager,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -26,6 +28,7 @@ final class AdListingForm extends FormBase {
       $container->get('symbol_p2p_ad_listing.repository'),
       $container->get('symbol_atomic_swap.engine_client'),
       $container->get('current_user'),
+      $container->get('entity_type.manager'),
     );
   }
 
@@ -219,7 +222,7 @@ final class AdListingForm extends FormBase {
    * @return array{network: string, address: string, public_key: string}|null
    */
   private function verifiedSymbolAccount(): ?array {
-    $account = $this->entityTypeManager()->getStorage('user')->load((int) $this->currentUser->id());
+    $account = $this->entityTypeManager->getStorage('user')->load((int) $this->currentUser->id());
     if (!$account || !(bool) ($account->get('field_symbol_address_verified')->value ?? FALSE)) {
       return NULL;
     }
