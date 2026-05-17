@@ -246,6 +246,7 @@ final class SwapOfferAcceptForm extends FormBase {
         $engine_result = $this->engineClient->buildAggregateBonded($payload);
       }
       else {
+        $payload['aggregateSignerPublicKey'] = $taker_public_key;
         $engine_result = $this->engineClient->buildAggregateComplete($payload);
       }
       $this->offers->update($offer_id, $this->offers->engineFields($accepted, $engine_result) + [

@@ -202,9 +202,33 @@ final class SwapOfferCosignatureForm extends FormBase {
    * @param array<string, mixed> $offer
    */
   private function expectedCosignerPublicKey(array $offer): string {
-    return strtoupper((string) ($this->offers->canSubmitBondedCosignature($offer)
-      ? ($offer['leg1_signer_public_key'] ?? '')
-      : ($offer['leg2_signer_public_key'] ?? '')));
+    if ($this->offers->canSubmitBondedCosignature($offer)) {
+      return strtoupper((string) ($offer['leg1_signer_public_key'] ?? ''));
+    }
+    $qr_payload = $this->decodedQrPayload($offer);
+    $required_cosigners = $qr_payload['requiredCosigners'] ?? [];
+    if (is_array($required_cosigners) && isset($required_cosigners[1]) && is_string($required_cosigners[1])) {
+      return strtoupper($required_cosigners[1]);
+    }
+    return strtoupper((string) ($offer['leg2_signer_public_key'] ?? ''));
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   *
+   * @return array<string, mixed>
+   */
+  private function decodedQrPayload(array $offer): array {
+    if (empty($offer['qr_payload'])) {
+      return [];
+    }
+    try {
+      $decoded = json_decode((string) $offer['qr_payload'], TRUE, 512, JSON_THROW_ON_ERROR);
+      return is_array($decoded) ? $decoded : [];
+    }
+    catch (\JsonException) {
+      return [];
+    }
   }
 
   /**

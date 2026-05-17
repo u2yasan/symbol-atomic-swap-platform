@@ -16,6 +16,7 @@ export const aggregateCompleteBuildRequestSchema = z.object({
   network: z.enum(['mainnet', 'testnet']),
   deadlineHours: z.number().int().min(1).max(6),
   maxFee: integerStringSchema.optional(),
+  aggregateSignerPublicKey: publicKeySchema.optional(),
   legs: z.array(aggregateTransferLegSchema).length(2),
   correlationId: z.string().min(8).max(128),
 }).superRefine((value, context) => {
@@ -29,6 +30,17 @@ export const aggregateCompleteBuildRequestSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['legs'],
       message: 'aggregate complete swap requires two distinct signer public keys',
+    });
+  }
+
+  if (
+    value.aggregateSignerPublicKey
+    && !value.legs.some((leg) => leg.signerPublicKey.toLowerCase() === value.aggregateSignerPublicKey!.toLowerCase())
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['aggregateSignerPublicKey'],
+      message: 'aggregate signer public key must match one transfer leg signer',
     });
   }
 });

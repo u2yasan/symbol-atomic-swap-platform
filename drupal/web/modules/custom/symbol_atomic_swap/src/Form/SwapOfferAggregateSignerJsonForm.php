@@ -59,7 +59,7 @@ final class SwapOfferAggregateSignerJsonForm extends FormBase {
       '#title' => $this->t('Aggregate signer JSON'),
       '#rows' => 10,
       '#required' => TRUE,
-      '#description' => $this->t('Paste the JSON returned by Symbol Desktop Wallet when the aggregate signer signs the unsigned payload. The signerPublicKey must be the first transfer leg signer. Wrapped Desktop Wallet copies are normalized.'),
+      '#description' => $this->t('Paste the JSON returned by Symbol Desktop Wallet when the aggregate signer signs the unsigned payload. The signerPublicKey must match the aggregate signer in the unsigned payload. Wrapped Desktop Wallet copies are normalized.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',

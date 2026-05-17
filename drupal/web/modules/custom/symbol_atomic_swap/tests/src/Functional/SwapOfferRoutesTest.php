@@ -534,7 +534,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit signed payload');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
-    $assert_session->fieldExists('Root signed aggregate bonded payload sent to SSS');
+    $assert_session->fieldExists('Root signed payload sent to SSS');
     $assert_session->buttonExists('Cosign and announce partial with SSS');
     $this->submitForm([
       'payload' => json_encode([
@@ -614,7 +614,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Signed payload');
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
-    $assert_session->pageTextContains('Root signed payload must be signed by this maker account.');
+    $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Aggregate signer JSON');
@@ -624,7 +624,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Cosignature JSON');
-    $assert_session->pageTextContains('SSS must be set to this taker account before cosigning.');
+    $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
 
     $this->drupalLogin($operator);
 
@@ -654,7 +654,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Signed payload');
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
-    $assert_session->pageTextContains('Root signed payload must be signed by this maker account.');
+    $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
     $assert_session->buttonExists('Sign unsigned payload with SSS');
     $assert_session->buttonExists('Verify SSS root signed payload');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
@@ -666,9 +666,20 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Parent hash fallback');
     $assert_session->fieldExists('Cosignature JSON');
-    $assert_session->pageTextContains('SSS must be set to this taker account before cosigning.');
+    $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
     $assert_session->buttonExists('Verify and store SSS cosignature');
+
+    $repository->update($id, [
+      'qr_payload' => json_encode([
+        'type' => 'symbol-aggregate-complete',
+        'requiredCosigners' => [str_repeat('B', 64), str_repeat('A', 64)],
+      ], JSON_THROW_ON_ERROR),
+    ]);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
+    $assert_session->pageTextContains(str_repeat('B', 64));
 
     $this->verifySymbolAccount($operator, 'testnet', 'TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ', str_repeat('A', 64));
     $repository->update($id, [
@@ -679,10 +690,29 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkExists('Cosign with SSS');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkExists('Cosign with SSS');
+    $assert_session->linkNotExists('Assemble signed payload');
+
+    \Drupal::service('symbol_atomic_swap.offer_cosignature_repository')->upsert([
+      'offer_id' => $id,
+      'parent_hash' => str_repeat('E', 64),
+      'signer_public_key' => str_repeat('A', 64),
+      'signature' => str_repeat('F', 128),
+      'trusted_parent_hash' => TRUE,
+      'uid' => (int) $operator->id(),
+    ]);
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Assemble signed payload');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Assemble signed payload');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/assemble-signed-payload');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('1 cosignature(s) will be attached.');
 
     $taker_operator = $this->drupalCreateUser([
       'view symbol atomic swap offers',
@@ -692,10 +722,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($taker_operator);
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS');
 
     $this->drupalLogin($operator);
     $repository->markSigned($id, str_repeat('D', 64));

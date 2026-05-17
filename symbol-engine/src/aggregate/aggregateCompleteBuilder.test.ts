@@ -36,6 +36,26 @@ test('buildAggregateComplete returns unsigned payload and QR JSON', () => {
   assert.doesNotMatch(JSON.stringify(result), /privateKey|mnemonic|password/i);
 });
 
+test('buildAggregateComplete allows the second leg signer as aggregate signer', () => {
+  const result = buildAggregateComplete({
+    ...validRequest,
+    aggregateSignerPublicKey: validRequest.legs[1]!.signerPublicKey,
+  });
+
+  assert.deepEqual(result.requiredCosigners, [
+    validRequest.legs[1]!.signerPublicKey,
+    validRequest.legs[0]!.signerPublicKey,
+  ]);
+  assert.deepEqual(result.qrPayload.requiredCosigners, result.requiredCosigners);
+});
+
+test('buildAggregateComplete rejects aggregate signer outside transfer legs', () => {
+  assert.throws(() => buildAggregateComplete({
+    ...validRequest,
+    aggregateSignerPublicKey: 'C'.repeat(64),
+  }), /aggregate signer public key must match one transfer leg signer/);
+});
+
 test('buildAggregateComplete rejects same signer', () => {
   assert.throws(() => buildAggregateComplete({
     ...validRequest,

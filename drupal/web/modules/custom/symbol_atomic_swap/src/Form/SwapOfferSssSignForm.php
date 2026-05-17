@@ -74,7 +74,7 @@ final class SwapOfferSssSignForm extends FormBase {
         : $required_signer,
       '#description' => $is_aggregate_bonded
         ? $this->t('Aggregate bonded is initiated by the taker. Root signed payload must be signed by this taker account.')
-        : $this->t('Root signed payload must be signed by this maker account. If SSS is set to the taker account, stop here; use Cosign with SSS after the maker signs.'),
+        : $this->t('Root signed payload must be signed by this aggregate signer account. The other party cosigns after the root signature is stored.'),
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
@@ -217,9 +217,16 @@ final class SwapOfferSssSignForm extends FormBase {
    * @param array<string, mixed> $offer
    */
   private function requiredRootSigner(array $offer): string {
-    return $this->isAggregateBonded($offer)
-      ? (string) ($offer['leg2_signer_public_key'] ?: '')
-      : (string) ($offer['leg1_signer_public_key'] ?: '');
+    if ($this->isAggregateBonded($offer)) {
+      return (string) ($offer['leg2_signer_public_key'] ?: '');
+    }
+    $qr_payload = $this->decodedQrPayload($offer);
+    $required_cosigners = $qr_payload['requiredCosigners'] ?? [];
+    if (is_array($required_cosigners) && isset($required_cosigners[0]) && is_string($required_cosigners[0])) {
+      return strtoupper($required_cosigners[0]);
+    }
+    $payload_signer = $this->aggregateSignerFromPayload((string) ($offer['unsigned_payload'] ?? ''));
+    return $payload_signer !== '' ? $payload_signer : (string) ($offer['leg1_signer_public_key'] ?: '');
   }
 
   /**
@@ -262,7 +269,7 @@ final class SwapOfferSssSignForm extends FormBase {
         || str_contains($reason, 'aggregate signer mismatch'))
     ) {
       return sprintf(
-        'wrong SSS account: root signed payload must be signed by the required aggregate signer account %s. For aggregate complete, the taker uses Cosign with SSS after the maker signs.',
+        'wrong SSS account: root signed payload must be signed by the required aggregate signer account %s. The other settlement signer must cosign after the root signature is stored.',
         $target,
       );
     }
@@ -284,6 +291,16 @@ final class SwapOfferSssSignForm extends FormBase {
     catch (\InvalidArgumentException) {
       return '';
     }
+  }
+
+  private function aggregateSignerFromPayload(string $payload): string {
+    $payload = $this->normalizeHex($payload);
+    $signer_offset = (4 + 64) * 2;
+    if (strlen($payload) < $signer_offset + 64) {
+      return '';
+    }
+    $signer = substr($payload, $signer_offset, 64);
+    return preg_match('/^[0-9A-F]{64}$/', $signer) === 1 ? $signer : '';
   }
 
 }

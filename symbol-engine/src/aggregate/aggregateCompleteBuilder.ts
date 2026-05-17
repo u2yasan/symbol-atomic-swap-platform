@@ -23,10 +23,16 @@ function toMosaicId(value: string): bigint {
 
 export function normalizeAggregateCompleteIntent(input: unknown): NormalizedSwapIntent {
   const request = aggregateCompleteBuildRequestSchema.parse(input);
-  const requiredCosigners = [...new Set(request.legs.map((leg) => leg.signerPublicKey.toUpperCase()))];
+  const legSigners = [...new Set(request.legs.map((leg) => leg.signerPublicKey.toUpperCase()))];
+  const aggregateSigner = request.aggregateSignerPublicKey?.toUpperCase() ?? legSigners[0]!;
+  const requiredCosigners = [
+    aggregateSigner,
+    ...legSigners.filter((signer) => signer !== aggregateSigner),
+  ];
 
   return {
     ...request,
+    aggregateSignerPublicKey: aggregateSigner,
     aggregateType: 'aggregate_complete',
     requiredCosigners,
     legs: request.legs.map((leg) => ({

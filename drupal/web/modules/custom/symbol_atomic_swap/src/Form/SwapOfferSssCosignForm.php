@@ -48,7 +48,9 @@ final class SwapOfferSssCosignForm extends FormBase {
     }
     $this->offer = $offer;
     $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
-    $payload_for_sss = $this->normalizeHex((string) ($is_bonded_cosignature ? ($offer['root_signed_payload'] ?? '') : ($offer['unsigned_payload'] ?? '')));
+    $payload_for_sss = $this->normalizeHex((string) ($is_bonded_cosignature || !empty($offer['root_signed_payload'])
+      ? ($offer['root_signed_payload'] ?? '')
+      : ($offer['unsigned_payload'] ?? '')));
     $parent_hash = (string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?: ''));
     $expected_cosigner = $this->expectedCosignerPublicKey($offer);
 
@@ -75,11 +77,13 @@ final class SwapOfferSssCosignForm extends FormBase {
       '#markup' => $expected_cosigner,
       '#description' => $is_bonded_cosignature
         ? $this->t('SSS must be set to the maker account that has not signed the partial aggregate yet.')
-        : $this->t('SSS must be set to this taker account before cosigning. The maker account must use Sign with SSS instead.'),
+        : $this->t('SSS must be set to the non-root signer account before cosigning. The aggregate signer account must use Sign with SSS instead.'),
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
-      '#title' => $is_bonded_cosignature ? $this->t('Root signed aggregate bonded payload sent to SSS') : $this->t('Unsigned payload sent to SSS'),
+      '#title' => $is_bonded_cosignature || !empty($offer['root_signed_payload'])
+        ? $this->t('Root signed payload sent to SSS')
+        : $this->t('Unsigned payload sent to SSS'),
       '#value' => $payload_for_sss,
       '#rows' => 8,
       '#attributes' => [
@@ -91,7 +95,7 @@ final class SwapOfferSssCosignForm extends FormBase {
       '#type' => 'textfield',
       '#title' => $this->t('Parent hash fallback'),
       '#default_value' => $parent_hash,
-      '#description' => $this->t('Used only when SSS does not return a hash. This must be the root transaction hash produced by the maker signature.'),
+      '#description' => $this->t('Used only when SSS does not return a hash. This must be the root transaction hash produced by the aggregate signer signature.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
@@ -199,6 +203,16 @@ final class SwapOfferSssCosignForm extends FormBase {
         ]));
         return;
       }
+      if (!$is_bonded_cosignature) {
+        $expected_parent_hash = strtoupper((string) ($offer['root_transaction_hash'] ?? ''));
+        $parent_hash = strtoupper((string) ($normalized['parentHash'] ?? ''));
+        if ($expected_parent_hash === '' || $parent_hash !== $expected_parent_hash) {
+          $form_state->setErrorByName('payload', $this->t('SSS cosignature must be created against the root signed transaction hash @hash. Sign the root signed payload again with SSS.', [
+            '@hash' => $expected_parent_hash,
+          ]));
+          return;
+        }
+      }
       $form_state->set('symbol_atomic_swap_cosignature', $normalized);
     }
     catch (\JsonException) {
@@ -246,7 +260,30 @@ final class SwapOfferSssCosignForm extends FormBase {
         $this->messenger()->addStatus($this->t('Aggregate bonded cosignature was announced. Wait for confirmation or sync the projection.'));
       }
       else {
-        $this->messenger()->addStatus($this->t('SSS cosignature was verified and stored.'));
+        $assembled = $this->engineClient->assembleCompletePayload(
+          (string) $offer['intent_hash'],
+          (string) ($offer['root_signed_payload'] ?? ''),
+          $this->cosignatures->assemblyPayloadsByOffer($offer_id),
+        );
+        if (($assembled['accepted'] ?? FALSE) !== TRUE || empty($assembled['transactionHash'])) {
+          $this->messenger()->addError($this->t('Signed payload assembly failed: @reason', [
+            '@reason' => $this->safeRejectionReason((string) ($assembled['reason'] ?? 'unknown_reason')),
+          ]));
+          $form_state->setRebuild(TRUE);
+          return;
+        }
+        $transaction_hash = (string) $assembled['transactionHash'];
+        $this->offers->markSigned($offer_id, $transaction_hash);
+        try {
+          $announced = $this->engineClient->announce((string) $offer['intent_hash']);
+          $this->offers->markAnnounced($offer_id, (string) ($announced['transactionHash'] ?? $transaction_hash));
+          $this->messenger()->addStatus($this->t('Cosignature was verified, the signed payload was assembled, and the aggregate complete transaction was announced.'));
+        }
+        catch (SymbolEngineException | \RuntimeException $exception) {
+          $this->messenger()->addWarning($this->t('Cosignature was verified and the signed payload was assembled, but announcement failed: @message', [
+            '@message' => $exception->getMessage(),
+          ]));
+        }
       }
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
     }
@@ -272,9 +309,33 @@ final class SwapOfferSssCosignForm extends FormBase {
    * @param array<string, mixed> $offer
    */
   private function expectedCosignerPublicKey(array $offer): string {
-    return strtoupper((string) ($this->offers->canSubmitBondedCosignature($offer)
-      ? ($offer['leg1_signer_public_key'] ?? '')
-      : ($offer['leg2_signer_public_key'] ?? '')));
+    if ($this->offers->canSubmitBondedCosignature($offer)) {
+      return strtoupper((string) ($offer['leg1_signer_public_key'] ?? ''));
+    }
+    $qr_payload = $this->decodedQrPayload($offer);
+    $required_cosigners = $qr_payload['requiredCosigners'] ?? [];
+    if (is_array($required_cosigners) && isset($required_cosigners[1]) && is_string($required_cosigners[1])) {
+      return strtoupper($required_cosigners[1]);
+    }
+    return strtoupper((string) ($offer['leg2_signer_public_key'] ?? ''));
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   *
+   * @return array<string, mixed>
+   */
+  private function decodedQrPayload(array $offer): array {
+    if (empty($offer['qr_payload'])) {
+      return [];
+    }
+    try {
+      $decoded = json_decode((string) $offer['qr_payload'], TRUE, 512, JSON_THROW_ON_ERROR);
+      return is_array($decoded) ? $decoded : [];
+    }
+    catch (\JsonException) {
+      return [];
+    }
   }
 
   /**

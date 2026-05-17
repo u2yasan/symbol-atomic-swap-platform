@@ -310,7 +310,11 @@ final class SwapOfferController extends ControllerBase {
     $state = (string) ($offer['state'] ?? '');
     $can_current_user_cosign_complete = !$is_aggregate_bonded
       && $state === 'root_signed'
-      && $this->currentUserMatchesSigner($offer, (string) ($offer['leg2_signer_public_key'] ?? ''));
+      && $this->currentUserMatchesSigner($offer, $this->expectedCompleteCosigner($offer));
+    $can_assemble_complete_payload = !$is_aggregate_bonded
+      && $state === 'root_signed'
+      && !empty($offer['root_signed_payload'])
+      && $this->cosignatures->assemblyPayloadsByOffer((int) $offer['id']) !== [];
     $build['actions'] = [
       '#type' => 'actions',
       'sign_with_sss' => [
@@ -346,6 +350,15 @@ final class SwapOfferController extends ControllerBase {
           && !$is_aggregate_bonded
           && $this->offers->canAnnounce($offer),
         '#attributes' => ['class' => ['button']],
+      ],
+      'assemble_signed_payload' => [
+        '#type' => 'link',
+        '#title' => $this->t('Assemble signed payload'),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]),
+        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
+          && $can_submit_signed_payload
+          && $can_assemble_complete_payload,
+        '#attributes' => ['class' => ['button', 'button--primary']],
       ],
       'bonded_partial_announce' => [
         '#type' => 'link',
@@ -751,9 +764,17 @@ final class SwapOfferController extends ControllerBase {
         if (
           !$is_aggregate_bonded
           && $state === 'root_signed'
-          && $this->currentUserMatchesSigner($offer, (string) ($offer['leg2_signer_public_key'] ?? ''))
+          && $this->currentUserMatchesSigner($offer, $this->expectedCompleteCosigner($offer))
         ) {
           $operations[] = Link::fromTextAndUrl($this->t('Cosign with SSS'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
+        }
+        if (
+          !$is_aggregate_bonded
+          && $state === 'root_signed'
+          && !empty($offer['root_signed_payload'])
+          && $this->cosignatures->assemblyPayloadsByOffer((int) $offer['id']) !== []
+        ) {
+          $operations[] = Link::fromTextAndUrl($this->t('Assemble signed payload'), Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]))->toString();
         }
       }
       if ($can_submit_bonded_cosignature) {
@@ -922,6 +943,18 @@ final class SwapOfferController extends ControllerBase {
     return $symbol_account !== NULL
       && $symbol_account['network'] === (string) ($offer['network'] ?? '')
       && hash_equals($symbol_account['public_key'], strtoupper(trim($public_key)));
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function expectedCompleteCosigner(array $offer): string {
+    $qr_payload = $this->decodedQrPayload($offer);
+    $required_cosigners = $qr_payload['requiredCosigners'] ?? [];
+    if (is_array($required_cosigners) && isset($required_cosigners[1]) && is_string($required_cosigners[1])) {
+      return strtoupper($required_cosigners[1]);
+    }
+    return strtoupper((string) ($offer['leg2_signer_public_key'] ?? ''));
   }
 
 }
