@@ -148,6 +148,21 @@ final class SwapOfferController extends ControllerBase {
   public function view($offerId): array {
     $offer = $this->loadOffer((int) $offerId);
     $qr_payload = $this->decodedQrPayload($offer);
+    $is_admin = $this->currentUser()->hasPermission('administer symbol atomic swap offers');
+    $summary_rows = [
+      [$this->t('State'), $this->stateLabel((string) $offer['state'])],
+      [$this->t('Network'), (string) $offer['network']],
+      [$this->t('Transaction hash'), $this->displayTransactionHash($offer)],
+      [$this->t('Created'), $offer['created'] ? $this->dateFormatter->format((int) $offer['created'], 'short') : ''],
+      [$this->t('Changed'), $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : ''],
+      [$this->t('Expired at'), !empty($offer['expired_at']) ? $this->dateFormatter->format((int) $offer['expired_at'], 'short') : ''],
+    ];
+    if ($is_admin) {
+      array_splice($summary_rows, 2, 0, [
+        [$this->t('Intent hash'), $this->hashValue((string) ($offer['intent_hash'] ?: ''))],
+        [$this->t('Root transaction hash'), $this->hashValue((string) ($offer['root_transaction_hash'] ?? ''))],
+      ]);
+    }
 
     $build = [
       '#cache' => [
@@ -158,16 +173,7 @@ final class SwapOfferController extends ControllerBase {
         '#type' => 'details',
         '#title' => $this->t('Summary'),
         '#open' => TRUE,
-        'table' => $this->keyValueTable([
-          [$this->t('State'), $this->stateLabel((string) $offer['state'])],
-          [$this->t('Network'), (string) $offer['network']],
-          [$this->t('Intent hash'), $this->hashValue((string) ($offer['intent_hash'] ?: ''))],
-          [$this->t('Root transaction hash'), $this->hashValue((string) ($offer['root_transaction_hash'] ?? ''))],
-          [$this->t('Transaction hash'), $this->hashValue((string) ($offer['transaction_hash'] ?: ''))],
-          [$this->t('Created'), $offer['created'] ? $this->dateFormatter->format((int) $offer['created'], 'short') : ''],
-          [$this->t('Changed'), $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : ''],
-          [$this->t('Expired at'), !empty($offer['expired_at']) ? $this->dateFormatter->format((int) $offer['expired_at'], 'short') : ''],
-        ]),
+        'table' => $this->keyValueTable($summary_rows),
       ],
       'legs' => [
         '#type' => 'details',
@@ -215,7 +221,7 @@ final class SwapOfferController extends ControllerBase {
       ],
     ];
 
-    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+    if ($is_admin) {
       $build['projection']['table']['#rows'][] = [
         $this->t('Projection sync queued'),
         $this->offers->isProjectionSyncQueued((int) $offer['id']) ? (string) $this->t('Yes') : (string) $this->t('No'),
@@ -943,6 +949,17 @@ final class SwapOfferController extends ControllerBase {
     return $symbol_account !== NULL
       && $symbol_account['network'] === (string) ($offer['network'] ?? '')
       && hash_equals($symbol_account['public_key'], strtoupper(trim($public_key)));
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function displayTransactionHash(array $offer): array|string {
+    $transaction_hash = (string) ($offer['transaction_hash'] ?: '');
+    if ($transaction_hash === '') {
+      $transaction_hash = (string) ($offer['root_transaction_hash'] ?? '');
+    }
+    return $this->hashValue($transaction_hash);
   }
 
   /**

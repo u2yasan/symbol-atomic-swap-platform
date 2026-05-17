@@ -385,6 +385,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Manual sync allowed');
     $assert_session->pageTextContains('Automatic sync eligible');
     $assert_session->pageTextContains(str_repeat('C', 64));
+    $assert_session->pageTextContains('Intent hash');
+    $assert_session->pageTextContains('Root transaction hash');
     $assert_session->pageTextContains('Atomic settlement transaction was confirmed but is not finalized yet.');
     $assert_session->pageTextContains('status / unread');
     $assert_session->pageTextContains('QR payload');
@@ -902,6 +904,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Owner scoped offer');
+    $assert_session->pageTextContains('Transaction hash');
+    $assert_session->pageTextContains(str_repeat('D', 64));
+    $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains('Root transaction hash');
   }
 
   /**
