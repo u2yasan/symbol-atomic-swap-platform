@@ -13,7 +13,7 @@ Implemented:
 - Seller balance is checked at listing creation.
 - Seller balance can be checked manually before taking a listing.
 - Cron refreshes seller balances for active listings.
-- Listings can expire after a seller-selected duration or be set to no expiration.
+- Listings can expire at a seller-selected end date and time or be set to no expiration.
 - Mosaic metadata is checked for `transferable` and valid divisibility.
 - Taker can take an active listing.
 - Seller and taker balances are checked again before match.
@@ -119,7 +119,7 @@ Amounts are stored as atomic integer strings, not display decimals.
 ## Create Flow
 
 1. User must have a verified Symbol account from `symbol_atomic_swap`.
-2. Seller enters offered mosaic, offered amount, requested mosaic, requested amount, settlement window, and listing expiration.
+2. Seller enters offered mosaic, offered amount, requested mosaic, requested amount, settlement window, and listing end date/time.
 3. Module checks both mosaics via Symbol Engine metadata.
 4. Module rejects non-transferable mosaics.
 5. Module converts display amounts to atomic integer strings using mosaic divisibility.
@@ -130,7 +130,7 @@ No asset is locked.
 
 Expiration rules:
 
-- Fixed duration listings must last at least 1 hour.
+- Expiring listings must end at least 1 hour after creation.
 - No-expiration listings are allowed.
 - Expiration affects whether the listing can be taken; it does not lock or unlock assets.
 

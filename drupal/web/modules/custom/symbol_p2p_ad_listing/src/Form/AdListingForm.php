@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\symbol_p2p_ad_listing\Form;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
@@ -207,6 +208,7 @@ final class AdListingForm extends FormBase {
       '#max' => 2880,
       '#step' => 15,
       '#required' => TRUE,
+      '#description' => $this->t('The number of minutes allowed to complete the atomic settlement after a buyer takes this listing. If signing and announcement are not completed before this window expires, the trade will not settle.'),
     ];
     $form['expiration'] = [
       '#type' => 'fieldset',
@@ -215,29 +217,30 @@ final class AdListingForm extends FormBase {
     $form['expiration']['mode'] = [
       '#type' => 'radios',
       '#title' => $this->t('Expiration'),
-      '#default_value' => $listing && empty($listing['expires_at']) ? 'never' : 'duration',
+      '#default_value' => $listing && empty($listing['expires_at']) ? 'never' : 'datetime',
       '#required' => TRUE,
       '#options' => [
-        'duration' => $this->t('Expire after a fixed duration'),
+        'datetime' => $this->t('Expire at a specified date and time'),
         'never' => $this->t('No expiration'),
       ],
     ];
-    $form['expiration']['duration_hours'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Listing duration hours'),
-      '#default_value' => $this->defaultDurationHours($listing),
-      '#min' => 1,
-      '#max' => 8760,
-      '#step' => 1,
+    $form['expiration']['expires_at'] = [
+      '#type' => 'datetime',
+      '#title' => $this->t('Listing end date and time'),
+      '#default_value' => $this->defaultExpirationDateTime($listing),
+      '#date_date_element' => 'date',
+      '#date_time_element' => 'time',
+      '#date_time_format' => 'H:i',
+      '#date_increment' => 60,
       '#states' => [
         'visible' => [
-          ':input[name="expiration[mode]"]' => ['value' => 'duration'],
+          ':input[name="expiration[mode]"]' => ['value' => 'datetime'],
         ],
         'required' => [
-          ':input[name="expiration[mode]"]' => ['value' => 'duration'],
+          ':input[name="expiration[mode]"]' => ['value' => 'datetime'],
         ],
       ],
-      '#description' => $this->t('Minimum listing duration is 1 hour. Use no expiration only for actively maintained listings.'),
+      '#description' => $this->t('Choose an exact expiration date and time. Use no expiration only for actively maintained listings.'),
     ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
@@ -288,10 +291,13 @@ final class AdListingForm extends FormBase {
 
     $form_state->set('offered_amount_atomic', $offered_amount);
     $form_state->set('requested_amount_atomic', $requested_amount);
-    if (($expiration['mode'] ?? '') === 'duration') {
-      $duration_hours = (int) ($expiration['duration_hours'] ?? 0);
-      if ($duration_hours < 1) {
-        $form_state->setErrorByName('expiration][duration_hours', $this->t('Listing duration must be at least 1 hour.'));
+    if (($expiration['mode'] ?? '') === 'datetime') {
+      $expires_at_value = $expiration['expires_at'] ?? NULL;
+      if (!$expires_at_value instanceof DrupalDateTime) {
+        $form_state->setErrorByName('expiration][expires_at', $this->t('Choose a valid listing end date and time.'));
+      }
+      elseif ($expires_at_value->getTimestamp() < \Drupal::time()->getRequestTime() + 3600) {
+        $form_state->setErrorByName('expiration][expires_at', $this->t('Listing end date and time must be at least 1 hour from now.'));
       }
     }
     elseif (($expiration['mode'] ?? '') !== 'never') {
@@ -314,8 +320,8 @@ final class AdListingForm extends FormBase {
     $requested = (array) $form_state->getValue('requested', []);
     $expiration = (array) $form_state->getValue('expiration', []);
     $expires_at = NULL;
-    if (($expiration['mode'] ?? '') === 'duration') {
-      $expires_at = \Drupal::time()->getRequestTime() + ((int) $expiration['duration_hours'] * 3600);
+    if (($expiration['mode'] ?? '') === 'datetime' && ($expiration['expires_at'] ?? NULL) instanceof DrupalDateTime) {
+      $expires_at = $expiration['expires_at']->getTimestamp();
     }
     $values = [
       'label' => trim((string) $form_state->getValue('label')),
@@ -417,12 +423,11 @@ final class AdListingForm extends FormBase {
   /**
    * @param array<string, mixed>|null $listing
    */
-  private function defaultDurationHours(?array $listing): int {
-    if (!$listing || empty($listing['expires_at'])) {
-      return 24;
-    }
-    $remaining = (int) ceil(((int) $listing['expires_at'] - \Drupal::time()->getRequestTime()) / 3600);
-    return max(1, $remaining);
+  private function defaultExpirationDateTime(?array $listing): DrupalDateTime {
+    $timestamp = $listing && !empty($listing['expires_at'])
+      ? (int) $listing['expires_at']
+      : \Drupal::time()->getRequestTime() + 86400;
+    return DrupalDateTime::createFromTimestamp($timestamp);
   }
 
   private function displayAmount(string $atomic_amount, string $network, string $mosaic_id): string {

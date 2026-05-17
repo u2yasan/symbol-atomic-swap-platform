@@ -183,7 +183,7 @@
               }
               const result = await response.json();
               if (status) {
-                status.textContent = result.publicKey ? Drupal.t('Account verified.') : '';
+                status.textContent = result.publicKey ? '' : Drupal.t('No public key was found for this address on the selected network.');
               }
             }
             catch (error) {
@@ -239,7 +239,7 @@
               }
               const result = await response.json();
               if (status) {
-                status.textContent = result.publicKey ? Drupal.t('Account verified.') : '';
+                status.textContent = result.publicKey ? '' : Drupal.t('No public key was found for this address on the selected network.');
               }
             }
             catch (error) {
