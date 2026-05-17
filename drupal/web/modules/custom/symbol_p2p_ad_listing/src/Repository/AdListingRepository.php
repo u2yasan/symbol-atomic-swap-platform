@@ -18,6 +18,8 @@ final class AdListingRepository {
   public const MATCHED = 'matched';
   public const CANCELLED = 'cancelled';
   public const EXPIRED = 'expired';
+  public const INSUFFICIENT_BALANCE = 'insufficient_balance';
+  private const EDITABLE_STATES = [self::ACTIVE, self::INSUFFICIENT_BALANCE];
   private const RELEASABLE_OFFER_STATES = ['expired', 'cancelled', 'failed', 'rolled_back'];
 
   public function __construct(
@@ -99,9 +101,9 @@ final class AdListingRepository {
     $values['changed'] = $this->time->getRequestTime();
 
     $this->database->update(self::TABLE)
-      ->fields($values)
+      ->fields($values + ['status' => self::ACTIVE])
       ->condition('id', $id)
-      ->condition('status', self::ACTIVE)
+      ->condition('status', self::EDITABLE_STATES, 'IN')
       ->execute();
   }
 
@@ -189,7 +191,7 @@ final class AdListingRepository {
   public function deleteActive(int $id): void {
     $this->database->delete(self::TABLE)
       ->condition('id', $id)
-      ->condition('status', self::ACTIVE)
+      ->condition('status', self::EDITABLE_STATES, 'IN')
       ->execute();
   }
 
@@ -199,7 +201,7 @@ final class AdListingRepository {
   public function expirationCandidateIds(int $now, int $limit = 50): array {
     $query = $this->database->select(self::TABLE, 'l')
       ->fields('l', ['id'])
-      ->condition('status', self::ACTIVE)
+      ->condition('status', [self::ACTIVE, self::INSUFFICIENT_BALANCE], 'IN')
       ->isNotNull('expires_at')
       ->condition('expires_at', $now, '<=')
       ->orderBy('expires_at', 'ASC')
@@ -215,7 +217,7 @@ final class AdListingRepository {
         'changed' => $this->time->getRequestTime(),
       ])
       ->condition('id', $id)
-      ->condition('status', self::ACTIVE)
+      ->condition('status', [self::ACTIVE, self::INSUFFICIENT_BALANCE], 'IN')
       ->execute();
   }
 
@@ -298,6 +300,23 @@ final class AdListingRepository {
       ->fields([
         'seller_balance_checked_amount' => $amount,
         'seller_balance_checked_at' => $this->time->getRequestTime(),
+      ])
+      ->condition('id', $id)
+      ->condition('status', self::ACTIVE)
+      ->execute();
+  }
+
+  public function markInsufficientBalance(int $id, string $amount): void {
+    if (!preg_match('/^(0|[1-9][0-9]*)$/', $amount)) {
+      throw new \InvalidArgumentException('Balance amount must be an atomic integer string.');
+    }
+
+    $this->database->update(self::TABLE)
+      ->fields([
+        'status' => self::INSUFFICIENT_BALANCE,
+        'seller_balance_checked_amount' => $amount,
+        'seller_balance_checked_at' => $this->time->getRequestTime(),
+        'changed' => $this->time->getRequestTime(),
       ])
       ->condition('id', $id)
       ->condition('status', self::ACTIVE)

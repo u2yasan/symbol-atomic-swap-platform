@@ -177,6 +177,7 @@ final class AdListingController extends ControllerBase {
         '#options' => [
           '' => $this->t('- Any -'),
           AdListingRepository::ACTIVE => $this->t('Active'),
+          AdListingRepository::INSUFFICIENT_BALANCE => $this->t('Insufficient balance'),
           AdListingRepository::MATCHED => $this->t('Matched'),
           AdListingRepository::CANCELLED => $this->t('Cancelled'),
           AdListingRepository::EXPIRED => $this->t('Expired'),
@@ -263,7 +264,7 @@ final class AdListingController extends ControllerBase {
    * @param array<string, mixed> $listing
    */
   private function canManageListing(array $listing): bool {
-    return (string) $listing['status'] === AdListingRepository::ACTIVE
+    return in_array((string) $listing['status'], [AdListingRepository::ACTIVE, AdListingRepository::INSUFFICIENT_BALANCE], TRUE)
       && !$this->listings->isExpired($listing)
       && (int) ($listing['seller_uid'] ?? 0) === (int) $this->currentUser()->id()
       && $this->currentUser()->hasPermission('create symbol p2p ad listings');
@@ -339,6 +340,8 @@ final class AdListingController extends ControllerBase {
       AdListingRepository::MATCHING => (string) $this->t('Matching'),
       AdListingRepository::MATCHED => (string) $this->t('Matched'),
       AdListingRepository::CANCELLED => (string) $this->t('Cancelled'),
+      AdListingRepository::INSUFFICIENT_BALANCE => (string) $this->t('Insufficient balance'),
+      AdListingRepository::EXPIRED => (string) $this->t('Expired'),
       default => $status,
     };
   }

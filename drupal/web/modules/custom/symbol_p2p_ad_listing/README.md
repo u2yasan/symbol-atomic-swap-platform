@@ -79,6 +79,7 @@ Listing states:
 active
 matching
 matched
+insufficient_balance
 cancelled
 expired
 ```
@@ -89,12 +90,16 @@ State transitions:
 active -> matching -> matched
 matched -> active
 matched -> expired
+active -> insufficient_balance
+insufficient_balance -> active
+insufficient_balance -> expired
 active -> cancelled
 active -> expired
 ```
 
 `matching` is an internal transient state used to claim an active listing before creating the backing atomic settlement.
 `matched -> active` happens only when the backing atomic settlement cannot complete and the listing has not expired.
+`insufficient_balance` means automated or manual balance checking found the seller cannot currently cover the offered amount. It is not automatically restored to `active` by cron.
 `expired` is a terminal local state for listings whose optional expiration time has passed.
 
 ## Data Model
@@ -140,7 +145,8 @@ Expiration rules:
 Edit/delete rules:
 
 - Only the seller who created the listing can edit or delete it.
-- Only active, unexpired listings can be edited or deleted.
+- Only active or insufficient-balance, unexpired listings can be edited or deleted.
+- Editing an insufficient-balance listing rechecks seller balance and restores it to active only if validation passes.
 - Matched, cancelled, and expired listings are immutable from the seller UI.
 
 ## Balance Refresh
@@ -151,7 +157,7 @@ Manual refresh:
 2. Buyer clicks `Check seller balance`.
 3. Module checks the seller address balance for the offered mosaic.
 4. Module updates `seller_balance_checked_amount` and `seller_balance_checked_at`.
-5. UI reports whether the observed balance is sufficient for the listed amount.
+5. If the observed balance is below the offered amount, the listing becomes `insufficient_balance` and can no longer be taken.
 
 Automatic refresh:
 
@@ -160,7 +166,8 @@ Automatic refresh:
 3. The module marks matched or active listings with expired `expires_at` values as `expired`.
 4. The module selects remaining active listings ordered by oldest balance check.
 5. The module refreshes up to 50 listings per cron run.
-6. Failures are logged and do not block other listings.
+6. Active listings with insufficient seller balance become `insufficient_balance`; cron does not automatically reactivate them later.
+7. Failures are logged and do not block other listings.
 
 ## Take Flow
 

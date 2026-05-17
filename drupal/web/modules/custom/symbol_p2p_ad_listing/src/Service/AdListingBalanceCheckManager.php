@@ -64,11 +64,17 @@ final class AdListingBalanceCheckManager {
       throw new \RuntimeException('Seller balance could not be verified: ' . $exception->getMessage(), 0, $exception);
     }
 
-    $this->listings->updateSellerBalanceCheck($listing_id, $balance);
+    $sufficient = $this->compareAtomic($balance, (string) $listing['offered_amount']) >= 0;
+    if ($sufficient) {
+      $this->listings->updateSellerBalanceCheck($listing_id, $balance);
+    }
+    else {
+      $this->listings->markInsufficientBalance($listing_id, $balance);
+    }
 
     return [
       'balance' => $balance,
-      'sufficient' => $this->compareAtomic($balance, (string) $listing['offered_amount']) >= 0,
+      'sufficient' => $sufficient,
     ];
   }
 

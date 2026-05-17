@@ -461,7 +461,7 @@ final class AdListingForm extends FormBase {
    * @param array<string, mixed> $listing
    */
   private function canEditListing(array $listing): bool {
-    return (string) $listing['status'] === AdListingRepository::ACTIVE
+    return in_array((string) $listing['status'], [AdListingRepository::ACTIVE, AdListingRepository::INSUFFICIENT_BALANCE], TRUE)
       && !$this->listings->isExpired($listing)
       && (int) ($listing['seller_uid'] ?? 0) === (int) $this->currentUser->id();
   }

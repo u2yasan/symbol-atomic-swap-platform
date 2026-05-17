@@ -88,12 +88,17 @@ final class AdListingRepositoryTest extends KernelTestBase {
 
   public function testUpdateEditableOnlyChangesActiveListing(): void {
     $id = $this->repository->create($this->listingValues());
+    $insufficient_id = $this->repository->create($this->listingValues(['label' => 'Insufficient']));
     $cancelled_id = $this->repository->create($this->listingValues(['label' => 'Cancelled']));
+    $this->repository->markInsufficientBalance($insufficient_id, '1');
     $this->repository->cancel($cancelled_id);
 
     $this->repository->updateEditable($id, [
       'label' => 'Updated listing',
       'offered_amount' => '3000000',
+    ]);
+    $this->repository->updateEditable($insufficient_id, [
+      'label' => 'Restored listing',
     ]);
     $this->repository->updateEditable($cancelled_id, [
       'label' => 'Should not update',
@@ -103,19 +108,27 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $this->assertSame('Updated listing', $listing['label']);
     $this->assertSame('3000000', $listing['offered_amount']);
 
+    $restored = $this->repository->find($insufficient_id);
+    $this->assertSame('Restored listing', $restored['label']);
+    $this->assertSame(AdListingRepository::ACTIVE, $restored['status']);
+
     $cancelled = $this->repository->find($cancelled_id);
     $this->assertSame('Cancelled', $cancelled['label']);
   }
 
-  public function testDeleteActiveOnlyDeletesActiveListing(): void {
+  public function testDeleteActiveDeletesEditableListingsOnly(): void {
     $id = $this->repository->create($this->listingValues());
+    $insufficient_id = $this->repository->create($this->listingValues(['label' => 'Insufficient']));
     $cancelled_id = $this->repository->create($this->listingValues(['label' => 'Cancelled']));
+    $this->repository->markInsufficientBalance($insufficient_id, '1');
     $this->repository->cancel($cancelled_id);
 
     $this->repository->deleteActive($id);
+    $this->repository->deleteActive($insufficient_id);
     $this->repository->deleteActive($cancelled_id);
 
     $this->assertNull($this->repository->find($id));
+    $this->assertNull($this->repository->find($insufficient_id));
     $this->assertNotNull($this->repository->find($cancelled_id));
   }
 
@@ -155,6 +168,24 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $this->assertSame('5000000', $cancelled['seller_balance_checked_amount']);
   }
 
+  public function testMarkInsufficientBalanceSuspendsActiveListingOnly(): void {
+    $id = $this->repository->create($this->listingValues());
+    $cancelled_id = $this->repository->create($this->listingValues(['label' => 'Cancelled']));
+    $this->repository->cancel($cancelled_id);
+
+    $this->repository->markInsufficientBalance($id, '999');
+    $this->repository->markInsufficientBalance($cancelled_id, '1');
+
+    $listing = $this->repository->find($id);
+    $this->assertSame(AdListingRepository::INSUFFICIENT_BALANCE, $listing['status']);
+    $this->assertSame('999', $listing['seller_balance_checked_amount']);
+    $this->assertNotEmpty($listing['seller_balance_checked_at']);
+
+    $cancelled = $this->repository->find($cancelled_id);
+    $this->assertSame(AdListingRepository::CANCELLED, $cancelled['status']);
+    $this->assertSame('5000000', $cancelled['seller_balance_checked_amount']);
+  }
+
   public function testExpirationCandidatesAndMarkExpired(): void {
     $expired_id = $this->repository->create($this->listingValues([
       'label' => 'Expired',
@@ -168,12 +199,20 @@ final class AdListingRepositoryTest extends KernelTestBase {
       'label' => 'Never',
       'expires_at' => NULL,
     ]));
+    $insufficient_id = $this->repository->create($this->listingValues([
+      'label' => 'Insufficient expired',
+      'expires_at' => 1700000000,
+    ]));
+    $this->repository->markInsufficientBalance($insufficient_id, '1');
 
-    $this->assertSame([$expired_id], $this->repository->expirationCandidateIds(1700003600));
+    $this->assertSame([$expired_id, $insufficient_id], $this->repository->expirationCandidateIds(1700003600));
 
     $this->repository->markExpired($expired_id);
+    $this->repository->markExpired($insufficient_id);
     $listing = $this->repository->find($expired_id);
     $this->assertSame(AdListingRepository::EXPIRED, $listing['status']);
+    $insufficient = $this->repository->find($insufficient_id);
+    $this->assertSame(AdListingRepository::EXPIRED, $insufficient['status']);
   }
 
   public function testExpiredListingCannotCreateAtomicSettlement(): void {

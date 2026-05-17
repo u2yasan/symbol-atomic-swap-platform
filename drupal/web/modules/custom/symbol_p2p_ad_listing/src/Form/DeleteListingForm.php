@@ -60,7 +60,7 @@ final class DeleteListingForm extends ConfirmFormBase {
     $form['listing_id'] = ['#type' => 'value', '#value' => (int) $listing['id']];
     $form['warning'] = [
       '#type' => 'item',
-      '#markup' => $this->t('Only active listings can be deleted. This does not affect any existing atomic settlement.'),
+      '#markup' => $this->t('Only active or insufficient-balance listings can be deleted. This does not affect any existing atomic settlement.'),
     ];
     return parent::buildForm($form, $form_state);
   }
@@ -80,7 +80,7 @@ final class DeleteListingForm extends ConfirmFormBase {
    * @param array<string, mixed> $listing
    */
   private function canDeleteListing(array $listing): bool {
-    return (string) $listing['status'] === AdListingRepository::ACTIVE
+    return in_array((string) $listing['status'], [AdListingRepository::ACTIVE, AdListingRepository::INSUFFICIENT_BALANCE], TRUE)
       && !$this->listings->isExpired($listing)
       && (int) ($listing['seller_uid'] ?? 0) === (int) $this->currentUser->id();
   }
