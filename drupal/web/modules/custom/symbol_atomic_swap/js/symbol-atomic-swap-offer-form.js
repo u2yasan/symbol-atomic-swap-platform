@@ -53,13 +53,9 @@
       ? 'N/A'
       : formatMosaicAmount(result.balance, divisibility);
     const transferError = mosaicTransferError(result);
-    const transferable = result.transferable === true
-      ? Drupal.t('yes')
-      : (result.transferable === false ? Drupal.t('no') : 'N/A');
-    const text = Drupal.t('Alias: @alias. Divisibility: @divisibility. Transferable: @transferable. Balance: @balance', {
+    const text = Drupal.t('Alias: @alias. Divisibility: @divisibility. Balance: @balance', {
       '@alias': alias,
       '@divisibility': divisibility === null ? 'N/A' : String(divisibility),
-      '@transferable': transferable,
       '@balance': balance,
     });
     return transferError ? `${text}. ${transferError}` : text;
