@@ -225,6 +225,14 @@ final class AdListingForm extends FormBase {
       ],
     ];
     $form['expiration']['expires_at'] = [
+      '#type' => 'container',
+      '#states' => [
+        'visible' => [
+          ':input[name="expiration[mode]"]' => ['value' => 'datetime'],
+        ],
+      ],
+    ];
+    $form['expiration']['expires_at']['value'] = [
       '#type' => 'datetime',
       '#title' => $this->t('Listing end date and time'),
       '#default_value' => $this->defaultExpirationDateTime($listing),
@@ -233,9 +241,6 @@ final class AdListingForm extends FormBase {
       '#date_time_format' => 'H:i',
       '#date_increment' => 60,
       '#states' => [
-        'visible' => [
-          ':input[name="expiration[mode]"]' => ['value' => 'datetime'],
-        ],
         'required' => [
           ':input[name="expiration[mode]"]' => ['value' => 'datetime'],
         ],
@@ -292,12 +297,13 @@ final class AdListingForm extends FormBase {
     $form_state->set('offered_amount_atomic', $offered_amount);
     $form_state->set('requested_amount_atomic', $requested_amount);
     if (($expiration['mode'] ?? '') === 'datetime') {
-      $expires_at_value = $expiration['expires_at'] ?? NULL;
+      $expires_at = (array) ($expiration['expires_at'] ?? []);
+      $expires_at_value = $expires_at['value'] ?? NULL;
       if (!$expires_at_value instanceof DrupalDateTime) {
-        $form_state->setErrorByName('expiration][expires_at', $this->t('Choose a valid listing end date and time.'));
+        $form_state->setErrorByName('expiration][expires_at][value', $this->t('Choose a valid listing end date and time.'));
       }
       elseif ($expires_at_value->getTimestamp() < \Drupal::time()->getRequestTime() + 3600) {
-        $form_state->setErrorByName('expiration][expires_at', $this->t('Listing end date and time must be at least 1 hour from now.'));
+        $form_state->setErrorByName('expiration][expires_at][value', $this->t('Listing end date and time must be at least 1 hour from now.'));
       }
     }
     elseif (($expiration['mode'] ?? '') !== 'never') {
@@ -320,8 +326,9 @@ final class AdListingForm extends FormBase {
     $requested = (array) $form_state->getValue('requested', []);
     $expiration = (array) $form_state->getValue('expiration', []);
     $expires_at = NULL;
-    if (($expiration['mode'] ?? '') === 'datetime' && ($expiration['expires_at'] ?? NULL) instanceof DrupalDateTime) {
-      $expires_at = $expiration['expires_at']->getTimestamp();
+    $expires_at_value = ((array) ($expiration['expires_at'] ?? []))['value'] ?? NULL;
+    if (($expiration['mode'] ?? '') === 'datetime' && $expires_at_value instanceof DrupalDateTime) {
+      $expires_at = $expires_at_value->getTimestamp();
     }
     $values = [
       'label' => trim((string) $form_state->getValue('label')),

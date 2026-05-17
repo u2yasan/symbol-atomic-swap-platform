@@ -43,9 +43,6 @@ final class AdListingController extends ControllerBase {
         $this->mosaicPair($listing),
         $this->statusLabel((string) $listing['status']),
         $this->expirationLabel($listing),
-        $this->balanceCheckSummary($listing),
-        $listing['changed'] ? $this->dateFormatter->format((int) $listing['changed'], 'short') : '',
-        ['data' => ['#markup' => implode(' | ', $this->operationLinks($listing))]],
       ];
     }
 
@@ -70,9 +67,6 @@ final class AdListingController extends ControllerBase {
           $this->t('Terms'),
           $this->t('Status'),
           $this->t('Expires'),
-          $this->t('Seller balance check'),
-          $this->t('Changed'),
-          $this->t('Operations'),
         ],
         '#rows' => $rows,
         '#empty' => $this->t('No P2P listings have been created.'),
@@ -209,26 +203,6 @@ final class AdListingController extends ControllerBase {
   }
 
   /**
-   * @param array<string, mixed> $listing
-   */
-  private function operationLinks(array $listing): array {
-    $links = [
-      Link::fromTextAndUrl($this->t('View'), Url::fromRoute('symbol_p2p_ad_listing.view', ['listingId' => $listing['id']]))->toString(),
-    ];
-    if ($this->canTakeListing($listing)) {
-      $links[] = Link::fromTextAndUrl($this->t('Take'), Url::fromRoute('symbol_p2p_ad_listing.take', ['listingId' => $listing['id']]))->toString();
-    }
-    if ($this->canCheckSellerBalance($listing)) {
-      $links[] = Link::fromTextAndUrl($this->t('Check balance'), Url::fromRoute('symbol_p2p_ad_listing.check_balance', ['listingId' => $listing['id']]))->toString();
-    }
-    if ($this->canManageListing($listing)) {
-      $links[] = Link::fromTextAndUrl($this->t('Edit'), Url::fromRoute('symbol_p2p_ad_listing.edit', ['listingId' => $listing['id']]))->toString();
-      $links[] = Link::fromTextAndUrl($this->t('Delete'), Url::fromRoute('symbol_p2p_ad_listing.delete', ['listingId' => $listing['id']]))->toString();
-    }
-    return $links;
-  }
-
-  /**
    * @return array<string, mixed>
    */
   private function loadListing(int $id): array {
@@ -249,21 +223,6 @@ final class AdListingController extends ControllerBase {
       . ' -> '
       . $this->formatMosaicAmount((string) $listing['requested_amount'], $network, (string) $listing['requested_mosaic_id'])
       . ' ' . $this->formatMosaicName($network, (string) $listing['requested_mosaic_id']);
-  }
-
-  /**
-   * @param array<string, mixed> $listing
-   */
-  private function balanceCheckSummary(array $listing): string {
-    $amount = $this->formatBalanceCheckedAmount($listing);
-    $checked_at = !empty($listing['seller_balance_checked_at'])
-      ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'short')
-      : (string) $this->t('Never');
-
-    return (string) $this->t('@amount at @checked_at', [
-      '@amount' => $amount,
-      '@checked_at' => $checked_at,
-    ]);
   }
 
   /**
