@@ -42,7 +42,7 @@ final class SwapOfferDeleteForm extends ConfirmFormBase {
   }
 
   public function getQuestion(): string {
-    return (string) $this->t('Delete @label?', ['@label' => $this->offer['label'] ?? 'swap offer']);
+    return (string) $this->t('Delete @label?', ['@label' => $this->offer['label'] ?? 'atomic settlement']);
   }
 
   public function getCancelUrl(): Url {
@@ -51,7 +51,7 @@ final class SwapOfferDeleteForm extends ConfirmFormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $this->offers->delete((int) $this->offer['id']);
-    $this->messenger()->addStatus($this->t('Swap offer was deleted.'));
+    $this->messenger()->addStatus($this->t('Atomic settlement was deleted.'));
     $form_state->setRedirect('symbol_atomic_swap.offer_list');
   }
 

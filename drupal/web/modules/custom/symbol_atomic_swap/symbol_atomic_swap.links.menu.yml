@@ -17,8 +17,8 @@ symbol_atomic_swap.engine_operations:
   parent: system.admin_config_services
 
 symbol_atomic_swap.offer_list:
-  title: 'Symbol Swap Offers'
-  description: 'Create and manage Symbol atomic swap offers.'
+  title: 'Atomic Settlements'
+  description: 'Finalize agreed P2P trades without one-sided Symbol asset transfer risk.'
   route_name: symbol_atomic_swap.offer_list
   menu_name: main
 
@@ -29,13 +29,13 @@ symbol_atomic_swap.account_verification:
   menu_name: main
 
 symbol_atomic_swap.notification_list:
-  title: 'Symbol Swap Notifications'
-  description: 'Review Symbol atomic swap notifications.'
+  title: 'Settlement Notifications'
+  description: 'Review Symbol atomic settlement notifications.'
   route_name: symbol_atomic_swap.notification_list
   menu_name: main
 
 symbol_atomic_swap.transaction_history:
-  title: 'Symbol Swap Transactions'
-  description: 'Review Symbol swap transaction history.'
+  title: 'Settlement Transactions'
+  description: 'Review Symbol atomic settlement transaction history.'
   route_name: symbol_atomic_swap.transaction_history
   menu_name: main

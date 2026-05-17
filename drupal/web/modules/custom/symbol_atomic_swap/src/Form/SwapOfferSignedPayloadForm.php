@@ -58,7 +58,7 @@ final class SwapOfferSignedPayloadForm extends FormBase {
     ];
     $form['state'] = [
       '#type' => 'item',
-      '#title' => $this->t('Offer state'),
+      '#title' => $this->t('Settlement state'),
       '#markup' => (string) $offer['state'],
     ];
     $form['payload'] = [
@@ -104,7 +104,7 @@ final class SwapOfferSignedPayloadForm extends FormBase {
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (!$this->offers->canSubmitSignedPayload($this->offer)) {
-      $form_state->setErrorByName('payload', $this->t('Signed payload can only be submitted for QR-generated or already signed offers with a valid intent hash.'));
+      $form_state->setErrorByName('payload', $this->t('Signed payload can only be submitted for QR-generated or already signed settlements with a valid intent hash.'));
     }
 
     $payload = $this->normalizeHex((string) $form_state->getValue('payload', ''));

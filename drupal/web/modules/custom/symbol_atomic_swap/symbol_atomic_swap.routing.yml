@@ -10,7 +10,7 @@ symbol_atomic_swap.offer_list:
   path: '/symbol-atomic-swap/offers'
   defaults:
     _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::list'
-    _title: 'Swap Offers'
+    _title: 'Atomic Settlements'
   requirements:
     _permission: 'view symbol atomic swap offers'
 
@@ -18,7 +18,7 @@ symbol_atomic_swap.offer_add:
   path: '/symbol-atomic-swap/offers/add'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferForm'
-    _title: 'Create Swap Offer'
+    _title: 'Create Atomic Settlement'
   requirements:
     _permission: 'create symbol atomic swap offers'
 
@@ -73,7 +73,7 @@ symbol_atomic_swap.offer_edit:
   path: '/symbol-atomic-swap/offers/{offerId}/edit'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferForm'
-    _title: 'Edit Swap Offer'
+    _title: 'Edit Atomic Settlement'
   requirements:
     _symbol_atomic_swap_offer_access: 'admin'
     offerId: '\d+'
@@ -82,7 +82,7 @@ symbol_atomic_swap.offer_accept:
   path: '/symbol-atomic-swap/offers/{offerId}/accept'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAcceptForm'
-    _title: 'Accept Swap Offer'
+    _title: 'Finalize Atomic Settlement'
   requirements:
     _symbol_atomic_swap_offer_access: 'accept'
     offerId: '\d+'
@@ -172,7 +172,7 @@ symbol_atomic_swap.offer_delete:
   path: '/symbol-atomic-swap/offers/{offerId}/delete'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferDeleteForm'
-    _title: 'Delete Swap Offer'
+    _title: 'Delete Atomic Settlement'
   requirements:
     _symbol_atomic_swap_offer_access: 'admin'
     offerId: '\d+'
@@ -181,7 +181,7 @@ symbol_atomic_swap.transaction_history:
   path: '/symbol-atomic-swap/transactions'
   defaults:
     _controller: '\Drupal\symbol_atomic_swap\Controller\TransactionHistoryController::list'
-    _title: 'Swap Transactions'
+    _title: 'Settlement Transactions'
   requirements:
     _permission: 'view symbol atomic swap offers'
 
@@ -189,7 +189,7 @@ symbol_atomic_swap.notification_list:
   path: '/symbol-atomic-swap/notifications'
   defaults:
     _controller: '\Drupal\symbol_atomic_swap\Controller\NotificationController::list'
-    _title: 'Swap Notifications'
+    _title: 'Settlement Notifications'
   requirements:
     _permission: 'view symbol atomic swap offers'
 

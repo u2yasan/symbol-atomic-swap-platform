@@ -22,7 +22,7 @@ final class SwapOfferProjectionSynchronizer {
   public function sync(int $offer_id): array {
     $offer = $this->offers->find($offer_id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
 
     if (empty($offer['transaction_hash'])) {
@@ -69,19 +69,19 @@ final class SwapOfferProjectionSynchronizer {
   private function notifyStateChange(int $offer_id, string $state): void {
     switch ($state) {
       case 'finalized':
-        $this->notifications->createOnce($offer_id, 'offer_finalized', 'status', 'Swap transaction was finalized on-chain.');
+        $this->notifications->createOnce($offer_id, 'offer_finalized', 'status', 'Atomic settlement transaction was finalized on-chain.');
         break;
 
       case 'confirmed':
-        $this->notifications->createOnce($offer_id, 'offer_confirmed', 'status', 'Swap transaction was confirmed but is not finalized yet.');
+        $this->notifications->createOnce($offer_id, 'offer_confirmed', 'status', 'Atomic settlement transaction was confirmed but is not finalized yet.');
         break;
 
       case 'failed':
-        $this->notifications->createOnce($offer_id, 'offer_failed', 'error', 'Swap transaction failed on-chain.');
+        $this->notifications->createOnce($offer_id, 'offer_failed', 'error', 'Atomic settlement transaction failed on-chain.');
         break;
 
       case 'rolled_back':
-        $this->notifications->createOnce($offer_id, 'offer_rolled_back', 'error', 'Swap transaction was rolled back before finalization.');
+        $this->notifications->createOnce($offer_id, 'offer_rolled_back', 'error', 'Atomic settlement transaction was rolled back before finalization.');
         break;
     }
   }

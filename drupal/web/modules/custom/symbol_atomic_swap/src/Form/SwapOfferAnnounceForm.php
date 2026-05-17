@@ -44,14 +44,14 @@ final class SwapOfferAnnounceForm extends ConfirmFormBase {
     $this->offer = $offer;
 
     if (!$this->offers->canAnnounce($offer)) {
-      $this->messenger()->addWarning($this->t('Only signed offers with a verified transaction hash can be announced.'));
+      $this->messenger()->addWarning($this->t('Only signed settlements with a verified transaction hash can be announced.'));
     }
 
     return parent::buildForm($form, $form_state);
   }
 
   public function getQuestion(): string {
-    return (string) $this->t('Announce @label?', ['@label' => $this->offer['label'] ?? 'swap offer']);
+    return (string) $this->t('Announce @label?', ['@label' => $this->offer['label'] ?? 'atomic settlement']);
   }
 
   public function getDescription(): string {

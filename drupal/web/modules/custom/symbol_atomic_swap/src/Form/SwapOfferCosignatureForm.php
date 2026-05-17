@@ -95,7 +95,7 @@ final class SwapOfferCosignatureForm extends FormBase {
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     $is_bonded_cosignature = $this->offers->canSubmitBondedCosignature($this->offer);
     if (!$this->offers->canSubmitSignedPayload($this->offer) && !$is_bonded_cosignature) {
-      $form_state->setErrorByName('payload', $this->t('Cosignatures can only be submitted for QR-generated or already signed offers with a valid intent hash.'));
+      $form_state->setErrorByName('payload', $this->t('Cosignatures can only be submitted for QR-generated or already signed settlements with a valid intent hash.'));
     }
 
     $raw = trim((string) $form_state->getValue('payload', ''));

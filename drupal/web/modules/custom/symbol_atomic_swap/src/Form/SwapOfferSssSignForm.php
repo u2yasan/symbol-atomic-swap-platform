@@ -144,7 +144,7 @@ final class SwapOfferSssSignForm extends FormBase {
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (!$this->offers->canSubmitSignedPayload($this->offer)) {
-      $form_state->setErrorByName('payload', $this->t('SSS signing is only available for QR-generated or already signed offers with a valid intent hash.'));
+      $form_state->setErrorByName('payload', $this->t('SSS signing is only available for QR-generated or already signed settlements with a valid intent hash.'));
     }
     if ($this->normalizeHex((string) ($this->offer['unsigned_payload'] ?? '')) === '') {
       $form_state->setErrorByName('payload', $this->t('Unsigned payload is missing.'));

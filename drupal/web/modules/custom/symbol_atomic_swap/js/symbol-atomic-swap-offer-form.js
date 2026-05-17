@@ -52,15 +52,23 @@
     const balance = result.balance === null || result.balance === undefined || divisibility === null
       ? 'N/A'
       : formatMosaicAmount(result.balance, divisibility);
+    const transferError = mosaicTransferError(result);
     const transferable = result.transferable === true
       ? Drupal.t('yes')
       : (result.transferable === false ? Drupal.t('no') : 'N/A');
-    return Drupal.t('Alias: @alias. Divisibility: @divisibility. Transferable: @transferable. Balance: @balance', {
+    const text = Drupal.t('Alias: @alias. Divisibility: @divisibility. Transferable: @transferable. Balance: @balance', {
       '@alias': alias,
       '@divisibility': divisibility === null ? 'N/A' : String(divisibility),
       '@transferable': transferable,
       '@balance': balance,
     });
+    return transferError ? `${text}. ${transferError}` : text;
+  }
+
+  function mosaicTransferError(result) {
+    return result && result.transferable === false
+      ? Drupal.t('This mosaic is not transferable and cannot be used in an atomic settlement.')
+      : '';
   }
 
   function bindMosaicMetadata(form, network) {
@@ -78,6 +86,7 @@
       const render = () => {
         if (lastResult) {
           status.textContent = statusText(lastResult);
+          mosaicField.setCustomValidity(mosaicTransferError(lastResult));
         }
       };
       const normalizeAmountField = () => {
@@ -90,6 +99,7 @@
         timer = window.setTimeout(async () => {
           const mosaicId = normalizeHex(mosaicField.value);
           status.textContent = '';
+          mosaicField.setCustomValidity('');
           if (!/^[0-9A-F]{16}$/.test(mosaicId)) {
             return;
           }

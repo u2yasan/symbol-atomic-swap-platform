@@ -39,8 +39,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($viewer);
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('No swap offers have been created.');
-    $assert_session->linkNotExists('Create swap offer');
+    $assert_session->pageTextContains('No atomic settlements have been created.');
+    $assert_session->linkNotExists('Create atomic settlement');
 
     $creator = $this->drupalCreateUser([
       'view symbol atomic swap offers',
@@ -50,11 +50,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($creator);
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Create swap offer');
+    $assert_session->linkExists('Create atomic settlement');
 
     $this->drupalGet('/symbol-atomic-swap/offers/add');
     $assert_session->statusCodeEquals(200);
-    $assert_session->fieldExists('Offer label');
+    $assert_session->fieldExists('Settlement label');
     $assert_session->fieldNotExists('Correlation ID');
     $assert_session->pageTextContains('Generated automatically when the offer is saved.');
     $assert_session->fieldNotExists('Deadline hours');
@@ -67,7 +67,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldValueEquals('maker_wants[mosaic_id]', '72C0212E67A08BCE');
     $this->assertSame(2, $this->getSession()->getPage()->findAll('css', '[data-symbol-mosaic-status]') ? count($this->getSession()->getPage()->findAll('css', '[data-symbol-mosaic-status]')) : 0);
     $assert_session->pageTextContains('Same as Maker address.');
-    $assert_session->buttonExists('Create trade offer');
+    $assert_session->buttonExists('Create settlement');
 
     $this->drupalGet('/symbol-atomic-swap/public-key/testnet/TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
     $assert_session->statusCodeEquals(200);
@@ -93,7 +93,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'maker_pays[amount]' => '100',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
       'maker_wants[amount]' => '200',
-    ], 'Create trade offer');
+    ], 'Create settlement');
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
@@ -140,11 +140,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'maker_pays[amount]' => '100',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCE',
       'maker_wants[amount]' => '200',
-    ], 'Create trade offer');
+    ], 'Create settlement');
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Mosaic is not transferable and cannot be used in a swap offer.');
+    $assert_session->pageTextContains('Mosaic is not transferable and cannot be used in an atomic settlement.');
     $records = \Drupal::service('symbol_atomic_swap.offer_repository')->search([
       'q' => 'Non-transferable mosaic offer',
     ]);
@@ -164,10 +164,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/add');
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Create Swap Offer requires a verified Symbol address in My Symbol Account.');
+    $assert_session->pageTextContains('Create Atomic Settlement requires a verified Symbol address in My Symbol Account.');
     $assert_session->linkExists('Open My Symbol Account');
     $assert_session->linkByHrefExists('/symbol-atomic-swap/account');
-    $assert_session->pageTextContains('Register and verify My Symbol Account before creating a swap offer.');
+    $assert_session->pageTextContains('Register and verify My Symbol Account before creating an atomic settlement.');
   }
 
   /**
@@ -308,11 +308,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'maker_pays[amount]' => '100',
       'maker_wants[mosaic_id]' => '72C0212E67A08BCF',
       'maker_wants[amount]' => '200',
-    ], 'Create trade offer');
+    ], 'Create settlement');
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Trade offer was saved.');
+    $assert_session->pageTextContains('Atomic settlement was saved.');
 
     $records = \Drupal::service('symbol_atomic_swap.offer_repository')->search([
       'q' => 'Auto correlation offer',
@@ -361,7 +361,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       $id,
       'offer_confirmed',
       'status',
-      'Swap transaction was confirmed but is not finalized yet.',
+      'Atomic settlement transaction was confirmed but is not finalized yet.',
     );
 
     $admin = $this->drupalCreateUser([
@@ -385,13 +385,13 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Manual sync allowed');
     $assert_session->pageTextContains('Automatic sync eligible');
     $assert_session->pageTextContains(str_repeat('C', 64));
-    $assert_session->pageTextContains('Swap transaction was confirmed but is not finalized yet.');
+    $assert_session->pageTextContains('Atomic settlement transaction was confirmed but is not finalized yet.');
     $assert_session->pageTextContains('status / unread');
     $assert_session->pageTextContains('QR payload');
     $assert_session->pageTextContains('QR URL');
     $assert_session->pageTextContains('"type": "symbol-aggregate-complete"');
     $assert_session->linkNotExists('Submit signed payload');
-    $assert_session->pageTextContains('Public offer JSON');
+    $assert_session->pageTextContains('Public settlement JSON');
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('C', 64));
     $assert_session->statusCodeEquals(200);
@@ -406,8 +406,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/edit');
     $assert_session->statusCodeEquals(200);
-    $assert_session->fieldValueEquals('Offer label', 'Test offer');
-    $assert_session->buttonExists('Save offer');
+    $assert_session->fieldValueEquals('Settlement label', 'Test offer');
+    $assert_session->buttonExists('Save settlement');
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/delete');
     $assert_session->statusCodeEquals(200);
@@ -775,7 +775,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       $id,
       'offer_failed',
       'error',
-      'Swap transaction failed on-chain.',
+      'Atomic settlement transaction failed on-chain.',
     );
 
     $this->drupalLogin($operator);
@@ -784,7 +784,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/notifications', ['query' => ['unread' => '1']]);
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Unread notifications');
-    $assert_session->pageTextContains('Swap transaction failed on-chain.');
+    $assert_session->pageTextContains('Atomic settlement transaction failed on-chain.');
     $assert_session->pageTextContains('Unread');
     $assert_session->linkExists('Mark read');
 

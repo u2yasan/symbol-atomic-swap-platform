@@ -84,7 +84,7 @@ final class SwapOfferAggregateSignerJsonForm extends FormBase {
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (!$this->offers->canSubmitSignedPayload($this->offer)) {
-      $form_state->setErrorByName('signature_json', $this->t('Root signed payload can only be built for QR-generated or already signed offers with a valid intent hash.'));
+      $form_state->setErrorByName('signature_json', $this->t('Root signed payload can only be built for QR-generated or already signed settlements with a valid intent hash.'));
     }
 
     $raw = trim((string) $form_state->getValue('signature_json', ''));

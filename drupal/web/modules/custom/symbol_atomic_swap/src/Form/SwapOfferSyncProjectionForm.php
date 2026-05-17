@@ -44,14 +44,14 @@ final class SwapOfferSyncProjectionForm extends ConfirmFormBase {
     $this->offer = $offer;
 
     if (!$this->offers->canSyncProjection($offer)) {
-      $this->messenger()->addWarning($this->t('Only non-terminal chain-tracked offers with a valid transaction hash can be synced.'));
+      $this->messenger()->addWarning($this->t('Only non-terminal chain-tracked settlements with a valid transaction hash can be synced.'));
     }
 
     return parent::buildForm($form, $form_state);
   }
 
   public function getQuestion(): string {
-    return (string) $this->t('Sync projection for @label?', ['@label' => $this->offer['label'] ?? 'swap offer']);
+    return (string) $this->t('Sync projection for @label?', ['@label' => $this->offer['label'] ?? 'atomic settlement']);
   }
 
   public function getDescription(): string {

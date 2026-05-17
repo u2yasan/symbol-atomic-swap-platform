@@ -191,10 +191,10 @@ final class SwapOfferRepository {
   public function markSigned(int $id, string $transaction_hash): void {
     $offer = $this->find($id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (!$this->canSubmitSignedPayload($offer)) {
-      throw new \InvalidArgumentException('Signed payload can only be submitted for QR-generated or already signed offers with an intent hash.');
+      throw new \InvalidArgumentException('Signed payload can only be submitted for QR-generated or already signed settlements with an intent hash.');
     }
 
     $this->update($id, [
@@ -207,10 +207,10 @@ final class SwapOfferRepository {
   public function markRootSigned(int $id, string $root_signed_payload, string $root_transaction_hash): void {
     $offer = $this->find($id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (!$this->canSubmitSignedPayload($offer)) {
-      throw new \InvalidArgumentException('Root signed payload can only be submitted for signable offers with an intent hash.');
+      throw new \InvalidArgumentException('Root signed payload can only be submitted for signable settlements with an intent hash.');
     }
     if (!$this->isHash($root_transaction_hash)) {
       throw new \InvalidArgumentException('Root transaction hash must be 64 hex characters.');
@@ -230,10 +230,10 @@ final class SwapOfferRepository {
   public function accept(int $id, array $values): void {
     $offer = $this->find($id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (!$this->canAccept($offer)) {
-      throw new \InvalidArgumentException('Only open swap offers can be accepted.');
+      throw new \InvalidArgumentException('Only open atomic settlements can be finalized.');
     }
 
     $this->update($id, $values + [
@@ -244,10 +244,10 @@ final class SwapOfferRepository {
   public function markAnnounced(int $id, string $transaction_hash): void {
     $offer = $this->find($id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (!$this->canAnnounce($offer)) {
-      throw new \InvalidArgumentException('Only signed offers with an intent hash and transaction hash can be announced.');
+      throw new \InvalidArgumentException('Only signed settlements with an intent hash and transaction hash can be announced.');
     }
 
     $this->update($id, [
@@ -260,10 +260,10 @@ final class SwapOfferRepository {
   public function markPartialAnnounced(int $id, string $transaction_hash): void {
     $offer = $this->find($id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (empty($offer['intent_hash']) || !$this->isHash((string) $offer['intent_hash'])) {
-      throw new \InvalidArgumentException('Only offers with an intent hash can be marked partial announced.');
+      throw new \InvalidArgumentException('Only settlements with an intent hash can be marked partial announced.');
     }
     if (!$this->isHash($transaction_hash)) {
       throw new \InvalidArgumentException('Transaction hash must be 64 hex characters.');
@@ -280,10 +280,10 @@ final class SwapOfferRepository {
   public function markPartialCosigned(int $id, string $transaction_hash): void {
     $offer = $this->find($id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (empty($offer['intent_hash']) || !$this->isHash((string) $offer['intent_hash'])) {
-      throw new \InvalidArgumentException('Only offers with an intent hash can be marked partial cosigned.');
+      throw new \InvalidArgumentException('Only settlements with an intent hash can be marked partial cosigned.');
     }
     if (!$this->isHash($transaction_hash)) {
       throw new \InvalidArgumentException('Transaction hash must be 64 hex characters.');
@@ -300,7 +300,7 @@ final class SwapOfferRepository {
   public function markExpired(int $id, int $expired_at): bool {
     $offer = $this->find($id);
     if (!$offer) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
 
     if (!in_array($offer['state'], ['open', 'draft', 'qr_generated', 'signed'], TRUE)) {
@@ -412,13 +412,13 @@ final class SwapOfferRepository {
 
     $current = $this->find($id);
     if (!$current) {
-      throw new \InvalidArgumentException('Swap offer not found.');
+      throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (($current['state'] ?? '') === 'finalized' && $state !== 'finalized') {
-      throw new \InvalidArgumentException('Finalized swap offer cannot transition to a non-finalized state.');
+      throw new \InvalidArgumentException('Finalized atomic settlement cannot transition to a non-finalized state.');
     }
     if (in_array($current['state'] ?? '', ['failed', 'rolled_back'], TRUE) && $state === 'finalized') {
-      throw new \InvalidArgumentException('Failed or rolled back swap offer cannot transition to finalized.');
+      throw new \InvalidArgumentException('Failed or rolled back atomic settlement cannot transition to finalized.');
     }
 
     $fields = [

@@ -32,9 +32,9 @@ final class SwapOfferExpirationManager {
           $offer_id,
           'offer_expired',
           'warning',
-          'Swap offer expired before transaction announcement.',
+          'Atomic settlement expired before transaction announcement.',
         );
-        $this->loggerFactory->get('symbol_atomic_swap')->notice('Swap offer @offer_id expired before announcement.', [
+        $this->loggerFactory->get('symbol_atomic_swap')->notice('Atomic settlement @offer_id expired before announcement.', [
           '@offer_id' => $offer_id,
         ]);
       }

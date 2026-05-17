@@ -64,13 +64,14 @@ final class SwapOfferAcceptForm extends FormBase {
     ];
     $form['summary'] = [
       '#type' => 'item',
-      '#title' => $this->t('Offer terms'),
+      '#title' => $this->t('Settlement terms'),
       '#markup' => $this->t('Maker pays @pay_amount of @pay_mosaic and wants @want_amount of @want_mosaic.', [
         '@pay_amount' => $this->formatMosaicAmount((string) $offer['leg1_amount'], (string) $offer['network'], (string) $offer['leg1_mosaic_id']),
         '@pay_mosaic' => $this->formatMosaicName((string) $offer['network'], (string) $offer['leg1_mosaic_id']),
         '@want_amount' => $this->formatMosaicAmount((string) $offer['leg2_amount'], (string) $offer['network'], (string) $offer['leg2_mosaic_id']),
         '@want_mosaic' => $this->formatMosaicName((string) $offer['network'], (string) $offer['leg2_mosaic_id']),
       ]),
+      '#description' => $this->t('Finalize only after both parties agree to execute this settlement within the transaction deadline.'),
     ];
     $form['taker'] = [
       '#type' => 'fieldset',
@@ -90,7 +91,7 @@ final class SwapOfferAcceptForm extends FormBase {
           '#type' => 'item',
           '#markup' => $verified_symbol_account
             ? $this->t('My Symbol Account network must match this offer network before accepting the offer.')
-            : $this->t('Accept Swap Offer requires a verified Symbol address in My Symbol Account.'),
+            : $this->t('Finalize Atomic Settlement requires a verified Symbol address in My Symbol Account.'),
         ],
         'link' => [
           '#type' => 'link',
@@ -173,7 +174,7 @@ final class SwapOfferAcceptForm extends FormBase {
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (!$this->offers->canAccept($this->offer)) {
-      $form_state->setErrorByName('taker][signer_public_key', $this->t('Only open offers can be accepted.'));
+      $form_state->setErrorByName('taker][signer_public_key', $this->t('Only open settlements can be finalized.'));
     }
     $transaction = (array) $form_state->getValue('transaction', []);
     $aggregate_type = (string) ($transaction['aggregate_type'] ?? '');
@@ -194,7 +195,7 @@ final class SwapOfferAcceptForm extends FormBase {
     }
 
     if (!$verified_symbol_account) {
-      $form_state->setErrorByName('taker][recipient_address', $this->t('Register and verify My Symbol Account before accepting a swap offer.'));
+      $form_state->setErrorByName('taker][recipient_address', $this->t('Register and verify My Symbol Account before finalizing an atomic settlement.'));
       return;
     }
 
@@ -250,10 +251,10 @@ final class SwapOfferAcceptForm extends FormBase {
       $this->offers->update($offer_id, $this->offers->engineFields($accepted, $engine_result) + [
         'changed' => \Drupal::time()->getRequestTime(),
       ]);
-      $this->messenger()->addStatus($this->t('Trade offer was accepted and QR payload was generated.'));
+      $this->messenger()->addStatus($this->t('Atomic settlement was finalized and QR payload was generated.'));
     }
     catch (SymbolEngineException | \RuntimeException $exception) {
-      $this->messenger()->addError($this->t('Trade offer was accepted, but Symbol Engine build failed: @message', [
+      $this->messenger()->addError($this->t('Atomic settlement was finalized, but Symbol Engine build failed: @message', [
         '@message' => $exception->getMessage(),
       ]));
     }

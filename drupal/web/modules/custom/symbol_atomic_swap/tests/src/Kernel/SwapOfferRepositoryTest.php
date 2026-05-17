@@ -88,7 +88,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
     ]));
 
     $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('Finalized swap offer cannot transition to a non-finalized state.');
+    $this->expectExceptionMessage('Finalized atomic settlement cannot transition to a non-finalized state.');
 
     $this->repository->applyProjection($id, [
       'state' => 'confirmed',
@@ -108,7 +108,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
     ]));
 
     $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('Failed or rolled back swap offer cannot transition to finalized.');
+    $this->expectExceptionMessage('Failed or rolled back atomic settlement cannot transition to finalized.');
 
     $this->repository->applyProjection($id, [
       'state' => 'finalized',

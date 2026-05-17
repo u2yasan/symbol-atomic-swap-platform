@@ -66,7 +66,7 @@ final class SwapOfferForm extends FormBase {
         '#attributes' => ['class' => ['messages', 'messages--warning']],
         'message' => [
           '#type' => 'item',
-          '#markup' => $this->t('Create Swap Offer requires a verified Symbol address in My Symbol Account.'),
+          '#markup' => $this->t('Create Atomic Settlement requires a verified Symbol address in My Symbol Account.'),
         ],
         'link' => [
           '#type' => 'link',
@@ -82,9 +82,16 @@ final class SwapOfferForm extends FormBase {
       '#value' => $offer_id,
     ];
 
+    if (!$offer) {
+      $form['positioning'] = [
+        '#type' => 'item',
+        '#markup' => $this->t('Use this only after P2P trade terms are agreed. This is the settlement step that prevents one-sided Symbol asset transfers; listing and matching should happen elsewhere.'),
+      ];
+    }
+
     $form['label'] = [
       '#type' => 'textfield',
-      '#title' => $this->t('Offer label'),
+      '#title' => $this->t('Settlement label'),
       '#maxlength' => 128,
       '#required' => TRUE,
       '#default_value' => $offer['label'] ?? '',
@@ -156,7 +163,7 @@ final class SwapOfferForm extends FormBase {
       if (!$verified_symbol_account) {
         $form['maker_pays']['account_required'] = [
           '#type' => 'item',
-          '#markup' => $this->t('Register and verify My Symbol Account before creating a swap offer.'),
+          '#markup' => $this->t('Register and verify My Symbol Account before creating an atomic settlement.'),
         ];
       }
     }
@@ -336,7 +343,7 @@ final class SwapOfferForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $offer ? $this->t('Save offer') : $this->t('Create trade offer'),
+      '#value' => $offer ? $this->t('Save settlement') : $this->t('Create settlement'),
       '#button_type' => 'primary',
     ];
     $form['actions']['cancel'] = [
@@ -372,7 +379,7 @@ final class SwapOfferForm extends FormBase {
     if (!$offer_id) {
       $verified_symbol_account = $this->verifiedSymbolAccount();
       if (!$verified_symbol_account) {
-        $form_state->setErrorByName('maker_pays][address', $this->t('Register and verify My Symbol Account before creating a swap offer.'));
+        $form_state->setErrorByName('maker_pays][address', $this->t('Register and verify My Symbol Account before creating an atomic settlement.'));
         return;
       }
       $maker_address = (string) $verified_symbol_account['address'];
@@ -473,7 +480,7 @@ final class SwapOfferForm extends FormBase {
       $id = $this->offers->insert($values);
     }
 
-    $this->messenger()->addStatus($this->t('Trade offer was saved. It will generate an unsigned payload after a taker accepts it.'));
+    $this->messenger()->addStatus($this->t('Atomic settlement was saved. Generate the unsigned payload only after the final trade terms are agreed.'));
     $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $id]);
   }
 
@@ -539,7 +546,7 @@ final class SwapOfferForm extends FormBase {
   private function transferableMosaicMetadata(string $network, string $mosaic_id): array {
     $metadata = $this->mosaicMetadata($network, $mosaic_id);
     if (($metadata['transferable'] ?? TRUE) !== TRUE) {
-      throw new \RuntimeException((string) $this->t('Mosaic is not transferable and cannot be used in a swap offer.'));
+      throw new \RuntimeException((string) $this->t('Mosaic is not transferable and cannot be used in an atomic settlement.'));
     }
     return $metadata;
   }

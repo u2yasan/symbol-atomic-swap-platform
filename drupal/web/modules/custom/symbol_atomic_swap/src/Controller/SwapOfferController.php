@@ -70,7 +70,7 @@ final class SwapOfferController extends ControllerBase {
         '#type' => 'actions',
         'add' => [
           '#type' => 'link',
-          '#title' => $this->t('Create swap offer'),
+          '#title' => $this->t('Create atomic settlement'),
           '#url' => Url::fromRoute('symbol_atomic_swap.offer_add'),
           '#access' => $this->currentUser()->hasPermission('create symbol atomic swap offers'),
           '#attributes' => ['class' => ['button', 'button--primary']],
@@ -79,13 +79,13 @@ final class SwapOfferController extends ControllerBase {
       'offers' => [
         '#type' => 'table',
         '#header' => [
-          $this->t('Offer'),
+          $this->t('Settlement'),
           $this->t('State'),
           $this->t('Changed'),
           $this->t('Operations'),
         ],
         '#rows' => $rows,
-        '#empty' => $this->t('No swap offers have been created.'),
+        '#empty' => $this->t('No atomic settlements have been created.'),
       ],
     ];
   }
@@ -320,7 +320,7 @@ final class SwapOfferController extends ControllerBase {
       ],
       'accept' => [
         '#type' => 'link',
-        '#title' => $this->t('Accept offer'),
+        '#title' => $this->t('Finalize settlement'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_accept', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
           && $this->offers->canAccept($offer),
@@ -396,11 +396,11 @@ final class SwapOfferController extends ControllerBase {
 
     $build['details'] = [
       '#type' => 'details',
-      '#title' => $this->t('Public offer JSON'),
+      '#title' => $this->t('Public settlement JSON'),
       '#open' => FALSE,
       'payload' => [
       '#type' => 'textarea',
-      '#title' => $this->t('Public offer JSON'),
+      '#title' => $this->t('Public settlement JSON'),
       '#value' => json_encode($this->publicOfferDebugData($offer), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
       '#rows' => 24,
       '#attributes' => [
@@ -763,7 +763,7 @@ final class SwapOfferController extends ControllerBase {
     if ($this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
       $can_submit_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
       if ($this->offers->canAccept($offer)) {
-        $operations[] = Link::fromTextAndUrl($this->t('Accept offer'), Url::fromRoute('symbol_atomic_swap.offer_accept', ['offerId' => $offer['id']]))->toString();
+        $operations[] = Link::fromTextAndUrl($this->t('Finalize settlement'), Url::fromRoute('symbol_atomic_swap.offer_accept', ['offerId' => $offer['id']]))->toString();
       }
       if ($this->offers->canSubmitSignedPayload($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Submit signed payload'), Url::fromRoute('symbol_atomic_swap.offer_submit_signed_payload', ['offerId' => $offer['id']]))->toString();

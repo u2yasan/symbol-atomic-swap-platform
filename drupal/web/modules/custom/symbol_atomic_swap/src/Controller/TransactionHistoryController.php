@@ -70,7 +70,7 @@ final class TransactionHistoryController extends ControllerBase {
           $this->t('Changed'),
         ],
         '#rows' => $rows,
-        '#empty' => $this->t('No swap transactions have been tracked.'),
+        '#empty' => $this->t('No settlement transactions have been tracked.'),
       ],
     ];
   }

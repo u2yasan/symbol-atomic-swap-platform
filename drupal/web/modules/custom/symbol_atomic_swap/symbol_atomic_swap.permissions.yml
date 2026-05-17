@@ -1,12 +1,12 @@
 view symbol atomic swap offers:
-  title: 'View Symbol atomic swap offers'
+  title: 'View Symbol atomic settlements'
 
 create symbol atomic swap offers:
-  title: 'Create Symbol atomic swap offers'
+  title: 'Create Symbol atomic settlements'
 
 administer symbol atomic swap offers:
-  title: 'Administer Symbol atomic swap offers'
+  title: 'Administer Symbol atomic settlements'
   restrict access: true
 
 operate symbol atomic swap offers:
-  title: 'Submit and announce Symbol atomic swap offers'
+  title: 'Submit and announce Symbol atomic settlements'
