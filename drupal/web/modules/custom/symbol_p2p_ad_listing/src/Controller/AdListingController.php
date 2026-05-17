@@ -87,7 +87,7 @@ final class AdListingController extends ControllerBase {
       [$this->t('Seller offers'), $this->formatMosaicAmount((string) $listing['offered_amount'], (string) $listing['network'], (string) $listing['offered_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['offered_mosaic_id'])],
       [$this->t('Seller wants'), $this->formatMosaicAmount((string) $listing['requested_amount'], (string) $listing['network'], (string) $listing['requested_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['requested_mosaic_id'])],
       [$this->t('Settlement window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
-      [$this->t('Balance checked amount'), $this->atomicAmount((string) ($listing['seller_balance_checked_amount'] ?? ''))],
+      [$this->t('Balance checked amount'), $this->formatBalanceCheckedAmount($listing)],
       [$this->t('Balance checked at'), !empty($listing['seller_balance_checked_at']) ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'short') : ''],
       [$this->t('Created'), $this->dateFormatter->format((int) $listing['created'], 'short')],
       [$this->t('Changed'), $this->dateFormatter->format((int) $listing['changed'], 'short')],
@@ -233,7 +233,7 @@ final class AdListingController extends ControllerBase {
    * @param array<string, mixed> $listing
    */
   private function balanceCheckSummary(array $listing): string {
-    $amount = $this->atomicAmount((string) ($listing['seller_balance_checked_amount'] ?? ''));
+    $amount = $this->formatBalanceCheckedAmount($listing);
     $checked_at = !empty($listing['seller_balance_checked_at'])
       ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'short')
       : (string) $this->t('Never');
@@ -242,6 +242,20 @@ final class AdListingController extends ControllerBase {
       '@amount' => $amount,
       '@checked_at' => $checked_at,
     ]);
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  private function formatBalanceCheckedAmount(array $listing): string {
+    $amount = (string) ($listing['seller_balance_checked_amount'] ?? '');
+    if ($amount === '') {
+      return (string) $this->t('Not checked');
+    }
+
+    $network = (string) $listing['network'];
+    $mosaic_id = (string) $listing['offered_mosaic_id'];
+    return $this->formatMosaicAmount($amount, $network, $mosaic_id) . ' ' . $this->formatMosaicName($network, $mosaic_id);
   }
 
   /**
