@@ -670,6 +670,34 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
     $assert_session->buttonExists('Verify and store SSS cosignature');
 
+    $this->verifySymbolAccount($operator, 'testnet', 'TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ', str_repeat('A', 64));
+    $repository->update($id, [
+      'state' => 'root_signed',
+      'root_signed_payload' => 'ABCD',
+      'root_transaction_hash' => str_repeat('E', 64),
+    ]);
+    $this->drupalLogin($operator);
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkNotExists('Cosign with SSS');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkNotExists('Cosign with SSS');
+
+    $taker_operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $this->verifySymbolAccount($taker_operator, 'testnet', 'TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY', str_repeat('B', 64));
+    $this->drupalLogin($taker_operator);
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Cosign with SSS');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Cosign with SSS');
+
+    $this->drupalLogin($operator);
     $repository->markSigned($id, str_repeat('D', 64));
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);

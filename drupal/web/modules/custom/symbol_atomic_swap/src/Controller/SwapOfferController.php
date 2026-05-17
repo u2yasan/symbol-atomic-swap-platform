@@ -121,7 +121,7 @@ final class SwapOfferController extends ControllerBase {
   }
 
   /**
-   * @return array{network: string, address: string}|null
+   * @return array{network: string, address: string, public_key: string}|null
    */
   private function verifiedSymbolAccount(): ?array {
     $account = $this->entityTypeManager()->getStorage('user')->load((int) $this->currentUser()->id());
@@ -130,12 +130,18 @@ final class SwapOfferController extends ControllerBase {
     }
     $network = (string) ($account->get('field_symbol_network')->value ?? '');
     $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE) || !preg_match('/^[NT][A-Z2-7]{38}$/', $address)) {
+    $public_key = strtoupper((string) ($account->get('field_symbol_public_key')->value ?? ''));
+    if (
+      !in_array($network, ['mainnet', 'testnet'], TRUE)
+      || !preg_match('/^[NT][A-Z2-7]{38}$/', $address)
+      || !preg_match('/^[0-9A-F]{64}$/', $public_key)
+    ) {
       return NULL;
     }
     return [
       'network' => $network,
       'address' => $address,
+      'public_key' => $public_key,
     ];
   }
 
@@ -302,6 +308,9 @@ final class SwapOfferController extends ControllerBase {
     $can_submit_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
     $can_submit_signed_payload = $this->offers->canSubmitSignedPayload($offer);
     $state = (string) ($offer['state'] ?? '');
+    $can_current_user_cosign_complete = !$is_aggregate_bonded
+      && $state === 'root_signed'
+      && $this->currentUserMatchesSigner($offer, (string) ($offer['leg2_signer_public_key'] ?? ''));
     $build['actions'] = [
       '#type' => 'actions',
       'sign_with_sss' => [
@@ -326,7 +335,7 @@ final class SwapOfferController extends ControllerBase {
         '#title' => $can_submit_bonded_cosignature ? $this->t('Cosign and announce partial with SSS') : $this->t('Cosign with SSS'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
-          && ((!$is_aggregate_bonded && $can_submit_signed_payload && $state === 'root_signed') || $can_submit_bonded_cosignature),
+          && ((!$is_aggregate_bonded && $can_submit_signed_payload && $can_current_user_cosign_complete) || $can_submit_bonded_cosignature),
         '#attributes' => ['class' => ['button', 'button--primary']],
       ],
       'announce' => [
@@ -739,7 +748,11 @@ final class SwapOfferController extends ControllerBase {
         if ($state === 'qr_generated' || ($is_aggregate_bonded && $state === 'root_signed')) {
           $operations[] = Link::fromTextAndUrl($this->t('Sign with SSS'), Url::fromRoute('symbol_atomic_swap.offer_sign_with_sss', ['offerId' => $offer['id']]))->toString();
         }
-        if (!$is_aggregate_bonded && $state === 'root_signed') {
+        if (
+          !$is_aggregate_bonded
+          && $state === 'root_signed'
+          && $this->currentUserMatchesSigner($offer, (string) ($offer['leg2_signer_public_key'] ?? ''))
+        ) {
           $operations[] = Link::fromTextAndUrl($this->t('Cosign with SSS'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
         }
       }
@@ -899,6 +912,16 @@ final class SwapOfferController extends ControllerBase {
         ],
       ],
     ];
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function currentUserMatchesSigner(array $offer, string $public_key): bool {
+    $symbol_account = $this->verifiedSymbolAccount();
+    return $symbol_account !== NULL
+      && $symbol_account['network'] === (string) ($offer['network'] ?? '')
+      && hash_equals($symbol_account['public_key'], strtoupper(trim($public_key)));
   }
 
 }
