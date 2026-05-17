@@ -86,6 +86,39 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $this->assertSame(AdListingRepository::CANCELLED, $listing['status']);
   }
 
+  public function testUpdateEditableOnlyChangesActiveListing(): void {
+    $id = $this->repository->create($this->listingValues());
+    $cancelled_id = $this->repository->create($this->listingValues(['label' => 'Cancelled']));
+    $this->repository->cancel($cancelled_id);
+
+    $this->repository->updateEditable($id, [
+      'label' => 'Updated listing',
+      'offered_amount' => '3000000',
+    ]);
+    $this->repository->updateEditable($cancelled_id, [
+      'label' => 'Should not update',
+    ]);
+
+    $listing = $this->repository->find($id);
+    $this->assertSame('Updated listing', $listing['label']);
+    $this->assertSame('3000000', $listing['offered_amount']);
+
+    $cancelled = $this->repository->find($cancelled_id);
+    $this->assertSame('Cancelled', $cancelled['label']);
+  }
+
+  public function testDeleteActiveOnlyDeletesActiveListing(): void {
+    $id = $this->repository->create($this->listingValues());
+    $cancelled_id = $this->repository->create($this->listingValues(['label' => 'Cancelled']));
+    $this->repository->cancel($cancelled_id);
+
+    $this->repository->deleteActive($id);
+    $this->repository->deleteActive($cancelled_id);
+
+    $this->assertNull($this->repository->find($id));
+    $this->assertNotNull($this->repository->find($cancelled_id));
+  }
+
   public function testBalanceCheckCandidatesReturnOnlyActiveListingsOldestFirst(): void {
     $old_id = $this->repository->create($this->listingValues([
       'label' => 'Old check',

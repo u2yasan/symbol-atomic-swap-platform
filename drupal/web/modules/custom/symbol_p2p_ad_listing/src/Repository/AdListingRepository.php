@@ -92,6 +92,19 @@ final class AdListingRepository {
   }
 
   /**
+   * @param array<string, mixed> $values
+   */
+  public function updateEditable(int $id, array $values): void {
+    $values['changed'] = $this->time->getRequestTime();
+
+    $this->database->update(self::TABLE)
+      ->fields($values)
+      ->condition('id', $id)
+      ->condition('status', self::ACTIVE)
+      ->execute();
+  }
+
+  /**
    * Creates the exact atomic settlement that will execute a matched listing.
    *
    * @param array<string, mixed> $listing
@@ -167,6 +180,13 @@ final class AdListingRepository {
         'status' => self::CANCELLED,
         'changed' => $this->time->getRequestTime(),
       ])
+      ->condition('id', $id)
+      ->condition('status', self::ACTIVE)
+      ->execute();
+  }
+
+  public function deleteActive(int $id): void {
+    $this->database->delete(self::TABLE)
       ->condition('id', $id)
       ->condition('status', self::ACTIVE)
       ->execute();

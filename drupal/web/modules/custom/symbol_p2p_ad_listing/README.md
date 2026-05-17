@@ -54,9 +54,11 @@ Do not treat `seller_balance_checked_amount` as guaranteed inventory. It is only
 | `symbol_p2p_ad_listing.list` | `/symbol-p2p/listings` | Browse listings |
 | `symbol_p2p_ad_listing.add` | `/symbol-p2p/listings/add` | Create listing |
 | `symbol_p2p_ad_listing.view` | `/symbol-p2p/listings/{listingId}` | View listing |
+| `symbol_p2p_ad_listing.edit` | `/symbol-p2p/listings/{listingId}/edit` | Owner edit active listing |
 | `symbol_p2p_ad_listing.check_balance` | `/symbol-p2p/listings/{listingId}/check-balance` | Refresh seller balance |
 | `symbol_p2p_ad_listing.take` | `/symbol-p2p/listings/{listingId}/take` | Match listing into atomic settlement |
 | `symbol_p2p_ad_listing.cancel` | `/symbol-p2p/listings/{listingId}/cancel` | Admin cancel |
+| `symbol_p2p_ad_listing.delete` | `/symbol-p2p/listings/{listingId}/delete` | Owner delete active listing |
 
 ## Permissions
 
@@ -131,6 +133,12 @@ Expiration rules:
 - Fixed duration listings must last at least 1 hour.
 - No-expiration listings are allowed.
 - Expiration affects whether the listing can be taken; it does not lock or unlock assets.
+
+Edit/delete rules:
+
+- Only the seller who created the listing can edit or delete it.
+- Only active, unexpired listings can be edited or deleted.
+- Matched, cancelled, and expired listings are immutable from the seller UI.
 
 ## Balance Refresh
 

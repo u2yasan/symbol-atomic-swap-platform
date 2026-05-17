@@ -23,6 +23,15 @@ symbol_p2p_ad_listing.view:
     _permission: 'view symbol p2p ad listings'
     listingId: '\d+'
 
+symbol_p2p_ad_listing.edit:
+  path: '/symbol-p2p/listings/{listingId}/edit'
+  defaults:
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\AdListingForm'
+    _title: 'Edit P2P Listing'
+  requirements:
+    _permission: 'create symbol p2p ad listings'
+    listingId: '\d+'
+
 symbol_p2p_ad_listing.take:
   path: '/symbol-p2p/listings/{listingId}/take'
   defaults:
@@ -48,4 +57,13 @@ symbol_p2p_ad_listing.cancel:
     _title: 'Cancel P2P Listing'
   requirements:
     _permission: 'administer symbol p2p ad listings'
+    listingId: '\d+'
+
+symbol_p2p_ad_listing.delete:
+  path: '/symbol-p2p/listings/{listingId}/delete'
+  defaults:
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\DeleteListingForm'
+    _title: 'Delete P2P Listing'
+  requirements:
+    _permission: 'create symbol p2p ad listings'
     listingId: '\d+'

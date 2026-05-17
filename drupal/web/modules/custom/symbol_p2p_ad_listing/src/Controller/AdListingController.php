@@ -129,6 +129,20 @@ final class AdListingController extends ControllerBase {
           '#access' => $this->canCheckSellerBalance($listing),
           '#attributes' => ['class' => ['button']],
         ],
+        'edit' => [
+          '#type' => 'link',
+          '#title' => $this->t('Edit'),
+          '#url' => Url::fromRoute('symbol_p2p_ad_listing.edit', ['listingId' => $listing['id']]),
+          '#access' => $this->canManageListing($listing),
+          '#attributes' => ['class' => ['button']],
+        ],
+        'delete' => [
+          '#type' => 'link',
+          '#title' => $this->t('Delete'),
+          '#url' => Url::fromRoute('symbol_p2p_ad_listing.delete', ['listingId' => $listing['id']]),
+          '#access' => $this->canManageListing($listing),
+          '#attributes' => ['class' => ['button', 'button--danger']],
+        ],
         'cancel' => [
           '#type' => 'link',
           '#title' => $this->t('Cancel'),
@@ -207,6 +221,10 @@ final class AdListingController extends ControllerBase {
     if ($this->canCheckSellerBalance($listing)) {
       $links[] = Link::fromTextAndUrl($this->t('Check balance'), Url::fromRoute('symbol_p2p_ad_listing.check_balance', ['listingId' => $listing['id']]))->toString();
     }
+    if ($this->canManageListing($listing)) {
+      $links[] = Link::fromTextAndUrl($this->t('Edit'), Url::fromRoute('symbol_p2p_ad_listing.edit', ['listingId' => $listing['id']]))->toString();
+      $links[] = Link::fromTextAndUrl($this->t('Delete'), Url::fromRoute('symbol_p2p_ad_listing.delete', ['listingId' => $listing['id']]))->toString();
+    }
     return $links;
   }
 
@@ -280,6 +298,16 @@ final class AdListingController extends ControllerBase {
       && !$this->listings->isExpired($listing)
       && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
       && $this->currentUser()->hasPermission('view symbol p2p ad listings');
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  private function canManageListing(array $listing): bool {
+    return (string) $listing['status'] === AdListingRepository::ACTIVE
+      && !$this->listings->isExpired($listing)
+      && (int) ($listing['seller_uid'] ?? 0) === (int) $this->currentUser()->id()
+      && $this->currentUser()->hasPermission('create symbol p2p ad listings');
   }
 
   private function atomicAmount(string $amount): string {

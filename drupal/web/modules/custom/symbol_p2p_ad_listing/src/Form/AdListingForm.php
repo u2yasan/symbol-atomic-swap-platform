@@ -13,6 +13,8 @@ use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class AdListingForm extends FormBase {
 
@@ -41,14 +43,21 @@ final class AdListingForm extends FormBase {
     return 'symbol_p2p_ad_listing_form';
   }
 
-  public function buildForm(array $form, FormStateInterface $form_state): array {
+  public function buildForm(array $form, FormStateInterface $form_state, $listingId = NULL): array {
     $form['#tree'] = TRUE;
     $form['#attached']['library'][] = 'symbol_atomic_swap/offer_form';
     $form['#attributes']['data-symbol-maker-address-form'] = '1';
+    $listing = $listingId !== NULL ? $this->listings->find((int) $listingId) : NULL;
+    if ($listingId !== NULL && !$listing) {
+      throw new NotFoundHttpException();
+    }
+    if ($listing && !$this->canEditListing($listing)) {
+      throw new AccessDeniedHttpException();
+    }
     $account = $this->verifiedSymbolAccount();
-    $network = (string) ($account['network'] ?? 'testnet');
+    $network = (string) ($listing['network'] ?? ($account['network'] ?? 'testnet'));
     $default_mosaic_id = $this->defaultCurrencyMosaicId($network);
-    if (!$account) {
+    if (!$listing && !$account) {
       $form['account_required'] = [
         '#type' => 'container',
         '#attributes' => ['class' => ['messages', 'messages--warning']],
@@ -69,11 +78,16 @@ final class AdListingForm extends FormBase {
       '#type' => 'item',
       '#markup' => $this->t('Listings are advertisements only. Assets are not locked until the atomic settlement is built and signed.'),
     ];
+    $form['listing_id'] = [
+      '#type' => 'value',
+      '#value' => $listing ? (int) $listing['id'] : NULL,
+    ];
     $form['label'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Listing label'),
       '#maxlength' => 128,
       '#required' => TRUE,
+      '#default_value' => (string) ($listing['label'] ?? ''),
     ];
     $form['network'] = [
       '#type' => 'hidden',
@@ -85,11 +99,11 @@ final class AdListingForm extends FormBase {
     $form['seller'] = [
       '#type' => 'item',
       '#title' => $this->t('Seller address'),
-      '#markup' => (string) ($account['address'] ?? $this->t('Not verified')),
+      '#markup' => (string) ($listing['seller_address'] ?? ($account['address'] ?? $this->t('Not verified'))),
     ];
     $form['seller_address'] = [
       '#type' => 'hidden',
-      '#value' => (string) ($account['address'] ?? ''),
+      '#value' => (string) ($listing['seller_address'] ?? ($account['address'] ?? '')),
       '#attributes' => [
         'data-symbol-maker-address' => '1',
       ],
@@ -113,7 +127,7 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 16,
       '#size' => 24,
       '#required' => TRUE,
-      '#default_value' => $default_mosaic_id,
+      '#default_value' => (string) ($listing['offered_mosaic_id'] ?? $default_mosaic_id),
       '#attributes' => [
         'pattern' => '[0-9A-Fa-f]{16}',
         'autocomplete' => 'off',
@@ -137,6 +151,7 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 48,
       '#size' => 24,
       '#required' => TRUE,
+      '#default_value' => $listing ? $this->displayAmount((string) $listing['offered_amount'], $network, (string) $listing['offered_mosaic_id']) : '',
       '#attributes' => [
         'pattern' => '[0-9]+(\\.[0-9]+)?',
         'autocomplete' => 'off',
@@ -153,7 +168,7 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 16,
       '#size' => 24,
       '#required' => TRUE,
-      '#default_value' => $default_mosaic_id,
+      '#default_value' => (string) ($listing['requested_mosaic_id'] ?? $default_mosaic_id),
       '#attributes' => [
         'pattern' => '[0-9A-Fa-f]{16}',
         'autocomplete' => 'off',
@@ -177,6 +192,7 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 48,
       '#size' => 24,
       '#required' => TRUE,
+      '#default_value' => $listing ? $this->displayAmount((string) $listing['requested_amount'], $network, (string) $listing['requested_mosaic_id']) : '',
       '#attributes' => [
         'pattern' => '[0-9]+(\\.[0-9]+)?',
         'autocomplete' => 'off',
@@ -186,7 +202,7 @@ final class AdListingForm extends FormBase {
     $form['swap_window_minutes'] = [
       '#type' => 'number',
       '#title' => $this->t('Settlement window minutes'),
-      '#default_value' => 120,
+      '#default_value' => (int) ($listing['swap_window_minutes'] ?? 120),
       '#min' => 15,
       '#max' => 2880,
       '#step' => 15,
@@ -199,7 +215,7 @@ final class AdListingForm extends FormBase {
     $form['expiration']['mode'] = [
       '#type' => 'radios',
       '#title' => $this->t('Expiration'),
-      '#default_value' => 'duration',
+      '#default_value' => $listing && empty($listing['expires_at']) ? 'never' : 'duration',
       '#required' => TRUE,
       '#options' => [
         'duration' => $this->t('Expire after a fixed duration'),
@@ -209,7 +225,7 @@ final class AdListingForm extends FormBase {
     $form['expiration']['duration_hours'] = [
       '#type' => 'number',
       '#title' => $this->t('Listing duration hours'),
-      '#default_value' => 24,
+      '#default_value' => $this->defaultDurationHours($listing),
       '#min' => 1,
       '#max' => 8760,
       '#step' => 1,
@@ -226,22 +242,29 @@ final class AdListingForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Create listing'),
+      '#value' => $listing ? $this->t('Save listing') : $this->t('Create listing'),
       '#button_type' => 'primary',
-      '#disabled' => !$account,
+      '#disabled' => !$listing && !$account,
     ];
 
     return $form;
   }
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
+    $listing_id = $form_state->getValue('listing_id');
+    $listing = $listing_id ? $this->listings->find((int) $listing_id) : NULL;
+    if ($listing_id && (!$listing || !$this->canEditListing($listing))) {
+      $form_state->setErrorByName('listing_id', $this->t('Only the active listing owner can edit this listing.'));
+      return;
+    }
     $account = $this->verifiedSymbolAccount();
-    if (!$account) {
+    if (!$listing && !$account) {
       $form_state->setErrorByName('seller', $this->t('Register and verify My Symbol Account before creating a listing.'));
       return;
     }
 
-    $network = (string) $account['network'];
+    $network = (string) ($listing['network'] ?? $account['network']);
+    $seller_address = (string) ($listing['seller_address'] ?? $account['address']);
     $offered = (array) $form_state->getValue('offered', []);
     $requested = (array) $form_state->getValue('requested', []);
     $expiration = (array) $form_state->getValue('expiration', []);
@@ -252,7 +275,7 @@ final class AdListingForm extends FormBase {
     $requested_amount = $this->validateMosaicAmount($form_state, 'requested', $network, $requested_mosaic_id, (string) ($requested['amount'] ?? ''));
     if ($offered_amount !== NULL) {
       try {
-        $balance = (string) ($this->engineClient->accountMosaicBalance($network, (string) $account['address'], $offered_mosaic_id)['amount'] ?? '0');
+        $balance = (string) ($this->engineClient->accountMosaicBalance($network, $seller_address, $offered_mosaic_id)['amount'] ?? '0');
         if ($this->compareAtomic($balance, $offered_amount) < 0) {
           $form_state->setErrorByName('offered][amount', $this->t('Seller balance is lower than the listed amount.'));
         }
@@ -277,8 +300,13 @@ final class AdListingForm extends FormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
+    $listing_id = $form_state->getValue('listing_id');
+    $listing = $listing_id ? $this->listings->find((int) $listing_id) : NULL;
     $account = $this->verifiedSymbolAccount();
-    if (!$account) {
+    if ($listing_id && (!$listing || !$this->canEditListing($listing))) {
+      throw new AccessDeniedHttpException();
+    }
+    if (!$listing && !$account) {
       throw new \RuntimeException('Verified Symbol account disappeared during listing creation.');
     }
 
@@ -289,12 +317,8 @@ final class AdListingForm extends FormBase {
     if (($expiration['mode'] ?? '') === 'duration') {
       $expires_at = \Drupal::time()->getRequestTime() + ((int) $expiration['duration_hours'] * 3600);
     }
-    $id = $this->listings->create([
+    $values = [
       'label' => trim((string) $form_state->getValue('label')),
-      'network' => (string) $account['network'],
-      'seller_uid' => (int) $this->currentUser->id(),
-      'seller_address' => (string) $account['address'],
-      'seller_public_key' => (string) $account['public_key'],
       'offered_mosaic_id' => strtoupper(trim((string) $offered['mosaic_id'])),
       'offered_amount' => (string) $form_state->get('offered_amount_atomic'),
       'requested_mosaic_id' => strtoupper(trim((string) $requested['mosaic_id'])),
@@ -303,9 +327,23 @@ final class AdListingForm extends FormBase {
       'expires_at' => $expires_at,
       'seller_balance_checked_amount' => (string) $form_state->get('seller_balance_checked_amount'),
       'seller_balance_checked_at' => \Drupal::time()->getRequestTime(),
-    ]);
+    ];
 
-    $this->messenger()->addStatus($this->t('P2P listing was created. No assets were locked.'));
+    if ($listing) {
+      $this->listings->updateEditable((int) $listing['id'], $values);
+      $id = (int) $listing['id'];
+      $this->messenger()->addStatus($this->t('P2P listing was updated. No assets were locked.'));
+    }
+    else {
+      $values += [
+        'network' => (string) $account['network'],
+        'seller_uid' => (int) $this->currentUser->id(),
+        'seller_address' => (string) $account['address'],
+        'seller_public_key' => (string) $account['public_key'],
+      ];
+      $id = $this->listings->create($values);
+      $this->messenger()->addStatus($this->t('P2P listing was created. No assets were locked.'));
+    }
     $form_state->setRedirect('symbol_p2p_ad_listing.view', ['listingId' => $id]);
   }
 
@@ -374,6 +412,46 @@ final class AdListingForm extends FormBase {
 
   private function defaultCurrencyMosaicId(string $network): string {
     return self::CURRENCY_MOSAIC_IDS[$network] ?? self::CURRENCY_MOSAIC_IDS['testnet'];
+  }
+
+  /**
+   * @param array<string, mixed>|null $listing
+   */
+  private function defaultDurationHours(?array $listing): int {
+    if (!$listing || empty($listing['expires_at'])) {
+      return 24;
+    }
+    $remaining = (int) ceil(((int) $listing['expires_at'] - \Drupal::time()->getRequestTime()) / 3600);
+    return max(1, $remaining);
+  }
+
+  private function displayAmount(string $atomic_amount, string $network, string $mosaic_id): string {
+    try {
+      $metadata = $this->engineClient->mosaicMetadata($network, $mosaic_id);
+      $divisibility = $metadata['divisibility'] ?? NULL;
+    }
+    catch (SymbolEngineException | \InvalidArgumentException) {
+      $divisibility = NULL;
+    }
+    if (!is_int($divisibility) || $divisibility < 0 || $divisibility > 6 || preg_match('/^\d+$/', $atomic_amount) !== 1) {
+      return $atomic_amount;
+    }
+    if ($divisibility === 0) {
+      return ltrim($atomic_amount, '0') ?: '0';
+    }
+    $padded = str_pad($atomic_amount, $divisibility + 1, '0', STR_PAD_LEFT);
+    $whole = substr($padded, 0, -$divisibility);
+    $fraction = substr($padded, -$divisibility);
+    return (ltrim($whole, '0') ?: '0') . '.' . $fraction;
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  private function canEditListing(array $listing): bool {
+    return (string) $listing['status'] === AdListingRepository::ACTIVE
+      && !$this->listings->isExpired($listing)
+      && (int) ($listing['seller_uid'] ?? 0) === (int) $this->currentUser->id();
   }
 
 }
