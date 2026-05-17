@@ -173,7 +173,7 @@ final class SwapOfferController extends ControllerBase {
             $this->t('Side'),
             $this->t('Signer address'),
             $this->t('Recipient address'),
-            $this->t('Mosaic ID'),
+            $this->t('Mosaic'),
             $this->t('Amount'),
           ],
           '#rows' => [
@@ -181,15 +181,15 @@ final class SwapOfferController extends ControllerBase {
               $this->t('Maker pays'),
               ['data' => $this->addressValue((string) $offer['leg1_signer_public_key'], (string) $offer['network'])],
               ['data' => $this->hashValue((string) ($offer['leg1_recipient_address'] ?: 'Taker decides on accept'))],
-              ['data' => $this->hashValue((string) $offer['leg1_mosaic_id'])],
-              (string) $offer['leg1_amount'],
+              $this->formatMosaicName((string) $offer['network'], (string) $offer['leg1_mosaic_id']),
+              $this->formatMosaicAmount((string) $offer['leg1_amount'], (string) $offer['network'], (string) $offer['leg1_mosaic_id']),
             ],
             [
               $this->t('Maker wants'),
               ['data' => $this->addressValue((string) $offer['leg2_signer_public_key'], (string) $offer['network'])],
               ['data' => $this->hashValue((string) $offer['leg2_recipient_address'])],
-              ['data' => $this->hashValue((string) $offer['leg2_mosaic_id'])],
-              (string) $offer['leg2_amount'],
+              $this->formatMosaicName((string) $offer['network'], (string) $offer['leg2_mosaic_id']),
+              $this->formatMosaicAmount((string) $offer['leg2_amount'], (string) $offer['network'], (string) $offer['leg2_mosaic_id']),
             ],
           ],
         ],
@@ -854,6 +854,52 @@ final class SwapOfferController extends ControllerBase {
     }
     catch (\InvalidArgumentException) {
       return '';
+    }
+  }
+
+  private function formatMosaicAmount(string $atomic_amount, string $network, string $mosaic_id): string {
+    $metadata = $this->lookupMosaicMetadata($network, $mosaic_id);
+    $divisibility = $metadata['divisibility'] ?? NULL;
+    if (!is_int($divisibility) || $divisibility < 0 || $divisibility > 6 || preg_match('/^\d+$/', $atomic_amount) !== 1) {
+      return $atomic_amount;
+    }
+
+    if ($divisibility === 0) {
+      return ltrim($atomic_amount, '0') ?: '0';
+    }
+
+    $padded = str_pad($atomic_amount, $divisibility + 1, '0', STR_PAD_LEFT);
+    $whole = substr($padded, 0, -$divisibility);
+    $fraction = substr($padded, -$divisibility);
+    return (ltrim($whole, '0') ?: '0') . '.' . $fraction;
+  }
+
+  private function formatMosaicName(string $network, string $mosaic_id): string {
+    $normalized = strtoupper($mosaic_id);
+    $metadata = $this->lookupMosaicMetadata($network, $normalized);
+    $aliases = $metadata['aliases'] ?? [];
+    if (is_array($aliases) && isset($aliases[0]) && is_string($aliases[0]) && $aliases[0] !== '') {
+      return $aliases[0] . ' (' . $normalized . ')';
+    }
+    return $normalized;
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function lookupMosaicMetadata(string $network, string $mosaic_id): array {
+    $normalized = strtoupper($mosaic_id);
+    $overrides = \Drupal::state()->get('symbol_atomic_swap.mosaic_metadata_test_overrides', []);
+    $override = $overrides[$network][$normalized] ?? NULL;
+    if (is_array($override)) {
+      return $override + ['mosaicId' => $normalized, 'aliases' => []];
+    }
+
+    try {
+      return $this->engineClient->mosaicMetadata($network, $normalized);
+    }
+    catch (SymbolEngineException) {
+      return ['mosaicId' => $normalized, 'aliases' => []];
     }
   }
 

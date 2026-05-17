@@ -326,6 +326,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
    * Existing offers can be viewed and admin-only edit/delete routes render.
    */
   public function testExistingOfferRoutesRender(): void {
+    $this->installAccountPublicKeyResolverStub();
     $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
     $id = $repository->insert([
       'uuid' => 'offer-test-uuid',
@@ -377,6 +378,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Summary');
     $assert_session->pageTextContains('Trade terms');
     $assert_session->pageTextContains('Signer address');
+    $assert_session->pageTextContains('symbol.xym (72C0212E67A08BCE)');
+    $assert_session->pageTextContains('0.000100');
+    $assert_session->pageTextContains('0.000200');
     $assert_session->pageTextContains('Projection');
     $assert_session->pageTextContains('Manual sync allowed');
     $assert_session->pageTextContains('Automatic sync eligible');
