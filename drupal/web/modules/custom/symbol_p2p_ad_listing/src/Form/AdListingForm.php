@@ -16,6 +16,11 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 
 final class AdListingForm extends FormBase {
 
+  private const CURRENCY_MOSAIC_IDS = [
+    'mainnet' => '6BED913FA20223F8',
+    'testnet' => '72C0212E67A08BCE',
+  ];
+
   public function __construct(
     private readonly AdListingRepository $listings,
     private readonly SymbolEngineClient $engineClient,
@@ -38,7 +43,11 @@ final class AdListingForm extends FormBase {
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $form['#tree'] = TRUE;
+    $form['#attached']['library'][] = 'symbol_atomic_swap/offer_form';
+    $form['#attributes']['data-symbol-maker-address-form'] = '1';
     $account = $this->verifiedSymbolAccount();
+    $network = (string) ($account['network'] ?? 'testnet');
+    $default_mosaic_id = $this->defaultCurrencyMosaicId($network);
     if (!$account) {
       $form['account_required'] = [
         '#type' => 'container',
@@ -68,12 +77,31 @@ final class AdListingForm extends FormBase {
     ];
     $form['network'] = [
       '#type' => 'hidden',
-      '#value' => (string) ($account['network'] ?? 'testnet'),
+      '#value' => $network,
+      '#attributes' => [
+        'data-symbol-maker-network' => '1',
+      ],
     ];
     $form['seller'] = [
       '#type' => 'item',
       '#title' => $this->t('Seller address'),
       '#markup' => (string) ($account['address'] ?? $this->t('Not verified')),
+    ];
+    $form['seller_address'] = [
+      '#type' => 'hidden',
+      '#value' => (string) ($account['address'] ?? ''),
+      '#attributes' => [
+        'data-symbol-maker-address' => '1',
+      ],
+    ];
+    $form['seller_address_status'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => '',
+      '#attributes' => [
+        'data-symbol-maker-address-status' => '1',
+        'aria-live' => 'polite',
+      ],
     ];
     $form['offered'] = [
       '#type' => 'fieldset',
@@ -85,7 +113,23 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 16,
       '#size' => 24,
       '#required' => TRUE,
-      '#attributes' => ['pattern' => '[0-9A-Fa-f]{16}', 'autocomplete' => 'off', 'spellcheck' => 'false'],
+      '#default_value' => $default_mosaic_id,
+      '#attributes' => [
+        'pattern' => '[0-9A-Fa-f]{16}',
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+        'data-symbol-default-mosaic' => '1',
+        'data-symbol-mosaic-id' => '1',
+      ],
+    ];
+    $form['offered']['mosaic_status'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => '',
+      '#attributes' => [
+        'data-symbol-mosaic-status' => '1',
+        'aria-live' => 'polite',
+      ],
     ];
     $form['offered']['amount'] = [
       '#type' => 'textfield',
@@ -93,7 +137,11 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 48,
       '#size' => 24,
       '#required' => TRUE,
-      '#attributes' => ['pattern' => '[0-9]+(\\.[0-9]+)?', 'autocomplete' => 'off'],
+      '#attributes' => [
+        'pattern' => '[0-9]+(\\.[0-9]+)?',
+        'autocomplete' => 'off',
+        'data-symbol-mosaic-amount' => '1',
+      ],
     ];
     $form['requested'] = [
       '#type' => 'fieldset',
@@ -105,7 +153,23 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 16,
       '#size' => 24,
       '#required' => TRUE,
-      '#attributes' => ['pattern' => '[0-9A-Fa-f]{16}', 'autocomplete' => 'off', 'spellcheck' => 'false'],
+      '#default_value' => $default_mosaic_id,
+      '#attributes' => [
+        'pattern' => '[0-9A-Fa-f]{16}',
+        'autocomplete' => 'off',
+        'spellcheck' => 'false',
+        'data-symbol-default-mosaic' => '1',
+        'data-symbol-mosaic-id' => '1',
+      ],
+    ];
+    $form['requested']['mosaic_status'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'div',
+      '#value' => '',
+      '#attributes' => [
+        'data-symbol-mosaic-status' => '1',
+        'aria-live' => 'polite',
+      ],
     ];
     $form['requested']['amount'] = [
       '#type' => 'textfield',
@@ -113,7 +177,11 @@ final class AdListingForm extends FormBase {
       '#maxlength' => 48,
       '#size' => 24,
       '#required' => TRUE,
-      '#attributes' => ['pattern' => '[0-9]+(\\.[0-9]+)?', 'autocomplete' => 'off'],
+      '#attributes' => [
+        'pattern' => '[0-9]+(\\.[0-9]+)?',
+        'autocomplete' => 'off',
+        'data-symbol-mosaic-amount' => '1',
+      ],
     ];
     $form['swap_window_minutes'] = [
       '#type' => 'number',
@@ -255,6 +323,10 @@ final class AdListingForm extends FormBase {
     $left = ltrim($left, '0') ?: '0';
     $right = ltrim($right, '0') ?: '0';
     return strlen($left) <=> strlen($right) ?: strcmp($left, $right);
+  }
+
+  private function defaultCurrencyMosaicId(string $network): string {
+    return self::CURRENCY_MOSAIC_IDS[$network] ?? self::CURRENCY_MOSAIC_IDS['testnet'];
   }
 
 }
