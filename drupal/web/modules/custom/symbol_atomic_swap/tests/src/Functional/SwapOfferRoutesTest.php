@@ -602,6 +602,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'view symbol atomic swap offers',
       'operate symbol atomic swap offers',
     ]);
+    $this->verifySymbolAccount($operator, 'testnet', 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', str_repeat('B', 64));
     $this->drupalLogin($operator);
 
     $this->drupalGet('/symbol-atomic-swap/offers');
@@ -1016,7 +1017,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($other);
     $this->drupalGet('/symbol-atomic-swap/offers');
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Owner scoped offer');
+    $assert_session->pageTextNotContains('Owner scoped offer');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
     $assert_session->statusCodeEquals(200);
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
@@ -1034,6 +1035,37 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains(str_repeat('D', 64));
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains('Root transaction hash');
+  }
+
+  /**
+   * Non-admin offer lists include settlements where the user is a signer.
+   */
+  public function testOfferListIncludesSignerRelatedOffersForNonAdmins(): void {
+    $owner = $this->drupalCreateUser(['view symbol atomic swap offers']);
+    $signer = $this->drupalCreateUser(['view symbol atomic swap offers']);
+    $other = $this->drupalCreateUser(['view symbol atomic swap offers']);
+    $this->verifySymbolAccount($signer, 'testnet', 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', str_repeat('B', 64));
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $repository->insert($this->offerValues([
+      'uuid' => 'offer-signer-related',
+      'label' => 'Signer related offer',
+      'uid' => (int) $owner->id(),
+      'leg2_signer_public_key' => str_repeat('B', 64),
+    ]));
+    $repository->insert($this->offerValues([
+      'uuid' => 'offer-unrelated',
+      'label' => 'Unrelated offer',
+      'uid' => (int) $other->id(),
+      'leg1_signer_public_key' => str_repeat('C', 64),
+      'leg2_signer_public_key' => str_repeat('D', 64),
+    ]));
+
+    $assert_session = $this->assertSession();
+    $this->drupalLogin($signer);
+    $this->drupalGet('/symbol-atomic-swap/offers');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Signer related offer');
+    $assert_session->pageTextNotContains('Unrelated offer');
   }
 
   /**

@@ -49,7 +49,18 @@ final class SwapOfferController extends ControllerBase {
   public function list(): array {
     $filters = $this->filtersFromRequest();
     $rows = [];
-    foreach ($this->offers->search($filters, 100, NULL) as $offer) {
+    $participant = NULL;
+    if (!$this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+      $symbol_account = $this->verifiedSymbolAccount();
+      $participant = [
+        'uid' => (int) $this->currentUser()->id(),
+      ];
+      if ($symbol_account !== NULL) {
+        $participant['network'] = $symbol_account['network'];
+        $participant['public_key'] = $symbol_account['public_key'];
+      }
+    }
+    foreach ($this->offers->search($filters, 100, NULL, $participant) as $offer) {
       $rows[] = [
         Link::fromTextAndUrl((string) $offer['label'], Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
         $this->stateLabel((string) $offer['state']),

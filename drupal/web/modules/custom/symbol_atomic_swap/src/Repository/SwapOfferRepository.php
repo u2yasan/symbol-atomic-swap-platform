@@ -33,7 +33,10 @@ final class SwapOfferRepository {
    *
    * @return array<int, array<string, mixed>>
    */
-  public function search(array $filters = [], int $limit = 100, ?int $owner_id = NULL): array {
+  /**
+   * @param array{uid: int, network?: string, public_key?: string}|null $participant
+   */
+  public function search(array $filters = [], int $limit = 100, ?int $owner_id = NULL, ?array $participant = NULL): array {
     $query = $this->database->select(self::TABLE, 'o')
       ->fields('o')
       ->orderBy('changed', 'DESC')
@@ -50,6 +53,20 @@ final class SwapOfferRepository {
     }
     if ($owner_id !== NULL) {
       $query->condition('uid', $owner_id);
+    }
+    if ($participant !== NULL) {
+      $related = $query->orConditionGroup()
+        ->condition('uid', (int) $participant['uid']);
+      if (!empty($participant['network']) && !empty($participant['public_key'])) {
+        $signer = $query->andConditionGroup()
+          ->condition('network', (string) $participant['network']);
+        $signer_keys = $query->orConditionGroup()
+          ->condition('leg1_signer_public_key', strtoupper((string) $participant['public_key']))
+          ->condition('leg2_signer_public_key', strtoupper((string) $participant['public_key']));
+        $signer->condition($signer_keys);
+        $related->condition($signer);
+      }
+      $query->condition($related);
     }
     if (!empty($filters['has_transaction_hash'])) {
       $query->isNotNull('transaction_hash');
