@@ -87,6 +87,15 @@ symbol_atomic_swap.offer_accept:
     _symbol_atomic_swap_offer_access: 'accept'
     offerId: '\d+'
 
+symbol_atomic_swap.offer_cancel:
+  path: '/symbol-atomic-swap/offers/{offerId}/cancel'
+  defaults:
+    _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferCancelForm'
+    _title: 'Cancel Atomic Settlement'
+  requirements:
+    _symbol_atomic_swap_offer_access: 'cancel'
+    offerId: '\d+'
+
 symbol_atomic_swap.offer_submit_signed_payload:
   path: '/symbol-atomic-swap/offers/{offerId}/submit-signed-payload'
   defaults:

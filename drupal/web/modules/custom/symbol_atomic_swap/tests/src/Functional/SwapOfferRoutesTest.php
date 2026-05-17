@@ -483,6 +483,66 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
   }
 
   /**
+   * Maker and taker can cancel an unannounced settlement.
+   */
+  public function testMakerAndTakerCanCancelUnannouncedSettlement(): void {
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $maker = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $taker = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $this->verifySymbolAccount($taker, 'testnet', 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', str_repeat('B', 64));
+
+    $maker_offer_id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-maker-cancel',
+      'label' => 'Maker cancel offer',
+      'state' => 'signed',
+      'transaction_hash' => str_repeat('D', 64),
+      'uid' => (int) $maker->id(),
+    ]));
+    $taker_offer_id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-taker-cancel',
+      'label' => 'Taker cancel offer',
+      'state' => 'qr_generated',
+      'uid' => 999,
+    ]));
+    $announced_offer_id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-cancel-announced',
+      'label' => 'Announced cancel offer',
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('E', 64),
+      'uid' => (int) $maker->id(),
+    ]));
+
+    $assert_session = $this->assertSession();
+    $this->drupalLogin($maker);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $maker_offer_id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Cancel settlement');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $maker_offer_id . '/cancel');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Cancel Maker cancel offer?');
+    $this->submitForm([], 'Cancel settlement');
+    $this->assertSame('cancelled', $repository->find($maker_offer_id)['state']);
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_offer_id . '/cancel');
+    $assert_session->statusCodeEquals(403);
+
+    $this->drupalLogin($taker);
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $taker_offer_id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkExists('Cancel settlement');
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $taker_offer_id . '/cancel');
+    $assert_session->statusCodeEquals(200);
+    $this->submitForm([], 'Cancel settlement');
+    $this->assertSame('cancelled', $repository->find($taker_offer_id)['state']);
+  }
+
+  /**
    * Aggregate bonded QR pages explain the partial announcement sequence.
    */
   public function testAggregateBondedQrPayloadShowsPartialAnnouncementSteps(): void {

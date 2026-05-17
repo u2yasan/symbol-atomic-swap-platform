@@ -40,7 +40,7 @@ services:
 
   symbol_atomic_swap.offer_access_check:
     class: Drupal\symbol_atomic_swap\Access\SwapOfferAccessCheck
-    arguments: ['@symbol_atomic_swap.offer_repository']
+    arguments: ['@symbol_atomic_swap.offer_repository', '@entity_type.manager']
     tags:
       - { name: access_check, applies_to: _symbol_atomic_swap_offer_access }
 

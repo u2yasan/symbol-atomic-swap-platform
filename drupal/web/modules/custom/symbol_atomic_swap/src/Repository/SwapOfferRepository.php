@@ -14,6 +14,7 @@ final class SwapOfferRepository {
   private const TABLE = 'symbol_atomic_swap_offer';
   public const TERMINAL_STATES = ['expired', 'cancelled', 'failed', 'rolled_back', 'finalized'];
   public const SIGNABLE_STATES = ['qr_generated', 'root_signed', 'signed'];
+  public const CANCELLABLE_STATES = ['open', 'draft', 'qr_generated', 'root_signed', 'signed'];
   public const SYNCABLE_STATES = ['signed', 'announced', 'unconfirmed', 'confirmed', 'partial_announced', 'partial_cosigned'];
 
   public function __construct(
@@ -209,6 +210,21 @@ final class SwapOfferRepository {
     $this->delete($id);
   }
 
+  public function cancel(int $id): void {
+    $offer = $this->find($id);
+    if (!$offer) {
+      throw new \InvalidArgumentException('Atomic settlement not found.');
+    }
+    if (!$this->canCancel($offer)) {
+      throw new \InvalidArgumentException('Only unannounced atomic settlements can be cancelled.');
+    }
+
+    $this->update($id, [
+      'state' => 'cancelled',
+      'changed' => \Drupal::time()->getRequestTime(),
+    ]);
+  }
+
   public function markSigned(int $id, string $transaction_hash): void {
     $offer = $this->find($id);
     if (!$offer) {
@@ -380,6 +396,13 @@ final class SwapOfferRepository {
    */
   public function canDelete(array $offer): bool {
     return $this->isLocallyMutable($offer);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  public function canCancel(array $offer): bool {
+    return in_array((string) ($offer['state'] ?? ''), self::CANCELLABLE_STATES, TRUE);
   }
 
   /**

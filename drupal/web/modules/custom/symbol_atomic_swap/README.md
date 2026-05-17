@@ -10,6 +10,7 @@ and must not sign Symbol transactions.
 - `/symbol-atomic-swap/offers/add`
 - `/symbol-atomic-swap/offers/{offerId}`
 - `/symbol-atomic-swap/offers/{offerId}/edit`
+- `/symbol-atomic-swap/offers/{offerId}/cancel`
 - `/symbol-atomic-swap/offers/{offerId}/submit-signed-payload`
 - `/symbol-atomic-swap/offers/{offerId}/announce`
 - `/symbol-atomic-swap/offers/{offerId}/sync-projection`
@@ -48,6 +49,10 @@ sync action.
 Drupal cron also expires stale local settlements that have not been announced before
 their configured deadline. Announced transactions are not expired locally; they
 must move through Symbol Engine projection state instead.
+
+Makers and takers can cancel local settlements before transaction announcement.
+Cancellation sets the settlement state to `cancelled`; it does not reverse or
+modify any announced Symbol transaction.
 
 Settlement notifications are stored in Drupal and displayed on the settlement view.
 Expiration, confirmed, finalized, failed, and rolled back events create

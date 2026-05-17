@@ -340,6 +340,14 @@ final class SwapOfferController extends ControllerBase {
           && $this->offers->canAccept($offer),
         '#attributes' => ['class' => ['button', 'button--primary']],
       ],
+      'cancel' => [
+        '#type' => 'link',
+        '#title' => $this->t('Cancel settlement'),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_cancel', ['offerId' => $offer['id']]),
+        '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
+          && $this->canCurrentUserCancelOffer($offer),
+        '#attributes' => ['class' => ['button', 'button--danger']],
+      ],
       'cosign_with_sss' => [
         '#type' => 'link',
         '#title' => $can_submit_bonded_cosignature ? $this->t('Cosign and announce partial with SSS') : $this->t('Cosign with SSS'),
@@ -740,6 +748,7 @@ final class SwapOfferController extends ControllerBase {
             'confirmed' => 'confirmed',
             'finalized' => 'finalized',
             'expired' => 'expired',
+            'cancelled' => 'cancelled',
             'failed' => 'failed',
             'rolled_back' => 'rolled_back',
           ],
@@ -798,6 +807,9 @@ final class SwapOfferController extends ControllerBase {
       }
       if ($this->offers->canSyncProjection($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Sync projection'), Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]))->toString();
+      }
+      if ($this->canCurrentUserCancelOffer($offer)) {
+        $operations[] = Link::fromTextAndUrl($this->t('Cancel settlement'), Url::fromRoute('symbol_atomic_swap.offer_cancel', ['offerId' => $offer['id']]))->toString();
       }
     }
     if ($this->currentUser()->hasPermission('administer symbol atomic swap offers') && $this->offers->canEdit($offer)) {
@@ -952,6 +964,22 @@ final class SwapOfferController extends ControllerBase {
     return $symbol_account !== NULL
       && $symbol_account['network'] === (string) ($offer['network'] ?? '')
       && hash_equals($symbol_account['public_key'], strtoupper(trim($public_key)));
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function canCurrentUserCancelOffer(array $offer): bool {
+    if (!$this->offers->canCancel($offer)) {
+      return FALSE;
+    }
+    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+      return TRUE;
+    }
+    if ((int) ($offer['uid'] ?? 0) === (int) $this->currentUser()->id()) {
+      return TRUE;
+    }
+    return $this->currentUserMatchesSigner($offer, (string) ($offer['leg2_signer_public_key'] ?? ''));
   }
 
   /**

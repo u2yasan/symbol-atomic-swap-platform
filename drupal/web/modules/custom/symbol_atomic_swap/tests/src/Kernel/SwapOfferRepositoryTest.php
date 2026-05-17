@@ -252,6 +252,32 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
   }
 
   /**
+   * Local cancellation is allowed only before announcement.
+   */
+  public function testCancelMarksOnlyUnannouncedOffersCancelled(): void {
+    $signed_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-cancel-signed',
+      'state' => 'signed',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+    $announced_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-cancel-announced',
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('E', 64),
+    ]));
+
+    $this->assertTrue($this->repository->canCancel($this->repository->find($signed_id)));
+    $this->assertFalse($this->repository->canCancel($this->repository->find($announced_id)));
+
+    $this->repository->cancel($signed_id);
+    $this->assertSame('cancelled', $this->repository->find($signed_id)['state']);
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Only unannounced atomic settlements can be cancelled.');
+    $this->repository->cancel($announced_id);
+  }
+
+  /**
    * Editing and deletion are limited to local drafts before chain artifacts exist.
    */
   public function testMutableGuardsRejectAnnouncedAndBuiltOffers(): void {
