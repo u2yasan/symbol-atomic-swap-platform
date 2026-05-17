@@ -500,6 +500,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate bonded is initiated by the taker.');
+    $assert_session->pageTextContains('Required aggregate signer account');
+    $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->pageTextContains(str_repeat('B', 64));
 
     $repository->update($id, [
@@ -610,6 +612,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
+    $assert_session->pageTextContains('Required aggregate signer account');
+    $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->pageTextContains('Root signed payload must be signed by this maker account.');
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);
@@ -648,6 +652,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
+    $assert_session->pageTextContains('Required aggregate signer account');
+    $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->pageTextContains('Root signed payload must be signed by this maker account.');
     $assert_session->buttonExists('Sign unsigned payload with SSS');
     $assert_session->buttonExists('Verify SSS root signed payload');

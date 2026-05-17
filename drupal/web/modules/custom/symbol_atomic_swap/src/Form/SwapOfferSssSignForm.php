@@ -9,6 +9,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -25,12 +26,14 @@ final class SwapOfferSssSignForm extends FormBase {
   public function __construct(
     private readonly SwapOfferRepository $offers,
     private readonly SymbolEngineClient $engineClient,
+    private readonly SymbolAddressDeriver $addressDeriver,
   ) {}
 
   public static function create(ContainerInterface $container): self {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_atomic_swap.address_deriver'),
     );
   }
 
@@ -46,6 +49,7 @@ final class SwapOfferSssSignForm extends FormBase {
     $this->offer = $offer;
     $unsigned_payload = $this->normalizeHex((string) ($offer['unsigned_payload'] ?? ''));
     $required_signer = $this->requiredRootSigner($offer);
+    $required_signer_address = $this->addressFromPublicKey($required_signer, (string) $offer['network']);
     $is_aggregate_bonded = $this->isAggregateBonded($offer);
 
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
@@ -64,11 +68,13 @@ final class SwapOfferSssSignForm extends FormBase {
     ];
     $form['signer'] = [
       '#type' => 'item',
-      '#title' => $this->t('Required aggregate signer public key'),
-      '#markup' => $required_signer,
+      '#title' => $this->t('Required aggregate signer account'),
+      '#markup' => $required_signer_address !== ''
+        ? $required_signer_address . ' / ' . $required_signer
+        : $required_signer,
       '#description' => $is_aggregate_bonded
         ? $this->t('Aggregate bonded is initiated by the taker. Root signed payload must be signed by this taker account.')
-        : $this->t('Root signed payload must be signed by this maker account. If SSS is set to the taker account, use Cosign with SSS instead.'),
+        : $this->t('Root signed payload must be signed by this maker account. If SSS is set to the taker account, stop here; use Cosign with SSS after the maker signs.'),
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
@@ -173,7 +179,7 @@ final class SwapOfferSssSignForm extends FormBase {
       $result = $this->engineClient->verifyRootSignedPayload((string) $offer['intent_hash'], $payload);
       if (($result['accepted'] ?? FALSE) !== TRUE || empty($result['transactionHash'])) {
         $this->messenger()->addError($this->t('SSS root signed payload was rejected: @reason', [
-          '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason'), $this->requiredRootSigner($offer)),
+          '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason'), $offer),
         ]));
         $form_state->setRebuild(TRUE);
         return;
@@ -191,7 +197,7 @@ final class SwapOfferSssSignForm extends FormBase {
     }
     catch (SymbolEngineException $exception) {
       $this->messenger()->addError($this->t('SSS root signed payload verification failed: @reason', [
-        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception), $this->requiredRootSigner($offer)),
+        '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception), $offer),
       ]));
       $form_state->setRebuild(TRUE);
     }
@@ -242,11 +248,23 @@ final class SwapOfferSssSignForm extends FormBase {
     }
   }
 
-  private function safeRejectionReason(string $reason, string $required_signer = ''): string {
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function safeRejectionReason(string $reason, array $offer): string {
     $reason = strtolower(trim(preg_replace('/\s+/', ' ', $reason) ?? ''));
-    $required_signer = strtolower($required_signer);
-    if ($required_signer !== '' && str_contains($reason, 'missing required signer ' . $required_signer)) {
-      return 'wrong SSS account: root signed payload must be signed by the required aggregate signer. Switch SSS to the maker account, or use Cosign with SSS for the taker account.';
+    $required_signer = $this->requiredRootSigner($offer);
+    $required_signer_address = $this->addressFromPublicKey($required_signer, (string) $offer['network']);
+    $target = $required_signer_address !== '' ? $required_signer_address : $required_signer;
+    if (
+      $required_signer !== ''
+      && (str_contains($reason, 'missing required signer ' . strtolower($required_signer))
+        || str_contains($reason, 'aggregate signer mismatch'))
+    ) {
+      return sprintf(
+        'wrong SSS account: root signed payload must be signed by the required aggregate signer account %s. For aggregate complete, the taker uses Cosign with SSS after the maker signs.',
+        $target,
+      );
     }
     if ($reason === '' || preg_match('/^[a-z0-9_.: -]{1,120}$/', $reason) !== 1) {
       return 'verification_failed';
@@ -257,6 +275,15 @@ final class SwapOfferSssSignForm extends FormBase {
   private function engineFailureReason(SymbolEngineException $exception): string {
     $reason = $exception->details['reason'] ?? $exception->engineError ?? 'symbol_engine_error';
     return is_string($reason) ? $reason : 'symbol_engine_error';
+  }
+
+  private function addressFromPublicKey(string $public_key, string $network): string {
+    try {
+      return $public_key !== '' ? $this->addressDeriver->deriveFromPublicKey($public_key, $network) : '';
+    }
+    catch (\InvalidArgumentException) {
+      return '';
+    }
   }
 
 }
