@@ -108,6 +108,7 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $id = $this->repository->create($this->listingValues());
     $cancelled_id = $this->repository->create($this->listingValues(['label' => 'Cancelled']));
     $this->repository->cancel($cancelled_id);
+    $original_changed = (int) $this->repository->find($id)['changed'];
 
     $this->repository->updateSellerBalanceCheck($id, '9000000');
     $this->repository->updateSellerBalanceCheck($cancelled_id, '9000000');
@@ -115,6 +116,7 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $listing = $this->repository->find($id);
     $this->assertSame('9000000', $listing['seller_balance_checked_amount']);
     $this->assertNotEmpty($listing['seller_balance_checked_at']);
+    $this->assertSame($original_changed, (int) $listing['changed']);
 
     $cancelled = $this->repository->find($cancelled_id);
     $this->assertSame('5000000', $cancelled['seller_balance_checked_amount']);

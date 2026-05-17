@@ -191,7 +191,6 @@ final class AdListingRepository {
       ->fields([
         'seller_balance_checked_amount' => $amount,
         'seller_balance_checked_at' => $this->time->getRequestTime(),
-        'changed' => $this->time->getRequestTime(),
       ])
       ->condition('id', $id)
       ->condition('status', self::ACTIVE)
