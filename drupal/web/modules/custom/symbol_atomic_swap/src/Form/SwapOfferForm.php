@@ -15,6 +15,7 @@ use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class SwapOfferForm extends FormBase {
@@ -57,6 +58,9 @@ final class SwapOfferForm extends FormBase {
     $offer = $offer_id ? $this->offers->find($offer_id) : NULL;
     if ($offerId && !$offer) {
       throw new NotFoundHttpException();
+    }
+    if ($offer && !$this->offers->canEdit($offer)) {
+      throw new AccessDeniedHttpException();
     }
     $verified_symbol_account = $offer ? NULL : $this->verifiedSymbolAccount();
 
@@ -364,6 +368,10 @@ final class SwapOfferForm extends FormBase {
     }
     if ($offer_id) {
       $offer = $this->offers->find((int) $offer_id);
+      if (!$offer || !$this->offers->canEdit($offer)) {
+        $form_state->setErrorByName('offer_id', $this->t('Only open draft atomic settlements can be edited.'));
+        return;
+      }
       $correlation_id = (string) ($offer['correlation_id'] ?? '');
       if ($correlation_id !== '' && $this->offers->existsByNetworkCorrelationId($network, $correlation_id, (int) $offer_id)) {
         $form_state->setErrorByName('network', $this->t('Generated correlation ID is already used for this network.'));
@@ -461,7 +469,7 @@ final class SwapOfferForm extends FormBase {
     $values['changed'] = $now;
 
     if ($offer_id) {
-      $this->offers->update((int) $offer_id, $values + [
+      $this->offers->updateEditable((int) $offer_id, $values + [
         'state' => 'open',
         'intent_hash' => NULL,
         'unsigned_payload' => NULL,

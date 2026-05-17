@@ -407,13 +407,79 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(404);
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/edit');
-    $assert_session->statusCodeEquals(200);
-    $assert_session->fieldValueEquals('Settlement label', 'Test offer');
-    $assert_session->buttonExists('Save settlement');
+    $assert_session->statusCodeEquals(403);
 
     $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/delete');
+    $assert_session->statusCodeEquals(403);
+  }
+
+  /**
+   * Edit and delete routes close once a settlement has chain artifacts.
+   */
+  public function testOfferEditAndDeleteRequireLocalMutableState(): void {
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $open_id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-editable-open',
+      'label' => 'Editable open offer',
+      'state' => 'open',
+      'intent_hash' => NULL,
+      'unsigned_payload' => NULL,
+      'qr_payload' => NULL,
+      'transaction_hash' => NULL,
+    ]));
+    $announced_id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-editable-announced',
+      'label' => 'Announced immutable offer',
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+
+    $admin = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'administer symbol atomic swap offers',
+    ]);
+    $this->drupalLogin($admin);
+
+    $assert_session = $this->assertSession();
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $open_id . '/edit');
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Delete Test offer?');
+    $assert_session->fieldValueEquals('Settlement label', 'Editable open offer');
+    $assert_session->buttonExists('Save settlement');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $open_id . '/delete');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Delete Editable open offer?');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->linkNotExists('Edit');
+    $assert_session->linkNotExists('Delete');
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_id . '/edit');
+    $assert_session->statusCodeEquals(403);
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_id . '/delete');
+    $assert_session->statusCodeEquals(403);
+
+    $owner = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'create symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $owner_announced_id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-owner-announced-immutable',
+      'label' => 'Owner announced immutable offer',
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('E', 64),
+      'uid' => (int) $owner->id(),
+    ]));
+    $this->drupalLogin($owner);
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $owner_announced_id . '/edit');
+    $assert_session->statusCodeEquals(403);
+
+    $this->drupalGet('/symbol-atomic-swap/offers/' . $owner_announced_id . '/delete');
+    $assert_session->statusCodeEquals(403);
   }
 
   /**

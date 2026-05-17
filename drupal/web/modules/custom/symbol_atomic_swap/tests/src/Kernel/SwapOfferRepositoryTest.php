@@ -252,6 +252,46 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
   }
 
   /**
+   * Editing and deletion are limited to local drafts before chain artifacts exist.
+   */
+  public function testMutableGuardsRejectAnnouncedAndBuiltOffers(): void {
+    $open_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-mutable-open',
+      'state' => 'open',
+      'intent_hash' => NULL,
+      'unsigned_payload' => NULL,
+      'qr_payload' => NULL,
+      'transaction_hash' => NULL,
+    ]));
+    $built_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-mutable-built',
+      'state' => 'qr_generated',
+      'intent_hash' => str_repeat('C', 64),
+      'unsigned_payload' => 'ABCD',
+      'qr_payload' => '{"type":"symbol-aggregate-complete"}',
+    ]));
+    $announced_id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-mutable-announced',
+      'state' => 'announced',
+      'transaction_hash' => str_repeat('D', 64),
+    ]));
+
+    $this->assertTrue($this->repository->canEdit($this->repository->find($open_id)));
+    $this->assertTrue($this->repository->canDelete($this->repository->find($open_id)));
+    $this->assertFalse($this->repository->canEdit($this->repository->find($built_id)));
+    $this->assertFalse($this->repository->canDelete($this->repository->find($built_id)));
+    $this->assertFalse($this->repository->canEdit($this->repository->find($announced_id)));
+    $this->assertFalse($this->repository->canDelete($this->repository->find($announced_id)));
+
+    $this->repository->updateEditable($open_id, ['label' => 'Updated open offer']);
+    $this->assertSame('Updated open offer', $this->repository->find($open_id)['label']);
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Only open draft atomic settlements can be edited.');
+    $this->repository->updateEditable($announced_id, ['label' => 'Unsafe update']);
+  }
+
+  /**
    * Cron expires stale offers before queueing projection sync candidates.
    */
   public function testCronExpiresStaleOffers(): void {

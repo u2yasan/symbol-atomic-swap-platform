@@ -75,7 +75,7 @@ symbol_atomic_swap.offer_edit:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferForm'
     _title: 'Edit Atomic Settlement'
   requirements:
-    _symbol_atomic_swap_offer_access: 'admin'
+    _symbol_atomic_swap_offer_access: 'edit'
     offerId: '\d+'
 
 symbol_atomic_swap.offer_accept:
@@ -174,7 +174,7 @@ symbol_atomic_swap.offer_delete:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferDeleteForm'
     _title: 'Delete Atomic Settlement'
   requirements:
-    _symbol_atomic_swap_offer_access: 'admin'
+    _symbol_atomic_swap_offer_access: 'delete'
     offerId: '\d+'
 
 symbol_atomic_swap.transaction_history:

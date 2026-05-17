@@ -18,15 +18,26 @@ final class SwapOfferAccessCheck implements AccessInterface {
 
   public function access(Route $route, AccountInterface $account, mixed $offerId = NULL): AccessResult {
     $operation = (string) $route->getRequirement('_symbol_atomic_swap_offer_access');
-    if ($account->hasPermission('administer symbol atomic swap offers')) {
-      return AccessResult::allowed()->cachePerPermissions();
-    }
-
-    if ($operation === 'admin') {
+    $offer = $offerId !== NULL ? $this->offers->find((int) $offerId) : NULL;
+    if ($offerId !== NULL && !$offer) {
       return AccessResult::forbidden()->cachePerPermissions();
     }
 
-    $offer = $offerId !== NULL ? $this->offers->find((int) $offerId) : NULL;
+    if ($account->hasPermission('administer symbol atomic swap offers') && $offer) {
+      $allowed = match ($operation) {
+        'edit' => $this->offers->canEdit($offer),
+        'delete' => $this->offers->canDelete($offer),
+        default => TRUE,
+      };
+      return AccessResult::allowedIf($allowed)
+        ->cachePerPermissions()
+        ->cachePerUser();
+    }
+
+    if ($operation === 'admin' || $operation === 'edit' || $operation === 'delete') {
+      return AccessResult::forbidden()->cachePerPermissions();
+    }
+
     if (!$offer) {
       return AccessResult::forbidden()->cachePerPermissions();
     }

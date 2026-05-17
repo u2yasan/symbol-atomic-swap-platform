@@ -386,7 +386,8 @@ final class SwapOfferController extends ControllerBase {
         '#type' => 'link',
         '#title' => $this->t('Edit'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_edit', ['offerId' => $offer['id']]),
-        '#access' => $this->currentUser()->hasPermission('administer symbol atomic swap offers'),
+        '#access' => $this->currentUser()->hasPermission('administer symbol atomic swap offers')
+          && $this->offers->canEdit($offer),
         '#attributes' => ['class' => ['button']],
       ],
     ];
@@ -799,8 +800,10 @@ final class SwapOfferController extends ControllerBase {
         $operations[] = Link::fromTextAndUrl($this->t('Sync projection'), Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]))->toString();
       }
     }
-    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers') && $this->offers->canEdit($offer)) {
       $operations[] = Link::fromTextAndUrl($this->t('Edit'), Url::fromRoute('symbol_atomic_swap.offer_edit', ['offerId' => $offer['id']]))->toString();
+    }
+    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers') && $this->offers->canDelete($offer)) {
       $operations[] = Link::fromTextAndUrl($this->t('Delete'), Url::fromRoute('symbol_atomic_swap.offer_delete', ['offerId' => $offer['id']]))->toString();
     }
 

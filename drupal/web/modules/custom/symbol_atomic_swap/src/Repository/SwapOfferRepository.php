@@ -182,10 +182,31 @@ final class SwapOfferRepository {
       ->execute();
   }
 
+  /**
+   * @param array<string, mixed> $values
+   */
+  public function updateEditable(int $id, array $values): void {
+    $offer = $this->find($id);
+    if (!$offer || !$this->canEdit($offer)) {
+      throw new \InvalidArgumentException('Only open draft atomic settlements can be edited.');
+    }
+
+    $this->update($id, $values);
+  }
+
   public function delete(int $id): void {
     $this->database->delete(self::TABLE)
       ->condition('id', $id)
       ->execute();
+  }
+
+  public function deleteEditable(int $id): void {
+    $offer = $this->find($id);
+    if (!$offer || !$this->canDelete($offer)) {
+      throw new \InvalidArgumentException('Only open draft atomic settlements can be deleted.');
+    }
+
+    $this->delete($id);
   }
 
   public function markSigned(int $id, string $transaction_hash): void {
@@ -350,6 +371,20 @@ final class SwapOfferRepository {
   /**
    * @param array<string, mixed> $offer
    */
+  public function canEdit(array $offer): bool {
+    return $this->isLocallyMutable($offer);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  public function canDelete(array $offer): bool {
+    return $this->isLocallyMutable($offer);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
   public function canAnnounce(array $offer): bool {
     return ($offer['state'] ?? '') === 'signed'
       && !empty($offer['intent_hash'])
@@ -365,6 +400,19 @@ final class SwapOfferRepository {
     return !empty($offer['transaction_hash'])
       && $this->isHash((string) $offer['transaction_hash'])
       && in_array((string) ($offer['state'] ?? ''), self::SYNCABLE_STATES, TRUE);
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function isLocallyMutable(array $offer): bool {
+    return in_array((string) ($offer['state'] ?? ''), ['open', 'draft'], TRUE)
+      && empty($offer['intent_hash'])
+      && empty($offer['unsigned_payload'])
+      && empty($offer['qr_payload'])
+      && empty($offer['root_signed_payload'])
+      && empty($offer['root_transaction_hash'])
+      && empty($offer['transaction_hash']);
   }
 
   public function isProjectionSyncQueued(int $offer_id): bool {

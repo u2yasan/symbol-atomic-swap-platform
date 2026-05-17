@@ -9,6 +9,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class SwapOfferDeleteForm extends ConfirmFormBase {
@@ -37,6 +38,9 @@ final class SwapOfferDeleteForm extends ConfirmFormBase {
     if (!$offer) {
       throw new NotFoundHttpException();
     }
+    if (!$this->offers->canDelete($offer)) {
+      throw new AccessDeniedHttpException();
+    }
     $this->offer = $offer;
     return parent::buildForm($form, $form_state);
   }
@@ -50,7 +54,7 @@ final class SwapOfferDeleteForm extends ConfirmFormBase {
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $this->offers->delete((int) $this->offer['id']);
+    $this->offers->deleteEditable((int) $this->offer['id']);
     $this->messenger()->addStatus($this->t('Atomic settlement was deleted.'));
     $form_state->setRedirect('symbol_atomic_swap.offer_list');
   }
