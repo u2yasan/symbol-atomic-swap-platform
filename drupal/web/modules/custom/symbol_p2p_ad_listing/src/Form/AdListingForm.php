@@ -117,7 +117,7 @@ final class AdListingForm extends FormBase {
     ];
     $form['swap_window_minutes'] = [
       '#type' => 'number',
-      '#title' => $this->t('Swap window minutes'),
+      '#title' => $this->t('Settlement window minutes'),
       '#default_value' => 120,
       '#min' => 15,
       '#max' => 2880,

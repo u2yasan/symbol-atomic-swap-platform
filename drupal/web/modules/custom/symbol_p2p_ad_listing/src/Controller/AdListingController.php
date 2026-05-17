@@ -82,7 +82,7 @@ final class AdListingController extends ControllerBase {
       [$this->t('Seller address'), $this->hashValue((string) $listing['seller_address'])],
       [$this->t('Seller offers'), $this->atomicAmount((string) $listing['offered_amount']) . ' ' . (string) $listing['offered_mosaic_id']],
       [$this->t('Seller wants'), $this->atomicAmount((string) $listing['requested_amount']) . ' ' . (string) $listing['requested_mosaic_id']],
-      [$this->t('Swap window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
+      [$this->t('Settlement window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
       [$this->t('Balance checked amount'), $this->atomicAmount((string) ($listing['seller_balance_checked_amount'] ?? ''))],
       [$this->t('Balance checked at'), !empty($listing['seller_balance_checked_at']) ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'short') : ''],
       [$this->t('Created'), $this->dateFormatter->format((int) $listing['created'], 'short')],
@@ -112,9 +112,7 @@ final class AdListingController extends ControllerBase {
           '#type' => 'link',
           '#title' => $this->t('Take listing'),
           '#url' => Url::fromRoute('symbol_p2p_ad_listing.take', ['listingId' => $listing['id']]),
-          '#access' => (string) $listing['status'] === AdListingRepository::ACTIVE
-            && $this->currentUser()->hasPermission('operate symbol p2p ad listings')
-            && $this->currentUser()->hasPermission('operate symbol atomic swap offers'),
+          '#access' => $this->canTakeListing($listing),
           '#attributes' => ['class' => ['button', 'button--primary']],
         ],
         'check_balance' => [
@@ -196,9 +194,7 @@ final class AdListingController extends ControllerBase {
     $links = [
       Link::fromTextAndUrl($this->t('View'), Url::fromRoute('symbol_p2p_ad_listing.view', ['listingId' => $listing['id']]))->toString(),
     ];
-    if ((string) $listing['status'] === AdListingRepository::ACTIVE
-      && $this->currentUser()->hasPermission('operate symbol p2p ad listings')
-      && $this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
+    if ($this->canTakeListing($listing)) {
       $links[] = Link::fromTextAndUrl($this->t('Take'), Url::fromRoute('symbol_p2p_ad_listing.take', ['listingId' => $listing['id']]))->toString();
     }
     if ((string) $listing['status'] === AdListingRepository::ACTIVE
@@ -239,6 +235,16 @@ final class AdListingController extends ControllerBase {
       '@amount' => $amount,
       '@checked_at' => $checked_at,
     ]);
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  private function canTakeListing(array $listing): bool {
+    return (string) $listing['status'] === AdListingRepository::ACTIVE
+      && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
+      && $this->currentUser()->hasPermission('operate symbol p2p ad listings')
+      && $this->currentUser()->hasPermission('operate symbol atomic swap offers');
   }
 
   private function atomicAmount(string $amount): string {

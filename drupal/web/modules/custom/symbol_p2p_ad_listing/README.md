@@ -112,7 +112,7 @@ Amounts are stored as atomic integer strings, not display decimals.
 ## Create Flow
 
 1. User must have a verified Symbol account from `symbol_atomic_swap`.
-2. Seller enters offered mosaic, offered amount, requested mosaic, requested amount, and swap window.
+2. Seller enters offered mosaic, offered amount, requested mosaic, requested amount, and settlement window.
 3. Module checks both mosaics via Symbol Engine metadata.
 4. Module rejects non-transferable mosaics.
 5. Module converts display amounts to atomic integer strings using mosaic divisibility.
