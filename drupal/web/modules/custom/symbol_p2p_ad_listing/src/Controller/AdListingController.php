@@ -8,6 +8,8 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
+use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -19,6 +21,7 @@ final class AdListingController extends ControllerBase {
     private readonly AdListingRepository $listings,
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
+    private readonly SymbolEngineClient $engineClient,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -26,6 +29,7 @@ final class AdListingController extends ControllerBase {
       $container->get('symbol_p2p_ad_listing.repository'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
+      $container->get('symbol_atomic_swap.engine_client'),
     );
   }
 
@@ -80,8 +84,8 @@ final class AdListingController extends ControllerBase {
       [$this->t('Status'), $this->statusLabel((string) $listing['status'])],
       [$this->t('Network'), (string) $listing['network']],
       [$this->t('Seller address'), $this->hashValue((string) $listing['seller_address'])],
-      [$this->t('Seller offers'), $this->atomicAmount((string) $listing['offered_amount']) . ' ' . (string) $listing['offered_mosaic_id']],
-      [$this->t('Seller wants'), $this->atomicAmount((string) $listing['requested_amount']) . ' ' . (string) $listing['requested_mosaic_id']],
+      [$this->t('Seller offers'), $this->formatMosaicAmount((string) $listing['offered_amount'], (string) $listing['network'], (string) $listing['offered_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['offered_mosaic_id'])],
+      [$this->t('Seller wants'), $this->formatMosaicAmount((string) $listing['requested_amount'], (string) $listing['network'], (string) $listing['requested_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['requested_mosaic_id'])],
       [$this->t('Settlement window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
       [$this->t('Balance checked amount'), $this->atomicAmount((string) ($listing['seller_balance_checked_amount'] ?? ''))],
       [$this->t('Balance checked at'), !empty($listing['seller_balance_checked_at']) ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'short') : ''],
@@ -217,7 +221,12 @@ final class AdListingController extends ControllerBase {
    * @param array<string, mixed> $listing
    */
   private function mosaicPair(array $listing): string {
-    return $this->atomicAmount((string) $listing['offered_amount']) . ' ' . $listing['offered_mosaic_id'] . ' -> ' . $this->atomicAmount((string) $listing['requested_amount']) . ' ' . $listing['requested_mosaic_id'];
+    $network = (string) $listing['network'];
+    return $this->formatMosaicAmount((string) $listing['offered_amount'], $network, (string) $listing['offered_mosaic_id'])
+      . ' ' . $this->formatMosaicName($network, (string) $listing['offered_mosaic_id'])
+      . ' -> '
+      . $this->formatMosaicAmount((string) $listing['requested_amount'], $network, (string) $listing['requested_mosaic_id'])
+      . ' ' . $this->formatMosaicName($network, (string) $listing['requested_mosaic_id']);
   }
 
   /**
@@ -255,6 +264,52 @@ final class AdListingController extends ControllerBase {
 
   private function atomicAmount(string $amount): string {
     return $amount !== '' ? $amount : (string) $this->t('Not checked');
+  }
+
+  private function formatMosaicAmount(string $atomic_amount, string $network, string $mosaic_id): string {
+    $metadata = $this->lookupMosaicMetadata($network, $mosaic_id);
+    $divisibility = $metadata['divisibility'] ?? NULL;
+    if (!is_int($divisibility) || $divisibility < 0 || $divisibility > 6 || preg_match('/^\d+$/', $atomic_amount) !== 1) {
+      return $atomic_amount;
+    }
+
+    if ($divisibility === 0) {
+      return ltrim($atomic_amount, '0') ?: '0';
+    }
+
+    $padded = str_pad($atomic_amount, $divisibility + 1, '0', STR_PAD_LEFT);
+    $whole = substr($padded, 0, -$divisibility);
+    $fraction = substr($padded, -$divisibility);
+    return (ltrim($whole, '0') ?: '0') . '.' . $fraction;
+  }
+
+  private function formatMosaicName(string $network, string $mosaic_id): string {
+    $normalized = strtoupper($mosaic_id);
+    $metadata = $this->lookupMosaicMetadata($network, $normalized);
+    $aliases = $metadata['aliases'] ?? [];
+    if (is_array($aliases) && isset($aliases[0]) && is_string($aliases[0]) && $aliases[0] !== '') {
+      return $aliases[0] . ' (' . $normalized . ')';
+    }
+    return $normalized;
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function lookupMosaicMetadata(string $network, string $mosaic_id): array {
+    $normalized = strtoupper($mosaic_id);
+    $overrides = \Drupal::state()->get('symbol_atomic_swap.mosaic_metadata_test_overrides', []);
+    $override = $overrides[$network][$normalized] ?? NULL;
+    if (is_array($override)) {
+      return $override + ['mosaicId' => $normalized, 'aliases' => []];
+    }
+
+    try {
+      return $this->engineClient->mosaicMetadata($network, $normalized);
+    }
+    catch (SymbolEngineException) {
+      return ['mosaicId' => $normalized, 'aliases' => []];
+    }
   }
 
   private function hashValue(string $value): string {
