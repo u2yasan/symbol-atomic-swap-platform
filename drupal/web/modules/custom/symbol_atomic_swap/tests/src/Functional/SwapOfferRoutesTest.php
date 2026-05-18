@@ -675,7 +675,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Root signed payload sent to SSS');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->buttonExists('Cosign and announce partial with SSS');
-    $assert_session->pageTextContains('aLice transaction signing is not supported on this cosignature form.');
+    $assert_session->pageTextContains('Mobile signing with aLice');
+    $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64));
     $this->submitForm([
       'payload' => json_encode([
         'parentHash' => str_repeat('D', 64),
@@ -765,10 +767,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Root signed payload');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
-    $assert_session->fieldExists('Cosignature JSON');
+    $assert_session->fieldExists('Cosignature JSON or aLice signature');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
-    $assert_session->pageTextContains('aLice transaction signing is not supported on this cosignature form.');
+    $assert_session->pageTextContains('Mobile signing with aLice');
+    $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
 
@@ -813,16 +817,17 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Parent hash fallback');
-    $assert_session->fieldExists('Cosignature JSON');
+    $assert_session->fieldExists('Cosignature JSON or aLice signature');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
-    $assert_session->pageTextContains('aLice transaction signing is not supported on this cosignature form.');
-    $assert_session->pageTextNotContains('alice://sign?type=request_sign_transaction');
-    $assert_session->linkNotExists('Open aLice signer');
+    $assert_session->pageTextContains('Mobile signing with aLice');
+    $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
+    $assert_session->linkExists('Open aLice signer');
     $assert_session->buttonExists('Verify and store SSS cosignature');
     $this->submitForm(['payload' => 'A1B2C3D4'], 'Verify and store SSS cosignature');
-    $assert_session->pageTextContains('This looks like a signed payload HEX, not cosignature JSON.');
+    $assert_session->pageTextContains('This looks like signed payload HEX, not a 128-hex aLice cosignature signature.');
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
 

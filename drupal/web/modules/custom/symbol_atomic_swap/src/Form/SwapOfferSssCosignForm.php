@@ -12,6 +12,7 @@ use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_atomic_swap\Signing\AliceSignUrl;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -142,22 +143,51 @@ final class SwapOfferSssCosignForm extends FormBase {
         ],
       ],
     ];
-    $form['alice_notice'] = [
-      '#type' => 'container',
-      '#attributes' => ['class' => ['messages', 'messages--warning']],
-      'message' => [
-        '#type' => 'item',
-        '#markup' => $this->t('aLice transaction signing is not supported on this cosignature form. This form requires detached cosignature JSON. Use the SSS cosign button or paste cosignature JSON from a wallet that explicitly exports parentHash, signerPublicKey, and signature.'),
-      ],
-    ];
+    if ($payload_for_sss !== '') {
+      $alice_url = AliceSignUrl::cosignature($payload_for_sss, $expected_cosigner);
+      $form['alice'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Mobile signing with aLice'),
+        '#open' => FALSE,
+        'notice' => [
+          '#type' => 'item',
+          '#markup' => $this->t('Scan this QR with a phone that has aLice installed, or open the aLice URL on the mobile device. aLice displays a cosignature signature when no callback URL is provided; paste that 128-hex signature below. This form combines it with the parent hash and expected cosigner before verification.'),
+        ],
+        'qr' => [
+          '#type' => 'container',
+          '#attributes' => [
+            'class' => ['symbol-atomic-swap-qr'],
+            'data-qr-payload' => $alice_url,
+          ],
+        ],
+        'open' => [
+          '#type' => 'html_tag',
+          '#tag' => 'a',
+          '#value' => (string) $this->t('Open aLice signer'),
+          '#attributes' => [
+            'class' => ['button', 'button--primary'],
+            'href' => $alice_url,
+          ],
+        ],
+        'copy' => [
+          '#type' => 'container',
+          'label' => [
+            '#type' => 'html_tag',
+            '#tag' => 'strong',
+            '#value' => (string) $this->t('Copy aLice signing URL'),
+          ],
+          'value' => $this->copyValue($alice_url),
+        ],
+      ];
+    }
     $form['payload'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Cosignature JSON'),
+      '#title' => $this->t('Cosignature JSON or aLice signature'),
       '#rows' => 10,
       '#required' => TRUE,
       '#description' => $is_bonded_cosignature
-        ? $this->t('SSS fills this field after cosignature approval. The form then announces the aggregate bonded cosignature to the node.')
-        : $this->t('SSS fills this field after cosignature approval. Submit it to verify and store the cosignature.'),
+        ? $this->t('SSS fills this field after cosignature approval. You may also paste the 128-hex signature displayed by aLice. The form then announces the aggregate bonded cosignature to the node.')
+        : $this->t('SSS fills this field after cosignature approval. You may also paste the 128-hex signature displayed by aLice. Submit it to verify and store the cosignature.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
@@ -198,45 +228,55 @@ final class SwapOfferSssCosignForm extends FormBase {
       ]));
       return;
     }
-    if (preg_match('/^[0-9A-Fa-f]+$/', $this->normalizeHex($raw)) === 1) {
-      $form_state->setErrorByName('payload', $this->t('This looks like a signed payload HEX, not cosignature JSON. This form requires JSON with parentHash, signerPublicKey, and signature.'));
-      return;
+    $raw_hex = $this->normalizeHex($raw);
+    if (preg_match('/^[0-9A-Fa-f]+$/', $raw_hex) === 1) {
+      if (strlen($raw_hex) !== 128) {
+        $form_state->setErrorByName('payload', $this->t('This looks like signed payload HEX, not a 128-hex aLice cosignature signature. Paste cosignature JSON or the signature displayed by aLice cosignature signing.'));
+        return;
+      }
+      $normalized = $this->cosignatureFromSignature($raw_hex, $offer, $form_state);
+      if ($normalized === NULL) {
+        return;
+      }
+    }
+    else {
+      try {
+        $decoded = json_decode($raw, TRUE, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+          $form_state->setErrorByName('payload', $this->t('Cosignature JSON must be an object.'));
+          return;
+        }
+        $normalized = $this->normalizeCosignature($decoded);
+      }
+      catch (\JsonException) {
+        $form_state->setErrorByName('payload', $this->t('Cosignature JSON is malformed.'));
+        return;
+      }
     }
 
-    try {
-      $decoded = json_decode($raw, TRUE, 512, JSON_THROW_ON_ERROR);
-      if (!is_array($decoded)) {
-        $form_state->setErrorByName('payload', $this->t('Cosignature JSON must be an object.'));
-        return;
-      }
-      $normalized = $this->normalizeCosignature($decoded);
-      if (!$this->hasRequiredCosignatureFields($normalized)) {
-        $form_state->setErrorByName('payload', $this->t('Cosignature JSON must include parentHash, signerPublicKey, and signature.'));
-        return;
-      }
-      $signer_public_key = strtoupper((string) $normalized['signerPublicKey']);
-      $expected_signer_public_key = $this->expectedCosignerPublicKey($offer);
-      if ($signer_public_key !== $expected_signer_public_key) {
-        $form_state->setErrorByName('payload', $this->t('SSS cosignature must be created by the non-root signer public key @key.', [
-          '@key' => $expected_signer_public_key,
+    if (!$this->hasRequiredCosignatureFields($normalized)) {
+      $form_state->setErrorByName('payload', $this->t('Cosignature JSON must include parentHash, signerPublicKey, and signature.'));
+      return;
+    }
+    $signer_public_key = strtoupper((string) $normalized['signerPublicKey']);
+    $expected_signer_public_key = $this->expectedCosignerPublicKey($offer);
+    if ($signer_public_key !== $expected_signer_public_key) {
+      $form_state->setErrorByName('payload', $this->t('SSS cosignature must be created by the non-root signer public key @key.', [
+        '@key' => $expected_signer_public_key,
+      ]));
+      return;
+    }
+    if (!$is_bonded_cosignature) {
+      $expected_parent_hash = strtoupper((string) ($offer['root_transaction_hash'] ?? ''));
+      $parent_hash = strtoupper((string) ($normalized['parentHash'] ?? ''));
+      if ($expected_parent_hash === '' || $parent_hash !== $expected_parent_hash) {
+        $form_state->setErrorByName('payload', $this->t('SSS cosignature must be created against the root signed transaction hash @hash. Sign the root signed payload again with SSS.', [
+          '@hash' => $expected_parent_hash,
         ]));
         return;
       }
-      if (!$is_bonded_cosignature) {
-        $expected_parent_hash = strtoupper((string) ($offer['root_transaction_hash'] ?? ''));
-        $parent_hash = strtoupper((string) ($normalized['parentHash'] ?? ''));
-        if ($expected_parent_hash === '' || $parent_hash !== $expected_parent_hash) {
-          $form_state->setErrorByName('payload', $this->t('SSS cosignature must be created against the root signed transaction hash @hash. Sign the root signed payload again with SSS.', [
-            '@hash' => $expected_parent_hash,
-          ]));
-          return;
-        }
-      }
-      $form_state->set('symbol_atomic_swap_cosignature', $normalized);
     }
-    catch (\JsonException) {
-      $form_state->setErrorByName('payload', $this->t('Cosignature JSON is malformed.'));
-    }
+    $form_state->set('symbol_atomic_swap_cosignature', $normalized);
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
@@ -417,6 +457,38 @@ final class SwapOfferSssCosignForm extends FormBase {
       && $cosignature['signature'] !== '';
   }
 
+  /**
+   * @param array<string, mixed> $offer
+   *
+   * @return array<string, mixed>|null
+   */
+  private function cosignatureFromSignature(string $signature, array $offer, FormStateInterface $form_state): ?array {
+    $parent_hash = $this->normalizeHex((string) $form_state->getValue('parent_hash', ''));
+    if ($parent_hash === '') {
+      $parent_hash = $this->normalizeHex((string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?? '')));
+    }
+    if (preg_match('/^[0-9A-F]{64}$/', $parent_hash) !== 1) {
+      $form_state->setErrorByName('parent_hash', $this->t('Parent hash fallback must be a 64-hex transaction hash when pasting an aLice signature.'));
+      return NULL;
+    }
+
+    $signer_public_key = $this->expectedCosignerPublicKey($offer);
+    if (preg_match('/^[0-9A-F]{64}$/', $signer_public_key) !== 1) {
+      $form_state->setErrorByName('payload', $this->t('Expected cosigner public key is unavailable. The aLice signature cannot be converted to cosignature JSON.'));
+      return NULL;
+    }
+
+    return [
+      'parentHash' => $parent_hash,
+      'signerPublicKey' => $signer_public_key,
+      'signature' => $signature,
+      'version' => [
+        'lower' => 0,
+        'higher' => 0,
+      ],
+    ];
+  }
+
   private function safeRejectionReason(string $reason): string {
     $reason = strtolower(trim(preg_replace('/\s+/', ' ', $reason) ?? ''));
     if ($reason === '' || preg_match('/^[a-z0-9_.: -]{1,120}$/', $reason) !== 1) {
@@ -437,6 +509,33 @@ final class SwapOfferSssCosignForm extends FormBase {
     catch (\InvalidArgumentException) {
       return '';
     }
+  }
+
+  private function copyValue(string $value): array|string {
+    if ($value === '') {
+      return '';
+    }
+
+    return [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['symbol-atomic-swap-copy']],
+      'value' => [
+        '#type' => 'html_tag',
+        '#tag' => 'code',
+        '#value' => $value,
+        '#attributes' => ['class' => ['symbol-atomic-swap-long-value']],
+      ],
+      'copy' => [
+        '#type' => 'html_tag',
+        '#tag' => 'button',
+        '#value' => (string) $this->t('Copy'),
+        '#attributes' => [
+          'type' => 'button',
+          'class' => ['button', 'button--small', 'symbol-atomic-swap-copy__button'],
+          'data-symbol-copy' => $value,
+        ],
+      ],
+    ];
   }
 
 }
