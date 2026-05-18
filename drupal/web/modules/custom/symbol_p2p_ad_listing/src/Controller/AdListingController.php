@@ -36,14 +36,13 @@ final class AdListingController extends ControllerBase {
 
   public function list(): array {
     $filters = $this->filtersFromRequest();
+    $header = $this->listingTableHeader();
     $rows = [];
-    foreach ($this->listings->search($filters) as $listing) {
+    foreach ($this->listings->search($filters, 100, $header) as $listing) {
       $rows[] = [
         Link::fromTextAndUrl((string) $listing['label'], Url::fromRoute('symbol_p2p_ad_listing.view', ['listingId' => $listing['id']]))->toString(),
-        (string) $listing['network'],
         ['data' => $this->mosaicTerm($listing, 'offered')],
         ['data' => $this->mosaicTerm($listing, 'requested')],
-        $this->statusLabel((string) $listing['status']),
         $this->expirationLabel($listing),
       ];
     }
@@ -63,14 +62,7 @@ final class AdListingController extends ControllerBase {
       ],
       'listings' => [
         '#type' => 'table',
-        '#header' => [
-          $this->t('Listing'),
-          $this->t('Network'),
-          $this->t('Offers'),
-          $this->t('Wants'),
-          $this->t('Status'),
-          $this->t('Expires'),
-        ],
+        '#header' => $header,
         '#rows' => $rows,
         '#empty' => $this->t('No P2P listings have been created.'),
       ],
@@ -215,6 +207,30 @@ final class AdListingController extends ControllerBase {
       throw new NotFoundHttpException();
     }
     return $listing;
+  }
+
+  /**
+   * @return array<int, mixed>
+   */
+  private function listingTableHeader(): array {
+    return [
+      $this->t('Listing'),
+      [
+        'data' => $this->t('Offers'),
+        'field' => 'offered_amount_sort',
+        'initial_click_sort' => 'asc',
+      ],
+      [
+        'data' => $this->t('Wants'),
+        'field' => 'requested_amount_sort',
+        'initial_click_sort' => 'asc',
+      ],
+      [
+        'data' => $this->t('Expires'),
+        'field' => 'l.expires_at',
+        'initial_click_sort' => 'asc',
+      ],
+    ];
   }
 
   /**

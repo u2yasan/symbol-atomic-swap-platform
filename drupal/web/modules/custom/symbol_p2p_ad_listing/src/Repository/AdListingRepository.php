@@ -7,6 +7,7 @@ namespace Drupal\symbol_p2p_ad_listing\Repository;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Component\Uuid\UuidInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\Query\TableSortExtender;
 use Drupal\Core\Database\Statement\FetchAs;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 
@@ -31,14 +32,16 @@ final class AdListingRepository {
 
   /**
    * @param array<string, string> $filters
+   * @param array<int, mixed>|null $sort_header
    *
    * @return array<int, array<string, mixed>>
    */
-  public function search(array $filters = [], int $limit = 100): array {
+  public function search(array $filters = [], int $limit = 100, ?array $sort_header = NULL): array {
     $query = $this->database->select(self::TABLE, 'l')
       ->fields('l')
-      ->orderBy('changed', 'DESC')
       ->range(0, $limit);
+    $query->addExpression('CAST(l.offered_amount AS DECIMAL(32, 0))', 'offered_amount_sort');
+    $query->addExpression('CAST(l.requested_amount AS DECIMAL(32, 0))', 'requested_amount_sort');
 
     if (!empty($filters['status'])) {
       $query->condition('status', $filters['status']);
@@ -60,6 +63,14 @@ final class AdListingRepository {
         ->condition('requested_mosaic_id', strtoupper($filters['q']));
       $query->condition($or);
     }
+
+    if ($sort_header !== NULL) {
+      $query = $query->extend(TableSortExtender::class);
+      $query->orderByHeader($sort_header);
+    }
+    $query
+      ->orderBy('changed', 'DESC')
+      ->orderBy('id', 'DESC');
 
     return $query->execute()->fetchAll(FetchAs::Associative);
   }
