@@ -72,7 +72,7 @@ final class SymbolAccountVerificationForm extends FormBase {
       '#type' => 'item',
       '#title' => $this->t('Verification status'),
       '#markup' => $verified
-      ? $this->t('Verified at @time.', ['@time' => $this->dateFormatterService()->format($verified_at, 'short')])
+      ? $this->t('Verified at @time.', ['@time' => $this->dateFormatterService()->format($verified_at, 'custom', 'Y-m-d H:i')])
         : $this->t('Not verified.'),
     ];
 
