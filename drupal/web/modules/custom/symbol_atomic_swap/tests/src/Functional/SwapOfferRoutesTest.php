@@ -588,6 +588,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('POST /v1/hash-lock/announce');
     $assert_session->pageTextContains('POST /v1/transactions/announce-partial');
     $assert_session->pageTextContains('Hash lock signer');
+    $assert_session->pageTextContains(str_repeat('A', 64));
+    $assert_session->pageTextContains(str_repeat('B', 64));
     $assert_session->pageTextContains('Taker initiates this aggregate bonded transaction from the accept page and pays the 10 XYM hash lock.');
 
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/qr-payload/' . str_repeat('C', 64));

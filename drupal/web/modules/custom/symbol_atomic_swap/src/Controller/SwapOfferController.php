@@ -646,9 +646,9 @@ final class SwapOfferController extends ControllerBase {
         ],
       ],
       'roles' => $this->keyValueTable([
-        [$this->t('Aggregate signer'), $this->addressValue(strtoupper($aggregate_signer), (string) $offer['network'])],
-        [$this->t('Maker cosigner'), $this->addressValue(strtoupper($maker_cosigner), (string) $offer['network'])],
-        [$this->t('Hash lock signer'), $this->addressValue(strtoupper($hash_lock_signer), (string) $offer['network'])],
+        [$this->t('Aggregate signer'), $this->publicKeyValue($aggregate_signer)],
+        [$this->t('Maker cosigner'), $this->publicKeyValue($maker_cosigner)],
+        [$this->t('Hash lock signer'), $this->publicKeyValue($hash_lock_signer)],
         [$this->t('Hash lock mosaic'), $this->hashValue(strtoupper((string) ($hash_lock['mosaicId'] ?? '')))],
         [$this->t('Hash lock amount'), (string) ($hash_lock['amount'] ?? '')],
         [$this->t('Hash lock duration blocks'), (string) ($hash_lock['duration'] ?? '')],
@@ -1014,6 +1014,15 @@ final class SwapOfferController extends ControllerBase {
       return strtoupper($required_cosigners[1]);
     }
     return strtoupper((string) ($offer['leg2_signer_public_key'] ?? ''));
+  }
+
+  private function publicKeyValue(string $public_key): array|string {
+    $public_key = strtoupper(trim($public_key));
+    if ($public_key === '') {
+      return (string) $this->t('Taker decides on accept');
+    }
+
+    return $this->hashValue($public_key);
   }
 
 }
