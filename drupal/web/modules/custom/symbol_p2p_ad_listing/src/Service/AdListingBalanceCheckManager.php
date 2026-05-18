@@ -45,6 +45,21 @@ final class AdListingBalanceCheckManager {
    * @return array{balance: string, sufficient: bool}
    */
   public function checkListing(int $listing_id): array {
+    $result = $this->checkListingReadOnly($listing_id);
+    if ($result['sufficient']) {
+      $this->listings->updateSellerBalanceCheck($listing_id, $result['balance']);
+    }
+    else {
+      $this->listings->markInsufficientBalance($listing_id, $result['balance']);
+    }
+
+    return $result;
+  }
+
+  /**
+   * @return array{balance: string, sufficient: bool}
+   */
+  public function checkListingReadOnly(int $listing_id): array {
     $listing = $this->listings->find($listing_id);
     if (!$listing) {
       throw new \InvalidArgumentException('Listing not found.');
@@ -65,13 +80,6 @@ final class AdListingBalanceCheckManager {
     }
 
     $sufficient = $this->compareAtomic($balance, (string) $listing['offered_amount']) >= 0;
-    if ($sufficient) {
-      $this->listings->updateSellerBalanceCheck($listing_id, $balance);
-    }
-    else {
-      $this->listings->markInsufficientBalance($listing_id, $balance);
-    }
-
     return [
       'balance' => $balance,
       'sufficient' => $sufficient,

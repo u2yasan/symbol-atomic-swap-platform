@@ -96,8 +96,34 @@ final class TakeListingForm extends ConfirmFormBase {
     try {
       $this->assertTransferable((string) $listing['network'], (string) $listing['offered_mosaic_id']);
       $this->assertTransferable((string) $listing['network'], (string) $listing['requested_mosaic_id']);
-      $seller_balance = (string) ($this->engineClient->accountMosaicBalance((string) $listing['network'], (string) $listing['seller_address'], (string) $listing['offered_mosaic_id'])['amount'] ?? '0');
-      $taker_balance = (string) ($this->engineClient->accountMosaicBalance((string) $listing['network'], (string) $taker['address'], (string) $listing['requested_mosaic_id'])['amount'] ?? '0');
+      $balances = $this->engineClient->accountMosaicBalanceBatch([
+        'seller' => [
+          'network' => (string) $listing['network'],
+          'address' => (string) $listing['seller_address'],
+          'mosaic_id' => (string) $listing['offered_mosaic_id'],
+        ],
+        'taker' => [
+          'network' => (string) $listing['network'],
+          'address' => (string) $taker['address'],
+          'mosaic_id' => (string) $listing['requested_mosaic_id'],
+        ],
+      ]);
+      if (!($balances['seller']['ok'] ?? FALSE)) {
+        $form_state->setErrorByName('listing_id', $this->t('Seller balance could not be verified: @message', [
+          '@message' => $this->balanceCheckError($balances['seller']['error'] ?? NULL),
+        ]));
+      }
+      if (!($balances['taker']['ok'] ?? FALSE)) {
+        $form_state->setErrorByName('listing_id', $this->t('Taker balance could not be verified: @message', [
+          '@message' => $this->balanceCheckError($balances['taker']['error'] ?? NULL),
+        ]));
+      }
+      if ($form_state->hasAnyErrors()) {
+        return;
+      }
+
+      $seller_balance = (string) ($balances['seller']['result']['amount'] ?? '0');
+      $taker_balance = (string) ($balances['taker']['result']['amount'] ?? '0');
       if ($this->compareAtomic($seller_balance, (string) $listing['offered_amount']) < 0) {
         $form_state->setErrorByName('listing_id', $this->t('Seller balance is no longer sufficient.'));
       }
@@ -111,6 +137,12 @@ final class TakeListingForm extends ConfirmFormBase {
 
     $form_state->set('taker', $taker);
     $this->listing = $listing;
+  }
+
+  private function balanceCheckError(mixed $error): string {
+    return $error instanceof \Throwable && $error->getMessage() !== ''
+      ? $error->getMessage()
+      : (string) $this->t('Unknown balance check error.');
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {

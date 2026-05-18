@@ -1,0 +1,7 @@
+balance_check:
+  version: 1.x
+  js:
+    js/symbol-p2p-ad-listing-balance-check.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

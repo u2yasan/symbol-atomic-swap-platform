@@ -230,6 +230,40 @@ final class SymbolEngineClientTest extends KernelTestBase {
   }
 
   /**
+   * Batched account mosaic balance requests preserve caller keys.
+   */
+  public function testAccountMosaicBalanceBatchRequest(): void {
+    putenv('SYMBOL_ENGINE_BASE_URL=http://engine.local');
+    putenv('SYMBOL_ENGINE_API_TOKEN=' . self::VALID_TOKEN);
+
+    $history = [];
+    $client = $this->client([
+      new Response(200, [], '{"amount":"100"}'),
+      new Response(200, [], '{"amount":"200"}'),
+    ], $history);
+
+    $result = $client->accountMosaicBalanceBatch([
+      'seller' => [
+        'network' => 'testnet',
+        'address' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+        'mosaic_id' => '72c0212e67a08bce',
+      ],
+      'taker' => [
+        'network' => 'testnet',
+        'address' => 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
+        'mosaic_id' => '72c0212e67a08bcf',
+      ],
+    ]);
+
+    $this->assertTrue($result['seller']['ok']);
+    $this->assertSame('100', $result['seller']['result']['amount']);
+    $this->assertTrue($result['taker']['ok']);
+    $this->assertSame('200', $result['taker']['result']['amount']);
+    $this->assertSame('http://engine.local/v1/accounts/testnet/TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ/mosaics/72C0212E67A08BCE', (string) $history[0]['request']->getUri());
+    $this->assertSame('http://engine.local/v1/accounts/testnet/TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI/mosaics/72C0212E67A08BCF', (string) $history[1]['request']->getUri());
+  }
+
+  /**
    * Manual projection sync must ask Symbol Engine to reconcile node state first.
    */
   public function testReconcileProjectionRequest(): void {

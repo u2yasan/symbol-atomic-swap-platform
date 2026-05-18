@@ -7,15 +7,13 @@ namespace Drupal\symbol_p2p_ad_listing\Controller;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
-use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
-use Drupal\symbol_p2p_ad_listing\Form\CheckBalanceForm;
-use Drupal\symbol_p2p_ad_listing\Form\CheckMyBalanceForm;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -26,7 +24,6 @@ final class AdListingController extends ControllerBase {
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
     private readonly SymbolEngineClient $engineClient,
-    private readonly FormBuilderInterface $inlineFormBuilder,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -35,7 +32,6 @@ final class AdListingController extends ControllerBase {
       $container->get('date.formatter'),
       $container->get('request_stack'),
       $container->get('symbol_atomic_swap.engine_client'),
-      $container->get('form_builder'),
     );
   }
 
@@ -98,6 +94,9 @@ final class AdListingController extends ControllerBase {
 
     return [
       '#cache' => ['max-age' => 0],
+      '#attached' => [
+        'library' => ['symbol_p2p_ad_listing/balance_check'],
+      ],
       'summary' => [
         '#type' => 'details',
         '#title' => $this->t('Listing'),
@@ -116,15 +115,40 @@ final class AdListingController extends ControllerBase {
           '#access' => $this->canTakeListing($listing),
           '#attributes' => ['class' => ['button', 'button--primary']],
         ],
-        'check_balance' => [
+        'balance_checks' => [
           '#type' => 'container',
-          '#access' => $this->canCheckSellerBalance($listing),
-          'form' => $this->inlineFormBuilder->getForm(CheckBalanceForm::class, (int) $listing['id']),
-        ],
-        'check_my_balance' => [
-          '#type' => 'container',
-          '#access' => $this->canCheckMyBalance($listing),
-          'form' => $this->inlineFormBuilder->getForm(CheckMyBalanceForm::class, (int) $listing['id']),
+          '#access' => $this->canCheckSellerBalance($listing) || $this->canCheckMyBalance($listing),
+          '#attributes' => [
+            'data-symbol-p2p-balance-checks' => '1',
+          ],
+          'seller' => [
+            '#type' => 'container',
+            '#access' => $this->canCheckSellerBalance($listing),
+            '#attributes' => [
+              'data-symbol-p2p-balance-check' => 'seller',
+              'data-symbol-p2p-balance-check-url' => Url::fromRoute('symbol_p2p_ad_listing.balance_check_seller', ['listingId' => $listing['id']])->toString(),
+            ],
+            'label' => [
+              '#markup' => '<strong>' . $this->t('Seller balance') . '</strong>: ',
+            ],
+            'status' => [
+              '#markup' => '<span data-symbol-p2p-balance-check-status>' . $this->t('Checking...') . '</span>',
+            ],
+          ],
+          'mine' => [
+            '#type' => 'container',
+            '#access' => $this->canCheckMyBalance($listing),
+            '#attributes' => [
+              'data-symbol-p2p-balance-check' => 'mine',
+              'data-symbol-p2p-balance-check-url' => Url::fromRoute('symbol_p2p_ad_listing.balance_check_mine', ['listingId' => $listing['id']])->toString(),
+            ],
+            'label' => [
+              '#markup' => '<strong>' . $this->t('My balance') . '</strong>: ',
+            ],
+            'status' => [
+              '#markup' => '<span data-symbol-p2p-balance-check-status>' . $this->t('Checking...') . '</span>',
+            ],
+          ],
         ],
         'edit' => [
           '#type' => 'link',
@@ -149,6 +173,61 @@ final class AdListingController extends ControllerBase {
         ],
       ],
     ];
+  }
+
+  public function sellerBalanceCheck($listingId): JsonResponse {
+    $listing = $this->loadListing((int) $listingId);
+    if (!$this->canCheckSellerBalance($listing)) {
+      return new JsonResponse(['ok' => FALSE, 'message' => (string) $this->t('This listing cannot be balance checked.')], 403);
+    }
+
+    try {
+      $balance = (string) ($this->engineClient->accountMosaicBalance(
+        (string) $listing['network'],
+        (string) $listing['seller_address'],
+        (string) $listing['offered_mosaic_id'],
+      )['amount'] ?? '0');
+    }
+    catch (SymbolEngineException | \InvalidArgumentException $exception) {
+      return new JsonResponse(['ok' => FALSE, 'message' => $exception->getMessage()], 502);
+    }
+
+    return new JsonResponse($this->balanceCheckResponse(
+      $balance,
+      (string) $listing['offered_amount'],
+      (string) $listing['network'],
+      (string) $listing['offered_mosaic_id'],
+    ));
+  }
+
+  public function myBalanceCheck($listingId): JsonResponse {
+    $listing = $this->loadListing((int) $listingId);
+    if (!$this->canCheckMyBalance($listing)) {
+      return new JsonResponse(['ok' => FALSE, 'message' => (string) $this->t('This listing cannot be balance checked.')], 403);
+    }
+
+    $account = $this->verifiedSymbolAccount();
+    if (!$account || (string) $account['network'] !== (string) $listing['network']) {
+      return new JsonResponse(['ok' => FALSE, 'message' => (string) $this->t('My Symbol Account must be verified on the same network as the listing.')], 403);
+    }
+
+    try {
+      $balance = (string) ($this->engineClient->accountMosaicBalance(
+        (string) $listing['network'],
+        (string) $account['address'],
+        (string) $listing['requested_mosaic_id'],
+      )['amount'] ?? '0');
+    }
+    catch (SymbolEngineException | \InvalidArgumentException $exception) {
+      return new JsonResponse(['ok' => FALSE, 'message' => $exception->getMessage()], 502);
+    }
+
+    return new JsonResponse($this->balanceCheckResponse(
+      $balance,
+      (string) $listing['requested_amount'],
+      (string) $listing['network'],
+      (string) $listing['requested_mosaic_id'],
+    ));
   }
 
   public function title($listingId): string {
@@ -215,6 +294,23 @@ final class AdListingController extends ControllerBase {
       throw new NotFoundHttpException();
     }
     return $listing;
+  }
+
+  /**
+   * @return array{network: string, address: string, public_key: string}|null
+   */
+  private function verifiedSymbolAccount(): ?array {
+    $account = $this->entityTypeManager()->getStorage('user')->load((int) $this->currentUser()->id());
+    if (!$account || !(bool) ($account->get('field_symbol_address_verified')->value ?? FALSE)) {
+      return NULL;
+    }
+    $network = (string) ($account->get('field_symbol_network')->value ?? '');
+    $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
+    $public_key = strtoupper((string) ($account->get('field_symbol_public_key')->value ?? ''));
+    if (!in_array($network, ['mainnet', 'testnet'], TRUE) || !preg_match('/^[NT][A-Z2-7]{38}$/', $address) || !preg_match('/^[0-9A-F]{64}$/', $public_key)) {
+      return NULL;
+    }
+    return ['network' => $network, 'address' => $address, 'public_key' => $public_key];
   }
 
   /**
@@ -318,8 +414,27 @@ final class AdListingController extends ControllerBase {
       && $this->currentUser()->hasPermission('create symbol p2p ad listings');
   }
 
-  private function atomicAmount(string $amount): string {
-    return $amount !== '' ? $amount : (string) $this->t('Not checked');
+  /**
+   * @return array{ok: bool, sufficient: bool, amount: string, formattedAmount: string, message: string}
+   */
+  private function balanceCheckResponse(string $balance, string $required, string $network, string $mosaic_id): array {
+    $sufficient = $this->compareAtomic($balance, $required) >= 0;
+    $formatted = $this->formatMosaicAmount($balance, $network, $mosaic_id) . ' ' . $this->formatMosaicName($network, $mosaic_id);
+    return [
+      'ok' => TRUE,
+      'sufficient' => $sufficient,
+      'amount' => $balance,
+      'formattedAmount' => $formatted,
+      'message' => $sufficient
+        ? (string) $this->t('Sufficient: @amount', ['@amount' => $formatted])
+        : (string) $this->t('Insufficient: @amount', ['@amount' => $formatted]),
+    ];
+  }
+
+  private function compareAtomic(string $left, string $right): int {
+    $left = ltrim($left, '0') ?: '0';
+    $right = ltrim($right, '0') ?: '0';
+    return strlen($left) <=> strlen($right) ?: strcmp($left, $right);
   }
 
   /**

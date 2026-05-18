@@ -50,6 +50,26 @@ symbol_p2p_ad_listing.check_balance:
     _permission: 'view symbol p2p ad listings'
     listingId: '\d+'
 
+symbol_p2p_ad_listing.balance_check_seller:
+  path: '/symbol-p2p/listings/{listingId}/balance-check/seller'
+  defaults:
+    _controller: '\Drupal\symbol_p2p_ad_listing\Controller\AdListingController::sellerBalanceCheck'
+  methods: [POST]
+  requirements:
+    _permission: 'view symbol p2p ad listings'
+    _csrf_request_header_token: 'TRUE'
+    listingId: '\d+'
+
+symbol_p2p_ad_listing.balance_check_mine:
+  path: '/symbol-p2p/listings/{listingId}/balance-check/me'
+  defaults:
+    _controller: '\Drupal\symbol_p2p_ad_listing\Controller\AdListingController::myBalanceCheck'
+  methods: [POST]
+  requirements:
+    _permission: 'view symbol p2p ad listings'
+    _csrf_request_header_token: 'TRUE'
+    listingId: '\d+'
+
 symbol_p2p_ad_listing.cancel:
   path: '/symbol-p2p/listings/{listingId}/cancel'
   defaults:

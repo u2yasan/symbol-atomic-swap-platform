@@ -9,6 +9,7 @@ use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Promise\Utils;
 
 final class SymbolEngineClient {
 
@@ -89,6 +90,79 @@ final class SymbolEngineClient {
       throw new \InvalidArgumentException('Invalid mosaic ID.');
     }
     return $this->request('GET', '/v1/accounts/' . $network . '/' . strtoupper($address) . '/mosaics/' . strtoupper($mosaic_id));
+  }
+
+  /**
+   * @param array<string, array{network: string, address: string, mosaic_id: string}> $requests
+   *
+   * @return array<string, array{ok: bool, result?: array<string, mixed>, error?: \Throwable}>
+   */
+  public function accountMosaicBalanceBatch(array $requests): array {
+    $options = [
+      'timeout' => $this->timeout(),
+      'headers' => $this->authHeaders(),
+    ];
+    $promises = [];
+
+    foreach ($requests as $key => $request) {
+      $network = (string) ($request['network'] ?? '');
+      $address = (string) ($request['address'] ?? '');
+      $mosaic_id = (string) ($request['mosaic_id'] ?? '');
+      if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
+        throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+      }
+      $this->assertRawAddress($address, $network);
+      if (!preg_match('/^[0-9A-Fa-f]{16}$/', $mosaic_id)) {
+        throw new \InvalidArgumentException('Invalid mosaic ID.');
+      }
+
+      $promises[$key] = $this->httpClient->requestAsync(
+        'GET',
+        $this->baseUrl() . '/v1/accounts/' . $network . '/' . strtoupper($address) . '/mosaics/' . strtoupper($mosaic_id),
+        $options,
+      );
+    }
+
+    $results = [];
+    foreach (Utils::settle($promises)->wait() as $key => $settled) {
+      if (($settled['state'] ?? '') === 'fulfilled') {
+        try {
+          $results[$key] = [
+            'ok' => TRUE,
+            'result' => json_decode((string) $settled['value']->getBody(), TRUE, 512, JSON_THROW_ON_ERROR),
+          ];
+        }
+        catch (\JsonException $exception) {
+          $results[$key] = [
+            'ok' => FALSE,
+            'error' => new SymbolEngineException('Symbol Engine returned invalid JSON.', 0, NULL, [
+              'json_error' => $exception->getMessage(),
+            ]),
+          ];
+        }
+        continue;
+      }
+
+      $reason = $settled['reason'] ?? NULL;
+      if ($reason instanceof RequestException) {
+        $error = $this->normalizeRequestException($reason);
+      }
+      elseif ($reason instanceof GuzzleException) {
+        $error = new SymbolEngineException('Symbol Engine request failed: ' . $reason->getMessage(), 0);
+      }
+      elseif ($reason instanceof \Throwable) {
+        $error = $reason;
+      }
+      else {
+        $error = new SymbolEngineException('Symbol Engine request failed.', 0);
+      }
+      $results[$key] = [
+        'ok' => FALSE,
+        'error' => $error,
+      ];
+    }
+
+    return $results;
   }
 
   public function buildAccountVerification(string $network, string $address, string $signer_public_key, string $challenge): array {

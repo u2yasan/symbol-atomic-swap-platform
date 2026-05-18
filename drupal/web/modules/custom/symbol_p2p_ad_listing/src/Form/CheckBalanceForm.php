@@ -77,7 +77,7 @@ final class CheckBalanceForm extends FormBase {
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $listing_id = (int) $form_state->getValue('listing_id');
-    $result = $this->balanceCheckManager->checkListing($listing_id);
+    $result = $this->balanceCheckManager->checkListingReadOnly($listing_id);
     if ($result['sufficient']) {
       $this->messenger()->addStatus($this->t('Seller balance was checked. Current balance is sufficient: @amount atomic units.', [
         '@amount' => $result['balance'],
