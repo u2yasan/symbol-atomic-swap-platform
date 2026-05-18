@@ -673,6 +673,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Root signed payload sent to SSS');
+    $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->buttonExists('Cosign and announce partial with SSS');
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
@@ -768,6 +769,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Cosignature JSON');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
+    $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
 
@@ -814,6 +816,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Parent hash fallback');
     $assert_session->fieldExists('Cosignature JSON');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
+    $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');

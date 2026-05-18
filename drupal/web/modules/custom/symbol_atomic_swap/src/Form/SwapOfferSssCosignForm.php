@@ -10,6 +10,7 @@ use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Drupal\symbol_atomic_swap\Signing\AliceSignUrl;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -28,6 +29,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     private readonly SwapOfferRepository $offers,
     private readonly SwapOfferCosignatureRepository $cosignatures,
     private readonly SymbolEngineClient $engineClient,
+    private readonly SymbolAddressDeriver $addressDeriver,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -35,6 +37,7 @@ final class SwapOfferSssCosignForm extends FormBase {
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.offer_cosignature_repository'),
       $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_atomic_swap.address_deriver'),
     );
   }
 
@@ -54,6 +57,7 @@ final class SwapOfferSssCosignForm extends FormBase {
       : ($offer['unsigned_payload'] ?? '')));
     $parent_hash = (string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?: ''));
     $expected_cosigner = $this->expectedCosignerPublicKey($offer);
+    $expected_cosigner_address = $this->addressFromPublicKey($expected_cosigner, (string) $offer['network']);
 
     $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
@@ -77,7 +81,9 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['expected_signer'] = [
       '#type' => 'item',
       '#title' => $this->t('Expected cosigner public key'),
-      '#markup' => $expected_cosigner,
+      '#markup' => $expected_cosigner_address !== ''
+        ? $expected_cosigner_address . ' / ' . $expected_cosigner
+        : $expected_cosigner,
       '#description' => $is_bonded_cosignature
         ? $this->t('SSS must be set to the maker account that has not signed the partial aggregate yet.')
         : $this->t('SSS must be set to the non-root signer account before cosigning. The aggregate signer account must use Sign with SSS instead.'),
@@ -449,6 +455,15 @@ final class SwapOfferSssCosignForm extends FormBase {
   private function engineFailureReason(SymbolEngineException $exception): string {
     $reason = $exception->details['reason'] ?? $exception->engineError ?? 'symbol_engine_error';
     return is_string($reason) ? $reason : 'symbol_engine_error';
+  }
+
+  private function addressFromPublicKey(string $public_key, string $network): string {
+    try {
+      return $public_key !== '' ? $this->addressDeriver->deriveFromPublicKey($public_key, $network) : '';
+    }
+    catch (\InvalidArgumentException) {
+      return '';
+    }
   }
 
   private function copyValue(string $value): array|string {
