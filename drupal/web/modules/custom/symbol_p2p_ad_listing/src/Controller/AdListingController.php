@@ -81,9 +81,9 @@ final class AdListingController extends ControllerBase {
       [$this->t('Settlement window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
       [$this->t('Expires'), $this->expirationLabel($listing)],
       [$this->t('Balance checked amount'), $this->formatBalanceCheckedAmount($listing)],
-      [$this->t('Balance checked at'), !empty($listing['seller_balance_checked_at']) ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'short') : ''],
-      [$this->t('Created'), $this->dateFormatter->format((int) $listing['created'], 'short')],
-      [$this->t('Changed'), $this->dateFormatter->format((int) $listing['changed'], 'short')],
+      [$this->t('Balance checked at'), !empty($listing['seller_balance_checked_at']) ? $this->dateFormatter->format((int) $listing['seller_balance_checked_at'], 'custom', 'Y-m-d H:i') : ''],
+      [$this->t('Created'), $this->dateFormatter->format((int) $listing['created'], 'custom', 'Y-m-d H:i')],
+      [$this->t('Changed'), $this->dateFormatter->format((int) $listing['changed'], 'custom', 'Y-m-d H:i')],
     ];
     if (!empty($listing['matched_offer_id'])) {
       $rows[] = [
