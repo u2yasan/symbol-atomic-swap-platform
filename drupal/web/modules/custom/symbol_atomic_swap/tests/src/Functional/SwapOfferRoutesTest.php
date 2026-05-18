@@ -627,6 +627,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Cosign with SSS');
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
+    $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains('QR URL');
+    $assert_session->pageTextNotContains('Engine API payloads');
+    $assert_session->pageTextNotContains(str_repeat('C', 64));
 
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
     $assert_session->statusCodeEquals(200);
@@ -756,6 +760,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Cosignature JSON');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
+    $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains(str_repeat('C', 64));
 
     $this->drupalLogin($operator);
 
@@ -800,6 +806,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
     $assert_session->buttonExists('Verify and store SSS cosignature');
+    $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains(str_repeat('C', 64));
 
     $repository->update($id, [
       'qr_payload' => json_encode([
@@ -1036,6 +1044,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Transaction hash');
     $assert_session->pageTextContains(str_repeat('D', 64));
     $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains(str_repeat('C', 64));
     $assert_session->pageTextNotContains('Root transaction hash');
   }
 

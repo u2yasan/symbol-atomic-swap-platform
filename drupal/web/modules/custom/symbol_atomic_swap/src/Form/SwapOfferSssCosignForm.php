@@ -70,6 +70,7 @@ final class SwapOfferSssCosignForm extends FormBase {
       '#type' => 'item',
       '#title' => $this->t('Intent hash'),
       '#markup' => (string) ($offer['intent_hash'] ?: $this->t('No intent hash has been generated.')),
+      '#access' => $this->currentUser()->hasPermission('administer symbol atomic swap offers'),
     ];
     $form['expected_signer'] = [
       '#type' => 'item',

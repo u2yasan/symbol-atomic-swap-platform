@@ -239,7 +239,7 @@ final class SwapOfferController extends ControllerBase {
       ];
     }
 
-    if ($qr_payload !== []) {
+    if ($qr_payload !== [] && $is_admin) {
       $qr_url = Url::fromRoute('symbol_atomic_swap.offer_qr_payload', [
         'offerId' => $offer['id'],
         'intentHash' => $offer['intent_hash'],
@@ -278,7 +278,7 @@ final class SwapOfferController extends ControllerBase {
     }
 
     if ($this->isAggregateBondedPayload($qr_payload)) {
-      $build['aggregate_bonded_workflow'] = $this->aggregateBondedWorkflow($offer, $qr_payload);
+      $build['aggregate_bonded_workflow'] = $this->aggregateBondedWorkflow($offer, $qr_payload, $is_admin);
     }
 
     $notification_items = [];
@@ -418,7 +418,7 @@ final class SwapOfferController extends ControllerBase {
       'payload' => [
       '#type' => 'textarea',
       '#title' => $this->t('Public settlement JSON'),
-      '#value' => json_encode($this->publicOfferDebugData($offer), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+      '#value' => json_encode($this->publicOfferDebugData($offer, $is_admin), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
       '#rows' => 24,
       '#attributes' => [
         'readonly' => 'readonly',
@@ -528,7 +528,7 @@ final class SwapOfferController extends ControllerBase {
       ],
     ];
     if ($is_aggregate_bonded) {
-      $build['aggregate_bonded_workflow'] = $this->aggregateBondedWorkflow($offer, $qr_payload);
+      $build['aggregate_bonded_workflow'] = $this->aggregateBondedWorkflow($offer, $qr_payload, TRUE);
     }
 
     return $build;
@@ -577,8 +577,11 @@ final class SwapOfferController extends ControllerBase {
    *
    * @return array<string, mixed>
    */
-  private function publicOfferDebugData(array $offer): array {
+  private function publicOfferDebugData(array $offer, bool $include_sensitive): array {
     unset($offer['signed_payload'], $offer['node_response']);
+    if (!$include_sensitive) {
+      unset($offer['intent_hash'], $offer['qr_payload']);
+    }
     return $offer;
   }
 
@@ -628,13 +631,13 @@ final class SwapOfferController extends ControllerBase {
    * @param array<string, mixed> $offer
    * @param array<string, mixed> $qr_payload
    */
-  private function aggregateBondedWorkflow(array $offer, array $qr_payload): array {
+  private function aggregateBondedWorkflow(array $offer, array $qr_payload, bool $include_sensitive): array {
     $aggregate_signer = (string) $offer['leg2_signer_public_key'];
     $maker_cosigner = (string) $offer['leg1_signer_public_key'];
     $hash_lock_signer = $aggregate_signer;
     $hash_lock = is_array($qr_payload['hashLock'] ?? NULL) ? $qr_payload['hashLock'] : [];
 
-    return [
+    $build = [
       '#type' => 'details',
       '#title' => $this->t('Aggregate bonded partial announcement steps'),
       '#open' => TRUE,
@@ -661,13 +664,16 @@ final class SwapOfferController extends ControllerBase {
           $this->t('Taker initiates this aggregate bonded transaction from the accept page and pays the 10 XYM hash lock.'),
           $this->t('Taker root-signs the unsigned aggregate bonded payload. It must not be announced as aggregate complete.'),
           $this->t('Submit the root-signed aggregate payload or aggregate signer JSON in Drupal so Symbol Engine records the bonded transaction hash.'),
-          $this->t('Taker builds the hash lock with Symbol Engine POST /v1/hash-lock/build using intentHash, the taker signerPublicKey, and deadlineHours, then signs that hash lock transaction.'),
+          $this->t('Taker builds the hash lock from Drupal, then signs that hash lock transaction.'),
           $this->t('Announce the signed hash lock with POST /v1/hash-lock/announce and wait until the node accepts it.'),
-          $this->t('Announce the signed aggregate bonded transaction as partial with POST /v1/transactions/announce-partial using this intent hash.'),
+          $this->t('Announce the signed aggregate bonded transaction as partial from Drupal.'),
           $this->t('Maker cosigns the partial aggregate, then announces or submits that cosignature. After confirmation/finalization, sync the projection.'),
         ],
       ],
-      'api_payloads' => [
+    ];
+
+    if ($include_sensitive) {
+      $build['api_payloads'] = [
         '#type' => 'details',
         '#title' => $this->t('Engine API payloads'),
         '#open' => FALSE,
@@ -697,8 +703,10 @@ final class SwapOfferController extends ControllerBase {
             'spellcheck' => 'false',
           ],
         ],
-      ],
-    ];
+      ];
+    }
+
+    return $build;
   }
 
   /**
