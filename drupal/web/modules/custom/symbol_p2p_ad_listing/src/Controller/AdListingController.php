@@ -217,12 +217,12 @@ final class AdListingController extends ControllerBase {
       $this->t('Listing'),
       [
         'data' => $this->t('Offers'),
-        'field' => 'offered_amount_sort',
+        'field' => 'l.offered_mosaic_id',
         'initial_click_sort' => 'asc',
       ],
       [
         'data' => $this->t('Wants'),
-        'field' => 'requested_amount_sort',
+        'field' => 'l.requested_mosaic_id',
         'initial_click_sort' => 'asc',
       ],
       [
@@ -239,10 +239,19 @@ final class AdListingController extends ControllerBase {
   private function mosaicTerm(array $listing, string $side): FormattableMarkup {
     $network = (string) $listing['network'];
     $mosaic_id = strtoupper((string) $listing[$side . '_mosaic_id']);
-    return new FormattableMarkup('@amount @name<br>(@mosaic_id)', [
-      '@amount' => $this->formatMosaicAmount((string) $listing[$side . '_amount'], $network, $mosaic_id),
-      '@name' => $this->formatMosaicAlias($network, $mosaic_id),
+    $amount = $this->formatMosaicAmount((string) $listing[$side . '_amount'], $network, $mosaic_id);
+    $alias = $this->formatMosaicAlias($network, $mosaic_id);
+    if ($alias !== '') {
+      return new FormattableMarkup('@alias<br>@mosaic_id<br>@amount', [
+        '@alias' => $alias,
+        '@mosaic_id' => $mosaic_id,
+        '@amount' => $amount,
+      ]);
+    }
+
+    return new FormattableMarkup('@mosaic_id<br>@amount', [
       '@mosaic_id' => $mosaic_id,
+      '@amount' => $amount,
     ]);
   }
 
@@ -301,7 +310,7 @@ final class AdListingController extends ControllerBase {
     if (empty($listing['expires_at'])) {
       return (string) $this->t('No expiration');
     }
-    return $this->dateFormatter->format((int) $listing['expires_at'], 'short');
+    return $this->dateFormatter->format((int) $listing['expires_at'], 'custom', 'Y-m-d H:i');
   }
 
   private function formatMosaicAmount(string $atomic_amount, string $network, string $mosaic_id): string {
@@ -338,7 +347,7 @@ final class AdListingController extends ControllerBase {
     if (is_array($aliases) && isset($aliases[0]) && is_string($aliases[0]) && $aliases[0] !== '') {
       return $aliases[0];
     }
-    return $normalized;
+    return '';
   }
 
   /**

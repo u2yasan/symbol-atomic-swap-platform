@@ -40,8 +40,6 @@ final class AdListingRepository {
     $query = $this->database->select(self::TABLE, 'l')
       ->fields('l')
       ->range(0, $limit);
-    $query->addExpression('CAST(l.offered_amount AS DECIMAL(32, 0))', 'offered_amount_sort');
-    $query->addExpression('CAST(l.requested_amount AS DECIMAL(32, 0))', 'requested_amount_sort');
 
     if (!empty($filters['status'])) {
       $query->condition('status', $filters['status']);
