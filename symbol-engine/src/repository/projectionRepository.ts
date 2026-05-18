@@ -6,7 +6,7 @@ export type TransactionProjection = {
   network: string;
   state: ProjectionState;
   lastEventKey: string;
-  updatedAt: string;
+  updatedAt: number;
   blockHeight?: number;
   finalizedHeight?: number;
 };
@@ -16,7 +16,7 @@ type ProjectionRow = {
   network: string;
   state: ProjectionState;
   last_event_key: string;
-  updated_at: Date;
+  updated_at: string;
   block_height: string | null;
   finalized_height: string | null;
 };
@@ -27,7 +27,7 @@ function toProjection(row: ProjectionRow): TransactionProjection {
     network: row.network,
     state: row.state,
     lastEventKey: row.last_event_key,
-    updatedAt: row.updated_at.toISOString(),
+    updatedAt: Number(row.updated_at),
     ...(row.block_height ? { blockHeight: Number(row.block_height) } : {}),
     ...(row.finalized_height ? { finalizedHeight: Number(row.finalized_height) } : {}),
   };
@@ -82,7 +82,7 @@ export class ProjectionRepository {
     transactionHash: string;
     state: ProjectionState;
     lastEventKey: string;
-    updatedAt: string;
+    updatedAt: number;
     blockHeight?: number;
     finalizedHeight?: number;
   }): Promise<TransactionProjection> {

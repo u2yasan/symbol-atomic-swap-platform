@@ -225,7 +225,7 @@ final class SwapOfferController extends ControllerBase {
           [$this->t('Projection state'), (string) ($offer['projection_state'] ?: '')],
           [$this->t('Block height'), (string) ($offer['block_height'] ?: '')],
           [$this->t('Finalized height'), (string) ($offer['finalized_height'] ?: '')],
-          [$this->t('Projection updated at'), (string) ($offer['projection_updated_at'] ?: '')],
+          [$this->t('Projection updated at'), !empty($offer['projection_updated_at']) ? $this->dateFormatter->format((int) $offer['projection_updated_at'], 'custom', 'Y-m-d H:i') : ''],
           [$this->t('Manual sync allowed'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
           [$this->t('Automatic sync eligible'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
         ]),

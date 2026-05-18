@@ -9,7 +9,7 @@ type StoredProjection = {
   network: string;
   state: ProjectionState;
   lastEventKey: string;
-  updatedAt: string;
+  updatedAt: number;
   blockHeight?: number;
   finalizedHeight?: number;
 };
@@ -64,6 +64,10 @@ function assertAllowedTransition(current: ProjectionState | undefined, next: Pro
   }
 }
 
+function unixSeconds(datetime: string): number {
+  return Math.floor(Date.parse(datetime) / 1000);
+}
+
 export async function dispatchBlockchainEvent(
   input: unknown,
   repositories: {
@@ -89,7 +93,7 @@ export async function dispatchBlockchainEvent(
     network: event.network,
     state: nextState,
     lastEventKey: key,
-    updatedAt: event.observedAt,
+    updatedAt: unixSeconds(event.observedAt),
     ...(event.blockHeight ? { blockHeight: event.blockHeight } : {}),
     ...(event.finalizedHeight ? { finalizedHeight: event.finalizedHeight } : {}),
   };

@@ -55,9 +55,28 @@ const migrations = [
         last_event_key text NOT NULL,
         block_height bigint,
         finalized_height bigint,
-        updated_at timestamptz NOT NULL,
+        updated_at bigint NOT NULL,
         PRIMARY KEY (network, transaction_hash)
       );
+    `,
+  },
+  {
+    id: '0002_projection_updated_at_unix',
+    sql: `
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_name = 'transaction_projections'
+            AND column_name = 'updated_at'
+            AND data_type = 'timestamp with time zone'
+        ) THEN
+          ALTER TABLE transaction_projections
+            ALTER COLUMN updated_at TYPE bigint
+            USING floor(extract(epoch from updated_at))::bigint;
+        END IF;
+      END $$;
     `,
   },
 ];

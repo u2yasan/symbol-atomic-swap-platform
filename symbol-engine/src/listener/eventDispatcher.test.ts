@@ -28,7 +28,7 @@ test('dispatchBlockchainEvent returns existing projection for duplicate event', 
     network: 'testnet',
     state: 'confirmed',
     lastEventKey: 'key',
-    updatedAt: '2026-05-12T15:21:00.000Z',
+    updatedAt: 1778599260,
     blockHeight: 10,
   };
 
@@ -52,7 +52,7 @@ test('dispatchBlockchainEvent moves confirmed projection to finalized', async ()
     network: 'testnet',
     state: 'confirmed',
     lastEventKey: 'confirmed-key',
-    updatedAt: '2026-05-12T15:21:00.000Z',
+    updatedAt: 1778599260,
     blockHeight: 10,
   };
 
@@ -69,5 +69,6 @@ test('dispatchBlockchainEvent moves confirmed projection to finalized', async ()
   });
 
   assert.equal(result.state, 'finalized');
+  assert.equal(result.updatedAt, 1778599320);
   assert.equal(result.finalizedHeight, 10);
 });

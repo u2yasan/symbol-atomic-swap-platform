@@ -522,7 +522,10 @@ final class SwapOfferRepository {
       $fields['finalized_height'] = (int) $projection['finalizedHeight'];
     }
     if (isset($projection['updatedAt'])) {
-      $fields['projection_updated_at'] = (string) $projection['updatedAt'];
+      if (!is_int($projection['updatedAt']) && !(is_string($projection['updatedAt']) && preg_match('/^\d+$/', $projection['updatedAt']) === 1)) {
+        throw new \InvalidArgumentException('Projection updatedAt must be a Unix timestamp.');
+      }
+      $fields['projection_updated_at'] = (int) $projection['updatedAt'];
     }
 
     $this->update($id, $fields);

@@ -49,14 +49,14 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
       'state' => 'confirmed',
       'lastEventKey' => 'testnet:' . str_repeat('D', 64) . ':TransactionConfirmed:10:0:',
       'blockHeight' => 10,
-      'updatedAt' => '2026-05-14T00:00:00.000Z',
+      'updatedAt' => 1778716800,
     ]);
 
     $offer = $this->repository->find($id);
     $this->assertSame('confirmed', $offer['state']);
     $this->assertSame('confirmed', $offer['projection_state']);
     $this->assertSame('10', (string) $offer['block_height']);
-    $this->assertSame('2026-05-14T00:00:00.000Z', $offer['projection_updated_at']);
+    $this->assertSame('1778716800', (string) $offer['projection_updated_at']);
     $this->assertSame(str_repeat('D', 64), $offer['transaction_hash']);
     $this->assertEmpty($offer['finalized_height']);
   }
@@ -93,7 +93,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
     $this->repository->applyProjection($id, [
       'state' => 'confirmed',
       'blockHeight' => 10,
-      'updatedAt' => '2026-05-14T00:00:00.000Z',
+      'updatedAt' => 1778716800,
     ]);
   }
 
@@ -114,7 +114,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
       'state' => 'finalized',
       'blockHeight' => 10,
       'finalizedHeight' => 10,
-      'updatedAt' => '2026-05-14T00:00:00.000Z',
+      'updatedAt' => 1778716800,
     ]);
   }
 

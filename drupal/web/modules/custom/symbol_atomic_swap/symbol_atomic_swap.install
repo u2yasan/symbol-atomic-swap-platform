@@ -140,8 +140,8 @@ function symbol_atomic_swap_schema(): array {
         'not null' => FALSE,
       ],
       'projection_updated_at' => [
-        'type' => 'varchar',
-        'length' => 64,
+        'type' => 'int',
+        'size' => 'big',
         'not null' => FALSE,
       ],
       'expired_at' => [
@@ -457,6 +457,41 @@ function symbol_atomic_swap_update_11010(): void {
     $config->set('account_verification_recipient_mainnet', '');
   }
   $config->save();
+}
+
+/**
+ * Converts Engine projection update timestamps to Unix seconds.
+ */
+function symbol_atomic_swap_update_11011(): void {
+  $connection = \Drupal::database();
+  $schema = $connection->schema();
+
+  if (!$schema->tableExists('symbol_atomic_swap_offer') || !$schema->fieldExists('symbol_atomic_swap_offer', 'projection_updated_at')) {
+    return;
+  }
+
+  $records = $connection->select('symbol_atomic_swap_offer', 'o')
+    ->fields('o', ['id', 'projection_updated_at'])
+    ->isNotNull('projection_updated_at')
+    ->execute();
+
+  foreach ($records as $record) {
+    $value = (string) $record->projection_updated_at;
+    if ($value === '') {
+      continue;
+    }
+    $timestamp = preg_match('/^\d+$/', $value) === 1 ? (int) $value : strtotime($value);
+    $connection->update('symbol_atomic_swap_offer')
+      ->fields(['projection_updated_at' => $timestamp !== FALSE ? (string) $timestamp : NULL])
+      ->condition('id', (int) $record->id)
+      ->execute();
+  }
+
+  $schema->changeField('symbol_atomic_swap_offer', 'projection_updated_at', 'projection_updated_at', [
+    'type' => 'int',
+    'size' => 'big',
+    'not null' => FALSE,
+  ]);
 }
 
 /**

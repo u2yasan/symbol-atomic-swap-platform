@@ -273,7 +273,7 @@ final class SymbolEngineClientTest extends KernelTestBase {
     $hash = str_repeat('a', 64);
     $history = [];
     $client = $this->client([
-      new Response(200, [], '{"transactionHash":"' . strtoupper($hash) . '","network":"testnet","state":"failed","lastEventKey":"testnet:' . strtoupper($hash) . ':TransactionFailed:0:0:Failure_Mosaic_Non_Transferable","updatedAt":"2026-05-17T00:00:00.000Z"}'),
+      new Response(200, [], '{"transactionHash":"' . strtoupper($hash) . '","network":"testnet","state":"failed","lastEventKey":"testnet:' . strtoupper($hash) . ':TransactionFailed:0:0:Failure_Mosaic_Non_Transferable","updatedAt":1778976000}'),
     ], $history);
 
     $result = $client->reconcileProjection('testnet', $hash);
