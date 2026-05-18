@@ -23,6 +23,7 @@ final class AdListingForm extends FormBase {
     'mainnet' => '6BED913FA20223F8',
     'testnet' => '72C0212E67A08BCE',
   ];
+  private const MAX_RESERVING_LISTINGS_PER_SELLER = 5;
 
   public function __construct(
     private readonly AdListingRepository $listings,
@@ -277,6 +278,7 @@ final class AdListingForm extends FormBase {
       return;
     }
     $seller_address = (string) ($listing['seller_address'] ?? $account['address']);
+    $seller_uid = (int) ($listing['seller_uid'] ?? $this->currentUser->id());
     $offered = (array) $form_state->getValue('offered', []);
     $requested = (array) $form_state->getValue('requested', []);
     $expiration = (array) $form_state->getValue('expiration', []);
@@ -291,10 +293,33 @@ final class AdListingForm extends FormBase {
         if ($this->compareAtomic($balance, $offered_amount) < 0) {
           $form_state->setErrorByName('offered][amount', $this->t('Seller balance is lower than the listed amount.'));
         }
+        $reserved = $this->listings->sumReservedOfferedAmount($network, $seller_address, $offered_mosaic_id, $listing ? (int) $listing['id'] : NULL);
+        $total_reserved = $this->addAtomic($reserved, $offered_amount);
+        if ($this->compareAtomic($total_reserved, $balance) > 0) {
+          $form_state->setErrorByName('offered][amount', $this->t('Seller active listings already reserve @reserved atomic units of this mosaic, which exceeds the current balance with this listing.', [
+            '@reserved' => $reserved,
+          ]));
+        }
         $form_state->set('seller_balance_checked_amount', $balance);
       }
       catch (SymbolEngineException | \InvalidArgumentException $exception) {
         $form_state->setErrorByName('offered][amount', $this->t('Seller balance could not be verified: @message', ['@message' => $exception->getMessage()]));
+      }
+    }
+    if (!$listing && $this->listings->countListingLimitedBySellerUid($seller_uid) >= self::MAX_RESERVING_LISTINGS_PER_SELLER) {
+      $form_state->setErrorByName('seller', $this->t('Seller already has the maximum number of active listings.'));
+    }
+    if ($offered_amount !== NULL && $requested_amount !== NULL) {
+      $duplicate_values = [
+        'seller_uid' => $seller_uid,
+        'network' => $network,
+        'offered_mosaic_id' => $offered_mosaic_id,
+        'offered_amount' => $offered_amount,
+        'requested_mosaic_id' => $requested_mosaic_id,
+        'requested_amount' => $requested_amount,
+      ];
+      if ($this->listings->hasDuplicateReservingListing($duplicate_values, $listing ? (int) $listing['id'] : NULL)) {
+        $form_state->setErrorByName('label', $this->t('Seller already has an active listing with the same offer and request.'));
       }
     }
 
@@ -425,6 +450,31 @@ final class AdListingForm extends FormBase {
     $left = ltrim($left, '0') ?: '0';
     $right = ltrim($right, '0') ?: '0';
     return strlen($left) <=> strlen($right) ?: strcmp($left, $right);
+  }
+
+  private function addAtomic(string $left, string $right): string {
+    $left = ltrim($left, '0') ?: '0';
+    $right = ltrim($right, '0') ?: '0';
+    $carry = 0;
+    $sum = '';
+    $left_index = strlen($left) - 1;
+    $right_index = strlen($right) - 1;
+
+    while ($left_index >= 0 || $right_index >= 0 || $carry > 0) {
+      $digit = $carry;
+      if ($left_index >= 0) {
+        $digit += (int) $left[$left_index];
+        $left_index--;
+      }
+      if ($right_index >= 0) {
+        $digit += (int) $right[$right_index];
+        $right_index--;
+      }
+      $sum = (string) ($digit % 10) . $sum;
+      $carry = intdiv($digit, 10);
+    }
+
+    return ltrim($sum, '0') ?: '0';
   }
 
   private function defaultCurrencyMosaicId(string $network): string {

@@ -39,6 +39,48 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $this->assertSame($id, (int) $results[0]['id']);
   }
 
+  public function testReservingListingAbuseQueriesIgnoreTerminalListings(): void {
+    $first_id = $this->repository->create($this->listingValues([
+      'label' => 'First',
+      'offered_amount' => '999999999999999999999999999999',
+    ]));
+    $second_id = $this->repository->create($this->listingValues([
+      'label' => 'Second',
+      'offered_amount' => '1',
+    ]));
+    $cancelled_id = $this->repository->create($this->listingValues([
+      'label' => 'Cancelled',
+      'offered_amount' => '777',
+    ]));
+    $other_seller_id = $this->repository->create($this->listingValues([
+      'label' => 'Other seller',
+      'seller_uid' => 20,
+      'seller_address' => 'TOTHER4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'offered_amount' => '500',
+    ]));
+    $this->repository->cancel($cancelled_id);
+
+    $this->assertSame(2, $this->repository->countListingLimitedBySellerUid(10));
+    $this->assertSame(1, $this->repository->countListingLimitedBySellerUid(10, $first_id));
+    $this->assertSame('1000000000000000000000000000000', $this->repository->sumReservedOfferedAmount('testnet', 'TSELLER4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', '72c0212e67a08bce'));
+    $this->assertSame('1', $this->repository->sumReservedOfferedAmount('testnet', 'TSELLER4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', '72C0212E67A08BCE', $first_id));
+    $this->assertSame('500', $this->repository->sumReservedOfferedAmount('testnet', 'TOTHER4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ', '72C0212E67A08BCE'));
+
+    $this->assertTrue($this->repository->hasDuplicateReservingListing($this->listingValues([
+      'offered_amount' => '999999999999999999999999999999',
+    ])));
+    $this->assertFalse($this->repository->hasDuplicateReservingListing($this->listingValues([
+      'offered_amount' => '999999999999999999999999999999',
+    ]), $first_id));
+    $this->assertFalse($this->repository->hasDuplicateReservingListing($this->listingValues([
+      'seller_uid' => 20,
+      'offered_amount' => '999999999999999999999999999999',
+    ])));
+
+    $this->assertNotNull($this->repository->find($second_id));
+    $this->assertNotNull($this->repository->find($other_seller_id));
+  }
+
   public function testMatchCreatesAtomicSettlementAndMarksListingMatched(): void {
     $id = $this->repository->create($this->listingValues());
     $listing = $this->repository->find($id);

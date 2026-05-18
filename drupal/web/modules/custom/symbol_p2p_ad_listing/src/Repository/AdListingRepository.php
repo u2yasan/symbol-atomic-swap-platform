@@ -21,6 +21,8 @@ final class AdListingRepository {
   public const EXPIRED = 'expired';
   public const INSUFFICIENT_BALANCE = 'insufficient_balance';
   private const EDITABLE_STATES = [self::ACTIVE, self::INSUFFICIENT_BALANCE];
+  private const LISTING_LIMIT_STATES = [self::ACTIVE, self::INSUFFICIENT_BALANCE, self::MATCHING];
+  private const RESERVING_STATES = [self::ACTIVE, self::INSUFFICIENT_BALANCE, self::MATCHING, self::MATCHED];
   private const RELEASABLE_OFFER_STATES = ['expired', 'cancelled', 'failed', 'rolled_back'];
 
   public function __construct(
@@ -84,6 +86,57 @@ final class AdListingRepository {
       ->fetchAssoc();
 
     return is_array($record) ? $record : NULL;
+  }
+
+  public function countListingLimitedBySellerUid(int $seller_uid, ?int $exclude_id = NULL): int {
+    $query = $this->database->select(self::TABLE, 'l')
+      ->condition('seller_uid', $seller_uid)
+      ->condition('status', self::LISTING_LIMIT_STATES, 'IN');
+    $query->addExpression('COUNT(*)');
+    if ($exclude_id !== NULL) {
+      $query->condition('id', $exclude_id, '<>');
+    }
+
+    return (int) $query->execute()->fetchField();
+  }
+
+  public function hasDuplicateReservingListing(array $values, ?int $exclude_id = NULL): bool {
+    $query = $this->database->select(self::TABLE, 'l')
+      ->fields('l', ['id'])
+      ->condition('seller_uid', (int) $values['seller_uid'])
+      ->condition('network', (string) $values['network'])
+      ->condition('offered_mosaic_id', strtoupper((string) $values['offered_mosaic_id']))
+      ->condition('offered_amount', (string) $values['offered_amount'])
+      ->condition('requested_mosaic_id', strtoupper((string) $values['requested_mosaic_id']))
+      ->condition('requested_amount', (string) $values['requested_amount'])
+      ->condition('status', self::RESERVING_STATES, 'IN')
+      ->range(0, 1);
+    if ($exclude_id !== NULL) {
+      $query->condition('id', $exclude_id, '<>');
+    }
+
+    return (bool) $query->execute()->fetchField();
+  }
+
+  public function sumReservedOfferedAmount(string $network, string $seller_address, string $mosaic_id, ?int $exclude_id = NULL): string {
+    $query = $this->database->select(self::TABLE, 'l')
+      ->fields('l', ['offered_amount'])
+      ->condition('network', $network)
+      ->condition('seller_address', strtoupper($seller_address))
+      ->condition('offered_mosaic_id', strtoupper($mosaic_id))
+      ->condition('status', self::RESERVING_STATES, 'IN');
+    if ($exclude_id !== NULL) {
+      $query->condition('id', $exclude_id, '<>');
+    }
+
+    $total = '0';
+    foreach ($query->execute()->fetchCol() as $amount) {
+      $amount = (string) $amount;
+      if (preg_match('/^[0-9]+$/', $amount) === 1) {
+        $total = $this->addAtomic($total, $amount);
+      }
+    }
+    return $total;
   }
 
   /**
@@ -341,6 +394,31 @@ final class AdListingRepository {
 
   private function isMosaicId(string $value): bool {
     return preg_match('/^[0-9A-Fa-f]{16}$/', $value) === 1;
+  }
+
+  private function addAtomic(string $left, string $right): string {
+    $left = ltrim($left, '0') ?: '0';
+    $right = ltrim($right, '0') ?: '0';
+    $carry = 0;
+    $sum = '';
+    $left_index = strlen($left) - 1;
+    $right_index = strlen($right) - 1;
+
+    while ($left_index >= 0 || $right_index >= 0 || $carry > 0) {
+      $digit = $carry;
+      if ($left_index >= 0) {
+        $digit += (int) $left[$left_index];
+        $left_index--;
+      }
+      if ($right_index >= 0) {
+        $digit += (int) $right[$right_index];
+        $right_index--;
+      }
+      $sum = (string) ($digit % 10) . $sum;
+      $carry = intdiv($digit, 10);
+    }
+
+    return ltrim($sum, '0') ?: '0';
   }
 
 }
