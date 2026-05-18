@@ -126,7 +126,7 @@ final class AdListingController extends ControllerBase {
             '#access' => $this->canCheckSellerBalance($listing),
             '#attributes' => [
               'data-symbol-p2p-balance-check' => 'seller',
-              'data-symbol-p2p-balance-check-url' => Url::fromRoute('symbol_p2p_ad_listing.balance_check_seller', ['listingId' => $listing['id']])->toString(),
+              'data-symbol-p2p-balance-check-url' => '/symbol-p2p/listings/' . (int) $listing['id'] . '/balance-check/seller',
             ],
             'label' => [
               '#markup' => '<strong>' . $this->t('Seller balance') . '</strong>: ',
@@ -140,7 +140,7 @@ final class AdListingController extends ControllerBase {
             '#access' => $this->canCheckMyBalance($listing),
             '#attributes' => [
               'data-symbol-p2p-balance-check' => 'mine',
-              'data-symbol-p2p-balance-check-url' => Url::fromRoute('symbol_p2p_ad_listing.balance_check_mine', ['listingId' => $listing['id']])->toString(),
+              'data-symbol-p2p-balance-check-url' => '/symbol-p2p/listings/' . (int) $listing['id'] . '/balance-check/me',
             ],
             'label' => [
               '#markup' => '<strong>' . $this->t('My balance') . '</strong>: ',
@@ -252,6 +252,7 @@ final class AdListingController extends ControllerBase {
   private function filterForm(array $filters): array {
     return [
       '#type' => 'form',
+      '#form_id' => 'symbol_p2p_ad_listing_filter_form',
       '#method' => 'get',
       'status' => [
         '#type' => 'select',
