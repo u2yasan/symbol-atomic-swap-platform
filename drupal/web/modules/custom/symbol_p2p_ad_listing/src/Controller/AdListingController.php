@@ -25,7 +25,7 @@ final class AdListingController extends ControllerBase {
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
     private readonly SymbolEngineClient $engineClient,
-    private readonly FormBuilderInterface $formBuilder,
+    private readonly FormBuilderInterface $inlineFormBuilder,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -118,7 +118,7 @@ final class AdListingController extends ControllerBase {
         'check_balance' => [
           '#type' => 'container',
           '#access' => $this->canCheckSellerBalance($listing),
-          'form' => $this->formBuilder->getForm(CheckBalanceForm::class, (int) $listing['id']),
+          'form' => $this->inlineFormBuilder->getForm(CheckBalanceForm::class, (int) $listing['id']),
         ],
         'edit' => [
           '#type' => 'link',
