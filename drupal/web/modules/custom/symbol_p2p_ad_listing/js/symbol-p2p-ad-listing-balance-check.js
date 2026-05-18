@@ -30,6 +30,14 @@
     status.classList.toggle('symbol-p2p-balance-insufficient', state === 'insufficient');
   }
 
+  function hideTakeListing(container) {
+    const root = container.closest('[data-symbol-p2p-listing-view]') || document;
+    root.querySelectorAll('[data-symbol-p2p-take-listing]').forEach((link) => {
+      link.hidden = true;
+      link.setAttribute('aria-hidden', 'true');
+    });
+  }
+
   async function checkBalance(container) {
     const url = container.getAttribute('data-symbol-p2p-balance-check-url');
     if (!url) {
@@ -57,6 +65,7 @@
         return;
       }
       setStatus(container, Drupal.t('Insufficient'), 'insufficient');
+      hideTakeListing(container);
     }
     catch (error) {
       setStatus(container, Drupal.t('Balance check failed.'), 'error');

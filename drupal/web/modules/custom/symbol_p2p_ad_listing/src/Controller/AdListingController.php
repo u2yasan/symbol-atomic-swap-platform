@@ -113,7 +113,10 @@ final class AdListingController extends ControllerBase {
           '#title' => $this->t('Take listing'),
           '#url' => Url::fromRoute('symbol_p2p_ad_listing.take', ['listingId' => $listing['id']]),
           '#access' => $this->canTakeListing($listing),
-          '#attributes' => ['class' => ['button', 'button--primary']],
+          '#attributes' => [
+            'class' => ['button', 'button--primary'],
+            'data-symbol-p2p-take-listing' => '1',
+          ],
         ],
         'edit' => [
           '#type' => 'link',
