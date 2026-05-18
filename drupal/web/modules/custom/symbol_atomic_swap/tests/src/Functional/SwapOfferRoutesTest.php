@@ -674,6 +674,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Root signed payload sent to SSS');
     $assert_session->buttonExists('Cosign and announce partial with SSS');
+    $assert_session->pageTextContains('Mobile signing with aLice');
+    $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64));
     $this->submitForm([
       'payload' => json_encode([
         'parentHash' => str_repeat('D', 64),
@@ -812,6 +815,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Cosignature JSON');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
+    $assert_session->pageTextContains('Mobile signing with aLice');
+    $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
+    $assert_session->linkExists('Open aLice signer');
+    $assert_session->pageTextContains('Copy aLice signing URL');
     $assert_session->buttonExists('Verify and store SSS cosignature');
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
