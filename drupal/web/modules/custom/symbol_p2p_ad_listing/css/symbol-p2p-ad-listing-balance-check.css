@@ -1,0 +1,9 @@
+.symbol-p2p-balance-insufficient {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: 2px solid #d72222;
+  border-radius: 2px;
+  color: #a00000;
+  font-weight: 700;
+}

@@ -27,6 +27,7 @@
     status.classList.toggle('messages', Boolean(message) && state !== 'checking');
     status.classList.toggle('messages--warning', state === 'insufficient');
     status.classList.toggle('messages--error', state === 'error');
+    status.classList.toggle('symbol-p2p-balance-insufficient', state === 'insufficient');
   }
 
   async function checkBalance(container) {
@@ -55,7 +56,7 @@
         setStatus(container, '', 'sufficient');
         return;
       }
-      setStatus(container, result.message, 'insufficient');
+      setStatus(container, Drupal.t('Insufficient'), 'insufficient');
     }
     catch (error) {
       setStatus(container, Drupal.t('Balance check failed.'), 'error');
