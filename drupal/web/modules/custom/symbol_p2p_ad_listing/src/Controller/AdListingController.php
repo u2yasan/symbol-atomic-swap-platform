@@ -76,8 +76,8 @@ final class AdListingController extends ControllerBase {
       [$this->t('Status'), $this->statusLabel((string) $listing['status'])],
       [$this->t('Network'), (string) $listing['network']],
       [$this->t('Seller address'), $this->hashValue((string) $listing['seller_address'])],
-      [$this->t('Seller offers'), $this->mosaicTerm($listing, 'offered')],
-      [$this->t('Seller wants'), $this->mosaicTerm($listing, 'requested')],
+      [$this->t('Seller offers'), ['data' => $this->mosaicTermWithBalanceCheck($listing, 'offered')]],
+      [$this->t('Seller wants'), ['data' => $this->mosaicTermWithBalanceCheck($listing, 'requested')]],
       [$this->t('Settlement window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
       [$this->t('Expires'), $this->expirationLabel($listing)],
       [$this->t('Balance checked amount'), $this->formatBalanceCheckedAmount($listing)],
@@ -114,41 +114,6 @@ final class AdListingController extends ControllerBase {
           '#url' => Url::fromRoute('symbol_p2p_ad_listing.take', ['listingId' => $listing['id']]),
           '#access' => $this->canTakeListing($listing),
           '#attributes' => ['class' => ['button', 'button--primary']],
-        ],
-        'balance_checks' => [
-          '#type' => 'container',
-          '#access' => $this->canCheckSellerBalance($listing) || $this->canCheckMyBalance($listing),
-          '#attributes' => [
-            'data-symbol-p2p-balance-checks' => '1',
-          ],
-          'seller' => [
-            '#type' => 'container',
-            '#access' => $this->canCheckSellerBalance($listing),
-            '#attributes' => [
-              'data-symbol-p2p-balance-check' => 'seller',
-              'data-symbol-p2p-balance-check-url' => '/symbol-p2p/listings/' . (int) $listing['id'] . '/balance-check/seller',
-            ],
-            'label' => [
-              '#markup' => '<strong>' . $this->t('Seller balance') . '</strong>: ',
-            ],
-            'status' => [
-              '#markup' => '<span data-symbol-p2p-balance-check-status>' . $this->t('Checking...') . '</span>',
-            ],
-          ],
-          'mine' => [
-            '#type' => 'container',
-            '#access' => $this->canCheckMyBalance($listing),
-            '#attributes' => [
-              'data-symbol-p2p-balance-check' => 'mine',
-              'data-symbol-p2p-balance-check-url' => '/symbol-p2p/listings/' . (int) $listing['id'] . '/balance-check/me',
-            ],
-            'label' => [
-              '#markup' => '<strong>' . $this->t('My balance') . '</strong>: ',
-            ],
-            'status' => [
-              '#markup' => '<span data-symbol-p2p-balance-check-status>' . $this->t('Checking...') . '</span>',
-            ],
-          ],
         ],
         'edit' => [
           '#type' => 'link',
@@ -358,6 +323,48 @@ final class AdListingController extends ControllerBase {
       '@mosaic_id' => $mosaic_id,
       '@amount' => $amount,
     ]);
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   *
+   * @return array<string, mixed>
+   */
+  private function mosaicTermWithBalanceCheck(array $listing, string $side): array {
+    $build = [
+      'term' => [
+        '#markup' => $this->mosaicTerm($listing, $side),
+      ],
+    ];
+
+    if ($side === 'offered' && $this->canCheckSellerBalance($listing)) {
+      $build['balance_check'] = $this->balanceCheckStatus((int) $listing['id'], 'seller');
+    }
+    elseif ($side === 'requested' && $this->canCheckMyBalance($listing)) {
+      $build['balance_check'] = $this->balanceCheckStatus((int) $listing['id'], 'mine');
+    }
+
+    return $build;
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function balanceCheckStatus(int $listing_id, string $target): array {
+    $path = $target === 'seller'
+      ? '/symbol-p2p/listings/' . $listing_id . '/balance-check/seller'
+      : '/symbol-p2p/listings/' . $listing_id . '/balance-check/me';
+
+    return [
+      '#type' => 'container',
+      '#attributes' => [
+        'data-symbol-p2p-balance-check' => $target,
+        'data-symbol-p2p-balance-check-url' => $path,
+      ],
+      'status' => [
+        '#markup' => '<span data-symbol-p2p-balance-check-status>' . $this->t('Checking...') . '</span>',
+      ],
+    ];
   }
 
   /**
