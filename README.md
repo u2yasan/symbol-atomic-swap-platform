@@ -15,6 +15,7 @@ The blockchain is the source of truth. Drupal is a projection/cache layer.
 - [Symbol Engine API usage](docs/api/symbol-engine-api.md)
 - [Security requirements](docs/security/symbol-engine-security.md)
 - [Drupal swap runtime procedure](docs/operations/drupal-swap-runtime.md)
+- [Test public release procedure](docs/operations/test-public-release.md)
 - [Event projection operations](docs/operations/event-projection.md)
 - [Local development](docs/setup/local-development.md)
 
@@ -42,6 +43,12 @@ Rebuild Drupal caches:
 
 ```sh
 make drush-cr
+```
+
+Apply Drupal database updates:
+
+```sh
+make drush-updb
 ```
 
 CI runs the same Docker-backed test path in
@@ -126,9 +133,10 @@ Implemented:
 - Drupal Engine admin lookup and operations forms
 - Drupal QR rendering for Engine `qrPayload`
 - Drupal Kernel/Functional tests for Engine routes and client behavior
+- test-public release procedure for testnet-only URL-shared testing
 
 Not implemented yet:
 
-- Remaining production hardening and end-to-end testnet validation.
+- Mainnet production hardening and signed end-to-end testnet validation.
 
 Do not treat this repository as production-ready until the hardening items are implemented and tested.

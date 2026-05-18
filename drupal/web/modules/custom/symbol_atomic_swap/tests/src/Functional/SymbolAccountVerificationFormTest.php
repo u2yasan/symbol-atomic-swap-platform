@@ -46,8 +46,26 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $assert_session->pageTextContains('Verification status');
     $assert_session->pageTextContains('Not verified.');
     $assert_session->fieldExists('Symbol network');
+    $assert_session->optionExists('Symbol network', 'testnet');
+    $assert_session->optionNotExists('Symbol network', 'mainnet');
     $assert_session->fieldExists('Symbol address');
     $assert_session->buttonExists('Generate verification payload');
+  }
+
+  public function testMainnetAccountVerificationRequiresExplicitEnablement(): void {
+    $account = $this->drupalCreateUser();
+    $this->drupalLogin($account);
+
+    $this->drupalGet('/symbol-atomic-swap/account');
+    $assert_session = $this->assertSession();
+    $assert_session->statusCodeEquals(200);
+    $assert_session->optionNotExists('Symbol network', 'mainnet');
+
+    $this->config('symbol_atomic_swap.settings')
+      ->set('mainnet_enabled', TRUE)
+      ->save();
+    $this->drupalGet('/symbol-atomic-swap/account');
+    $assert_session->optionExists('Symbol network', 'mainnet');
   }
 
   public function testVerifiedAccountIsDisplayedReadOnlyUntilRemoved(): void {

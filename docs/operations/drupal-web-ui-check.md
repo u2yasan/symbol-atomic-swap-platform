@@ -80,9 +80,9 @@ Recommended roles:
 
 | Role | Required permissions |
 | --- | --- |
-| `symbol_swap_viewer` | `view symbol atomic swap offers` |
-| `symbol_swap_operator` | `view symbol atomic swap offers`, `create symbol atomic swap offers`, `operate symbol atomic swap offers` |
-| `symbol_swap_admin` | `view symbol atomic swap offers`, `create symbol atomic swap offers`, `operate symbol atomic swap offers`, `administer symbol atomic swap offers`, `administer site configuration` |
+| `symbol_swap_viewer` | `view symbol atomic swap offers`, `view symbol p2p ad listings` |
+| `symbol_swap_operator` | viewer permissions plus `create symbol atomic swap offers`, `operate symbol atomic swap offers`, `create symbol p2p ad listings`, `operate symbol p2p ad listings` |
+| `symbol_swap_admin` | operator permissions plus `administer symbol atomic swap offers`, `administer symbol p2p ad listings`, `administer site configuration` |
 
 Create the roles with Drush:
 
@@ -105,9 +105,9 @@ Then create or use three Drupal users:
 
 | Account | Required permissions |
 | --- | --- |
-| Viewer A | `view symbol atomic swap offers` |
-| Operator A | `view symbol atomic swap offers`, `create symbol atomic swap offers`, `operate symbol atomic swap offers` |
-| Admin | `view symbol atomic swap offers`, `create symbol atomic swap offers`, `operate symbol atomic swap offers`, `administer symbol atomic swap offers`, `administer site configuration` |
+| Viewer A | viewer role permissions |
+| Operator A | operator role permissions |
+| Admin | admin role permissions |
 
 Create the users with Drush. Set passwords through environment variables so
 the passwords are not written into shell history as command arguments:
@@ -190,7 +190,7 @@ outside Drupal.
 
 ## 1. Anonymous Access
 
-1. Open `/symbol-atomic-swap/offers` while logged out.
+1. Open `/symbol-atomic-swap/settlements` while logged out.
 2. Open `/symbol-atomic-swap/notifications` while logged out.
 3. Open `/symbol-atomic-swap/transactions` while logged out.
 4. Open `/admin/config/services/symbol-atomic-swap/engine` while logged out.
@@ -207,13 +207,13 @@ Login as `Operator A`.
 Open:
 
 ```text
-/symbol-atomic-swap/offers
+/symbol-atomic-swap/settlements
 ```
 
 Expected:
 
 - page loads
-- `Create swap offer` is visible
+- `Create Atomic Settlement` is visible
 - filters are visible:
   - Search
   - State
@@ -235,7 +235,7 @@ Login as `Operator A`.
 Open:
 
 ```text
-/symbol-atomic-swap/offers/add
+/symbol-atomic-swap/settlements/add
 ```
 
 Submit the values listed in [Test Data](#test-data).
@@ -263,7 +263,7 @@ If Symbol Engine is unavailable:
 Open the created offer detail page:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}
+/symbol-atomic-swap/settlements/{offerId}
 ```
 
 Expected sections:
@@ -295,11 +295,11 @@ Login as a different non-admin user.
 Open:
 
 ```text
-/symbol-atomic-swap/offers
-/symbol-atomic-swap/offers/{offerId}
-/symbol-atomic-swap/offers/{offerId}/submit-signed-payload
-/symbol-atomic-swap/offers/{offerId}/announce
-/symbol-atomic-swap/offers/{offerId}/sync-projection
+/symbol-atomic-swap/settlements
+/symbol-atomic-swap/settlements/{offerId}
+/symbol-atomic-swap/settlements/{offerId}/submit-signed-payload
+/symbol-atomic-swap/settlements/{offerId}/announce
+/symbol-atomic-swap/settlements/{offerId}/sync-projection
 ```
 
 Expected:
@@ -361,11 +361,11 @@ cosignature JSON is being collected separately, paste this `payload` into
 
 When Symbol Desktop Wallet returns detached cosignature JSON:
 
-1. Open `/symbol-atomic-swap/offers/{offerId}/submit-cosignature`.
+1. Open `/symbol-atomic-swap/settlements/{offerId}/submit-cosignature`.
 2. Paste the JSON containing `parentHash`, `signature`, and `signerPublicKey`.
 3. Submit and confirm that the cosignature is stored.
 4. Repeat for every non-root cosigner.
-5. Open `/symbol-atomic-swap/offers/{offerId}/assemble-signed-payload`.
+5. Open `/symbol-atomic-swap/settlements/{offerId}/assemble-signed-payload`.
 6. Paste the root signed transaction payload HEX.
 7. Submit and confirm that Engine assembles the final signed payload and the
    offer state becomes `signed`.
@@ -384,7 +384,7 @@ Login as the offer owner with operate permission.
 Open:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}/submit-signed-payload
+/symbol-atomic-swap/settlements/{offerId}/submit-signed-payload
 ```
 
 Expected:
@@ -410,7 +410,7 @@ After a valid Engine-accepted signed payload:
 Open:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}/announce
+/symbol-atomic-swap/settlements/{offerId}/announce
 ```
 
 Expected:
@@ -431,7 +431,7 @@ If Symbol node is unavailable:
 Open:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}/sync-projection
+/symbol-atomic-swap/settlements/{offerId}/sync-projection
 ```
 
 Expected:
@@ -574,8 +574,8 @@ surface, not an end-user workflow.
 
 Check the following pages at desktop and mobile widths:
 
-- `/symbol-atomic-swap/offers`
-- `/symbol-atomic-swap/offers/{offerId}`
+- `/symbol-atomic-swap/settlements`
+- `/symbol-atomic-swap/settlements/{offerId}`
 - `/symbol-atomic-swap/transactions`
 - `/symbol-atomic-swap/notifications`
 

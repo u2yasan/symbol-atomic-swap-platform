@@ -3,9 +3,11 @@ view symbol p2p ad listings:
 
 create symbol p2p ad listings:
   title: 'Create Symbol P2P ad listings'
+  restrict access: true
 
 operate symbol p2p ad listings:
   title: 'Take Symbol P2P ad listings'
+  restrict access: true
 
 administer symbol p2p ad listings:
   title: 'Administer Symbol P2P ad listings'

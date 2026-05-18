@@ -89,10 +89,7 @@ final class SymbolAccountVerificationForm extends FormBase {
       $form['network'] = [
         '#type' => 'select',
         '#title' => $this->t('Symbol network'),
-        '#options' => [
-          'testnet' => $this->t('Testnet'),
-          'mainnet' => $this->t('Mainnet'),
-        ],
+        '#options' => $this->networkOptions(),
         '#default_value' => $account->get('field_symbol_network')->value ?: 'testnet',
         '#required' => TRUE,
       ];
@@ -281,6 +278,10 @@ final class SymbolAccountVerificationForm extends FormBase {
   public function validateGenerate(array &$form, FormStateInterface $form_state): void {
     $network = (string) $form_state->getValue('network');
     $address = strtoupper(trim((string) $form_state->getValue('address')));
+    if ($network === 'mainnet' && !$this->mainnetEnabled()) {
+      $form_state->setErrorByName('network', $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'));
+      return;
+    }
     if (!$this->isNetworkAddress($address, $network)) {
       $form_state->setErrorByName('address', $this->t('Symbol address must be a valid raw address for the selected network.'));
       return;
@@ -538,6 +539,21 @@ final class SymbolAccountVerificationForm extends FormBase {
 
   private function plainValue(string $value): string {
     return $value !== '' ? $value : (string) $this->t('Not set');
+  }
+
+  /**
+   * @return array<string, \Drupal\Core\StringTranslation\TranslatableMarkup>
+   */
+  private function networkOptions(): array {
+    $options = ['testnet' => $this->t('Testnet')];
+    if ($this->mainnetEnabled()) {
+      $options['mainnet'] = $this->t('Mainnet');
+    }
+    return $options;
+  }
+
+  private function mainnetEnabled(): bool {
+    return (bool) $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled');
   }
 
   private function copyValue(string $value): array {

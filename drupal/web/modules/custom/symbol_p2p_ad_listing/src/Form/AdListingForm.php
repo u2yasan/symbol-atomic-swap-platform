@@ -272,6 +272,10 @@ final class AdListingForm extends FormBase {
     }
 
     $network = (string) ($listing['network'] ?? $account['network']);
+    if ($network === 'mainnet' && !$this->mainnetEnabled()) {
+      $form_state->setErrorByName('network', $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'));
+      return;
+    }
     $seller_address = (string) ($listing['seller_address'] ?? $account['address']);
     $offered = (array) $form_state->getValue('offered', []);
     $requested = (array) $form_state->getValue('requested', []);
@@ -425,6 +429,10 @@ final class AdListingForm extends FormBase {
 
   private function defaultCurrencyMosaicId(string $network): string {
     return self::CURRENCY_MOSAIC_IDS[$network] ?? self::CURRENCY_MOSAIC_IDS['testnet'];
+  }
+
+  private function mainnetEnabled(): bool {
+    return (bool) $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled');
   }
 
   /**

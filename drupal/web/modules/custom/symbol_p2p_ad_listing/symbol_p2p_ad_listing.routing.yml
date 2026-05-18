@@ -44,7 +44,7 @@ symbol_p2p_ad_listing.take:
 symbol_p2p_ad_listing.check_balance:
   path: '/symbol-p2p/listings/{listingId}/check-balance'
   defaults:
-    _controller: '\Drupal\symbol_p2p_ad_listing\Controller\AdListingController::checkBalance'
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\CheckBalanceForm'
     _title: 'Check Seller Balance'
   requirements:
     _permission: 'view symbol p2p ad listings'

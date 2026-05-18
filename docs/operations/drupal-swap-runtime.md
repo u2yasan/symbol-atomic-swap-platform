@@ -71,7 +71,7 @@ Login as the Drupal operator.
 Open:
 
 ```text
-/symbol-atomic-swap/offers/add
+/symbol-atomic-swap/settlements/add
 ```
 
 Enter:
@@ -96,7 +96,7 @@ Engine configuration before attempting signing.
 Open the offer detail page:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}
+/symbol-atomic-swap/settlements/{offerId}
 ```
 
 Sign outside Drupal:
@@ -142,12 +142,12 @@ Copy only the JSON output `payload` value. Use it as follows:
 When Symbol Desktop Wallet returns detached cosignature JSON instead of a final
 signed payload:
 
-1. Open `/symbol-atomic-swap/offers/{offerId}/submit-cosignature`.
+1. Open `/symbol-atomic-swap/settlements/{offerId}/submit-cosignature`.
 2. Paste the Desktop Wallet JSON containing `parentHash`, `signature`, and
    `signerPublicKey`.
 3. Submit it for verification and storage.
 4. Repeat until every non-root cosigner has been collected.
-5. Open `/symbol-atomic-swap/offers/{offerId}/assemble-signed-payload`.
+5. Open `/symbol-atomic-swap/settlements/{offerId}/assemble-signed-payload`.
 6. Paste the root signed transaction payload HEX created by the aggregate
    signer.
 7. Submit. Engine attaches the stored cosignatures, verifies the final payload,
@@ -165,7 +165,7 @@ browser.
 Open:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}/submit-signed-payload
+/symbol-atomic-swap/settlements/{offerId}/submit-signed-payload
 ```
 
 Paste the signed payload HEX into `Signed payload`, then submit.
@@ -206,7 +206,7 @@ Before announcing, confirm:
 Open:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}/announce
+/symbol-atomic-swap/settlements/{offerId}/announce
 ```
 
 Submit the confirmation form.
@@ -229,7 +229,7 @@ Projection state is how Drupal catches up with chain state.
 Manual sync:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}/sync-projection
+/symbol-atomic-swap/settlements/{offerId}/sync-projection
 ```
 
 Automatic sync:
@@ -263,7 +263,7 @@ Operational rule:
 Open:
 
 ```text
-/symbol-atomic-swap/offers/{offerId}
+/symbol-atomic-swap/settlements/{offerId}
 /symbol-atomic-swap/transactions
 /symbol-atomic-swap/notifications
 ```

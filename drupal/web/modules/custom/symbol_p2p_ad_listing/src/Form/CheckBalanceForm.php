@@ -6,16 +6,19 @@ namespace Drupal\symbol_p2p_ad_listing\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
 use Drupal\symbol_p2p_ad_listing\Service\AdListingBalanceCheckManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-/**
- * Backward-compatible route-cache fallback for seller balance checks.
- */
 final class CheckBalanceForm extends FormBase {
+
+  /**
+   * @var array<string, mixed>
+   */
+  private array $listing = [];
 
   public function __construct(
     private readonly AdListingRepository $listings,
@@ -41,8 +44,40 @@ final class CheckBalanceForm extends FormBase {
     if (!$this->canCheckSellerBalance($listing)) {
       throw new AccessDeniedHttpException();
     }
+    $this->listing = $listing;
 
-    $result = $this->balanceCheckManager->checkListing((int) $listing['id']);
+    $form['listing_id'] = [
+      '#type' => 'value',
+      '#value' => (int) $listing['id'],
+    ];
+    $form['actions'] = [
+      '#type' => 'actions',
+      'submit' => [
+        '#type' => 'submit',
+        '#value' => $this->t('Check seller balance'),
+        '#button_type' => 'secondary',
+      ],
+    ];
+
+    return $form;
+  }
+
+  public function getCancelUrl(): Url {
+    return Url::fromRoute('symbol_p2p_ad_listing.view', ['listingId' => $this->listing['id'] ?? 0]);
+  }
+
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    $listing = $this->listings->find((int) $form_state->getValue('listing_id'));
+    if (!$listing || !$this->canCheckSellerBalance($listing)) {
+      $form_state->setErrorByName('listing_id', $this->t('This listing cannot be balance checked.'));
+      return;
+    }
+    $this->listing = $listing;
+  }
+
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
+    $listing_id = (int) $form_state->getValue('listing_id');
+    $result = $this->balanceCheckManager->checkListing($listing_id);
     if ($result['sufficient']) {
       $this->messenger()->addStatus($this->t('Seller balance was checked. Current balance is sufficient: @amount atomic units.', [
         '@amount' => $result['balance'],
@@ -53,12 +88,8 @@ final class CheckBalanceForm extends FormBase {
         '@amount' => $result['balance'],
       ]));
     }
-
-    $form_state->setRedirect('symbol_p2p_ad_listing.view', ['listingId' => (int) $listing['id']]);
-    return $form;
+    $form_state->setRedirect('symbol_p2p_ad_listing.view', ['listingId' => $listing_id]);
   }
-
-  public function submitForm(array &$form, FormStateInterface $form_state): void {}
 
   /**
    * @param array<string, mixed> $listing

@@ -3,6 +3,7 @@ view symbol atomic swap offers:
 
 create symbol atomic swap offers:
   title: 'Create Symbol atomic settlements'
+  restrict access: true
 
 administer symbol atomic swap offers:
   title: 'Administer Symbol atomic settlements'
@@ -10,3 +11,4 @@ administer symbol atomic swap offers:
 
 operate symbol atomic swap offers:
   title: 'Submit and announce Symbol atomic settlements'
+  restrict access: true

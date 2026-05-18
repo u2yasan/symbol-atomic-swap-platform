@@ -75,6 +75,10 @@ final class TakeListingForm extends ConfirmFormBase {
       $form_state->setErrorByName('listing_id', $this->t('Listing is expired.'));
       return;
     }
+    if ((string) $listing['network'] === 'mainnet' && !$this->mainnetEnabled()) {
+      $form_state->setErrorByName('listing_id', $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'));
+      return;
+    }
     if ((int) $listing['seller_uid'] === (int) $this->currentUser->id()) {
       $form_state->setErrorByName('listing_id', $this->t('Seller cannot take their own listing.'));
       return;
@@ -125,6 +129,10 @@ final class TakeListingForm extends ConfirmFormBase {
     if (($metadata['transferable'] ?? TRUE) !== TRUE) {
       throw new \InvalidArgumentException((string) $this->t('Mosaic is not transferable.'));
     }
+  }
+
+  private function mainnetEnabled(): bool {
+    return (bool) $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled');
   }
 
   /**

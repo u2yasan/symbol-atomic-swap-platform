@@ -7,16 +7,15 @@ namespace Drupal\symbol_p2p_ad_listing\Controller;
 use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
+use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_p2p_ad_listing\Form\CheckBalanceForm;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
-use Drupal\symbol_p2p_ad_listing\Service\AdListingBalanceCheckManager;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class AdListingController extends ControllerBase {
@@ -26,7 +25,7 @@ final class AdListingController extends ControllerBase {
     private readonly DateFormatterInterface $dateFormatter,
     private readonly RequestStack $requestStack,
     private readonly SymbolEngineClient $engineClient,
-    private readonly AdListingBalanceCheckManager $balanceCheckManager,
+    private readonly FormBuilderInterface $formBuilder,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -35,7 +34,7 @@ final class AdListingController extends ControllerBase {
       $container->get('date.formatter'),
       $container->get('request_stack'),
       $container->get('symbol_atomic_swap.engine_client'),
-      $container->get('symbol_p2p_ad_listing.balance_check_manager'),
+      $container->get('form_builder'),
     );
   }
 
@@ -117,11 +116,9 @@ final class AdListingController extends ControllerBase {
           '#attributes' => ['class' => ['button', 'button--primary']],
         ],
         'check_balance' => [
-          '#type' => 'link',
-          '#title' => $this->t('Check seller balance'),
-          '#url' => Url::fromRoute('symbol_p2p_ad_listing.check_balance', ['listingId' => $listing['id']]),
+          '#type' => 'container',
           '#access' => $this->canCheckSellerBalance($listing),
-          '#attributes' => ['class' => ['button']],
+          'form' => $this->formBuilder->getForm(CheckBalanceForm::class, (int) $listing['id']),
         ],
         'edit' => [
           '#type' => 'link',
@@ -150,27 +147,6 @@ final class AdListingController extends ControllerBase {
 
   public function title($listingId): string {
     return (string) $this->loadListing((int) $listingId)['label'];
-  }
-
-  public function checkBalance($listingId): RedirectResponse {
-    $listing = $this->loadListing((int) $listingId);
-    if (!$this->canCheckSellerBalance($listing)) {
-      throw new AccessDeniedHttpException();
-    }
-
-    $result = $this->balanceCheckManager->checkListing((int) $listing['id']);
-    if ($result['sufficient']) {
-      $this->messenger()->addStatus($this->t('Seller balance was checked. Current balance is sufficient: @amount atomic units.', [
-        '@amount' => $result['balance'],
-      ]));
-    }
-    else {
-      $this->messenger()->addWarning($this->t('Seller balance was checked. Current balance is insufficient: @amount atomic units.', [
-        '@amount' => $result['balance'],
-      ]));
-    }
-
-    return $this->redirect('symbol_p2p_ad_listing.view', ['listingId' => (int) $listing['id']]);
   }
 
   /**
