@@ -11,3 +11,7 @@
 [data-symbol-p2p-take-listing][aria-hidden="true"] {
   display: none !important;
 }
+
+[data-symbol-p2p-back-on-insufficient][hidden] {
+  display: none !important;
+}

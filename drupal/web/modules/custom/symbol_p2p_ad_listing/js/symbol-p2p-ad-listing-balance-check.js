@@ -38,6 +38,12 @@
       link.setAttribute('aria-hidden', 'true');
       link.setAttribute('tabindex', '-1');
     });
+    root.querySelectorAll('[data-symbol-p2p-back-on-insufficient]').forEach((link) => {
+      link.hidden = false;
+      link.style.display = '';
+      link.setAttribute('aria-hidden', 'false');
+      link.removeAttribute('tabindex');
+    });
   }
 
   async function checkBalance(container) {

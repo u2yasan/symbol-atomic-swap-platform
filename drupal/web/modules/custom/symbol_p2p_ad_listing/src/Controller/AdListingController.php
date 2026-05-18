@@ -118,6 +118,19 @@ final class AdListingController extends ControllerBase {
             'data-symbol-p2p-take-listing' => '1',
           ],
         ],
+        'back_on_insufficient' => [
+          '#type' => 'link',
+          '#title' => $this->t('Back'),
+          '#url' => Url::fromRoute('symbol_p2p_ad_listing.list'),
+          '#access' => $this->canTakeListing($listing),
+          '#attributes' => [
+            'class' => ['button'],
+            'data-symbol-p2p-back-on-insufficient' => '1',
+            'hidden' => 'hidden',
+            'aria-hidden' => 'true',
+            'tabindex' => '-1',
+          ],
+        ],
         'edit' => [
           '#type' => 'link',
           '#title' => $this->t('Edit'),
