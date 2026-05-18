@@ -11,6 +11,7 @@ use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_atomic_swap\Signing\AliceSignUrl;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -54,6 +55,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     $parent_hash = (string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?: ''));
     $expected_cosigner = $this->expectedCosignerPublicKey($offer);
 
+    $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $payload_for_sss;
@@ -136,6 +138,43 @@ final class SwapOfferSssCosignForm extends FormBase {
         ],
       ],
     ];
+    if ($payload_for_sss !== '') {
+      $alice_url = AliceSignUrl::transaction($payload_for_sss, $expected_cosigner);
+      $form['alice'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Mobile signing with aLice'),
+        '#open' => FALSE,
+        'notice' => [
+          '#type' => 'item',
+          '#markup' => $this->t('Scan this QR with a phone that has aLice installed, or open the aLice URL on the mobile device. aLice displays the cosignature JSON when no callback URL is provided; paste that cosignature JSON below and submit it for verification.'),
+        ],
+        'qr' => [
+          '#type' => 'container',
+          '#attributes' => [
+            'class' => ['symbol-atomic-swap-qr'],
+            'data-qr-payload' => $alice_url,
+          ],
+        ],
+        'open' => [
+          '#type' => 'html_tag',
+          '#tag' => 'a',
+          '#value' => (string) $this->t('Open aLice signer'),
+          '#attributes' => [
+            'class' => ['button', 'button--primary'],
+            'href' => $alice_url,
+          ],
+        ],
+        'copy' => [
+          '#type' => 'container',
+          'label' => [
+            '#type' => 'html_tag',
+            '#tag' => 'strong',
+            '#value' => (string) $this->t('Copy aLice signing URL'),
+          ],
+          'value' => $this->copyValue($alice_url),
+        ],
+      ];
+    }
     $form['payload'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Cosignature JSON'),
@@ -410,6 +449,33 @@ final class SwapOfferSssCosignForm extends FormBase {
   private function engineFailureReason(SymbolEngineException $exception): string {
     $reason = $exception->details['reason'] ?? $exception->engineError ?? 'symbol_engine_error';
     return is_string($reason) ? $reason : 'symbol_engine_error';
+  }
+
+  private function copyValue(string $value): array|string {
+    if ($value === '') {
+      return '';
+    }
+
+    return [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['symbol-atomic-swap-copy']],
+      'value' => [
+        '#type' => 'html_tag',
+        '#tag' => 'code',
+        '#value' => $value,
+        '#attributes' => ['class' => ['symbol-atomic-swap-long-value']],
+      ],
+      'copy' => [
+        '#type' => 'html_tag',
+        '#tag' => 'button',
+        '#value' => (string) $this->t('Copy'),
+        '#attributes' => [
+          'type' => 'button',
+          'class' => ['button', 'button--small', 'symbol-atomic-swap-copy__button'],
+          'data-symbol-copy' => $value,
+        ],
+      ],
+    ];
   }
 
 }
