@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_p2p_ad_listing\Controller;
 
+use Drupal\Component\Render\FormattableMarkup;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Link;
@@ -40,7 +41,8 @@ final class AdListingController extends ControllerBase {
       $rows[] = [
         Link::fromTextAndUrl((string) $listing['label'], Url::fromRoute('symbol_p2p_ad_listing.view', ['listingId' => $listing['id']]))->toString(),
         (string) $listing['network'],
-        $this->mosaicPair($listing),
+        ['data' => $this->mosaicTerm($listing, 'offered')],
+        ['data' => $this->mosaicTerm($listing, 'requested')],
         $this->statusLabel((string) $listing['status']),
         $this->expirationLabel($listing),
       ];
@@ -64,7 +66,8 @@ final class AdListingController extends ControllerBase {
         '#header' => [
           $this->t('Listing'),
           $this->t('Network'),
-          $this->t('Terms'),
+          $this->t('Offers'),
+          $this->t('Wants'),
           $this->t('Status'),
           $this->t('Expires'),
         ],
@@ -80,8 +83,8 @@ final class AdListingController extends ControllerBase {
       [$this->t('Status'), $this->statusLabel((string) $listing['status'])],
       [$this->t('Network'), (string) $listing['network']],
       [$this->t('Seller address'), $this->hashValue((string) $listing['seller_address'])],
-      [$this->t('Seller offers'), $this->formatMosaicAmount((string) $listing['offered_amount'], (string) $listing['network'], (string) $listing['offered_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['offered_mosaic_id'])],
-      [$this->t('Seller wants'), $this->formatMosaicAmount((string) $listing['requested_amount'], (string) $listing['network'], (string) $listing['requested_mosaic_id']) . ' ' . $this->formatMosaicName((string) $listing['network'], (string) $listing['requested_mosaic_id'])],
+      [$this->t('Seller offers'), $this->mosaicTerm($listing, 'offered')],
+      [$this->t('Seller wants'), $this->mosaicTerm($listing, 'requested')],
       [$this->t('Settlement window'), (string) $this->t('@minutes minutes', ['@minutes' => (string) $listing['swap_window_minutes']])],
       [$this->t('Expires'), $this->expirationLabel($listing)],
       [$this->t('Balance checked amount'), $this->formatBalanceCheckedAmount($listing)],
@@ -217,13 +220,14 @@ final class AdListingController extends ControllerBase {
   /**
    * @param array<string, mixed> $listing
    */
-  private function mosaicPair(array $listing): string {
+  private function mosaicTerm(array $listing, string $side): FormattableMarkup {
     $network = (string) $listing['network'];
-    return $this->formatMosaicAmount((string) $listing['offered_amount'], $network, (string) $listing['offered_mosaic_id'])
-      . ' ' . $this->formatMosaicName($network, (string) $listing['offered_mosaic_id'])
-      . ' -> '
-      . $this->formatMosaicAmount((string) $listing['requested_amount'], $network, (string) $listing['requested_mosaic_id'])
-      . ' ' . $this->formatMosaicName($network, (string) $listing['requested_mosaic_id']);
+    $mosaic_id = strtoupper((string) $listing[$side . '_mosaic_id']);
+    return new FormattableMarkup('@amount @name<br>(@mosaic_id)', [
+      '@amount' => $this->formatMosaicAmount((string) $listing[$side . '_amount'], $network, $mosaic_id),
+      '@name' => $this->formatMosaicAlias($network, $mosaic_id),
+      '@mosaic_id' => $mosaic_id,
+    ]);
   }
 
   /**
@@ -307,6 +311,16 @@ final class AdListingController extends ControllerBase {
     $aliases = $metadata['aliases'] ?? [];
     if (is_array($aliases) && isset($aliases[0]) && is_string($aliases[0]) && $aliases[0] !== '') {
       return $aliases[0] . ' (' . $normalized . ')';
+    }
+    return $normalized;
+  }
+
+  private function formatMosaicAlias(string $network, string $mosaic_id): string {
+    $normalized = strtoupper($mosaic_id);
+    $metadata = $this->lookupMosaicMetadata($network, $normalized);
+    $aliases = $metadata['aliases'] ?? [];
+    if (is_array($aliases) && isset($aliases[0]) && is_string($aliases[0]) && $aliases[0] !== '') {
+      return $aliases[0];
     }
     return $normalized;
   }
