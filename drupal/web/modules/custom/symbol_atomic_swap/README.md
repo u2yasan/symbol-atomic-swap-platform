@@ -6,15 +6,15 @@ and must not sign Symbol transactions.
 ### Routes
 
 - `GET /symbol-atomic-swap/health`
-- `/symbol-atomic-swap/offers`
-- `/symbol-atomic-swap/offers/add`
-- `/symbol-atomic-swap/offers/{offerId}`
-- `/symbol-atomic-swap/offers/{offerId}/edit`
-- `/symbol-atomic-swap/offers/{offerId}/cancel`
-- `/symbol-atomic-swap/offers/{offerId}/submit-signed-payload`
-- `/symbol-atomic-swap/offers/{offerId}/announce`
-- `/symbol-atomic-swap/offers/{offerId}/sync-projection`
-- `/symbol-atomic-swap/offers/{offerId}/delete`
+- `/symbol-atomic-swap/settlements`
+- `/symbol-atomic-swap/settlements/add`
+- `/symbol-atomic-swap/settlements/{offerId}`
+- `/symbol-atomic-swap/settlements/{offerId}/edit`
+- `/symbol-atomic-swap/settlements/{offerId}/cancel`
+- `/symbol-atomic-swap/settlements/{offerId}/submit-signed-payload`
+- `/symbol-atomic-swap/settlements/{offerId}/announce`
+- `/symbol-atomic-swap/settlements/{offerId}/sync-projection`
+- `/symbol-atomic-swap/settlements/{offerId}/delete`
 - `GET /symbol-atomic-swap/engine/network`
 - `GET /symbol-atomic-swap/engine/intent/{intentHash}`
 - `GET /symbol-atomic-swap/engine/projection/{network}/{transactionHash}`

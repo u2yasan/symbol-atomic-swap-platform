@@ -7,7 +7,7 @@ symbol_atomic_swap.health:
     _permission: 'access content'
 
 symbol_atomic_swap.offer_list:
-  path: '/symbol-atomic-swap/offers'
+  path: '/symbol-atomic-swap/settlements'
   defaults:
     _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::list'
     _title: 'Atomic Settlements'
@@ -15,7 +15,7 @@ symbol_atomic_swap.offer_list:
     _permission: 'view symbol atomic swap offers'
 
 symbol_atomic_swap.offer_add:
-  path: '/symbol-atomic-swap/offers/add'
+  path: '/symbol-atomic-swap/settlements/add'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferForm'
     _title: 'Create Atomic Settlement'
@@ -23,7 +23,7 @@ symbol_atomic_swap.offer_add:
     _permission: 'create symbol atomic swap offers'
 
 symbol_atomic_swap.offer_view:
-  path: '/symbol-atomic-swap/offers/{offerId}'
+  path: '/symbol-atomic-swap/settlements/{offerId}'
   defaults:
     _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::view'
     _title_callback: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::title'
@@ -32,7 +32,7 @@ symbol_atomic_swap.offer_view:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_qr_payload:
-  path: '/symbol-atomic-swap/offers/{offerId}/qr-payload/{intentHash}'
+  path: '/symbol-atomic-swap/settlements/{offerId}/qr-payload/{intentHash}'
   defaults:
     _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::qrPayload'
     _title_callback: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::qrPayloadTitle'
@@ -70,7 +70,7 @@ symbol_atomic_swap.account_verification:
     _user_is_logged_in: 'TRUE'
 
 symbol_atomic_swap.offer_edit:
-  path: '/symbol-atomic-swap/offers/{offerId}/edit'
+  path: '/symbol-atomic-swap/settlements/{offerId}/edit'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferForm'
     _title: 'Edit Atomic Settlement'
@@ -79,7 +79,7 @@ symbol_atomic_swap.offer_edit:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_accept:
-  path: '/symbol-atomic-swap/offers/{offerId}/accept'
+  path: '/symbol-atomic-swap/settlements/{offerId}/accept'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAcceptForm'
     _title: 'Finalize Atomic Settlement'
@@ -88,7 +88,7 @@ symbol_atomic_swap.offer_accept:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_cancel:
-  path: '/symbol-atomic-swap/offers/{offerId}/cancel'
+  path: '/symbol-atomic-swap/settlements/{offerId}/cancel'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferCancelForm'
     _title: 'Cancel Atomic Settlement'
@@ -97,7 +97,7 @@ symbol_atomic_swap.offer_cancel:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_submit_signed_payload:
-  path: '/symbol-atomic-swap/offers/{offerId}/submit-signed-payload'
+  path: '/symbol-atomic-swap/settlements/{offerId}/submit-signed-payload'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSignedPayloadForm'
     _title: 'Submit Signed Payload'
@@ -106,7 +106,7 @@ symbol_atomic_swap.offer_submit_signed_payload:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_sign_with_sss:
-  path: '/symbol-atomic-swap/offers/{offerId}/sign-with-sss'
+  path: '/symbol-atomic-swap/settlements/{offerId}/sign-with-sss'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSssSignForm'
     _title: 'Sign with SSS'
@@ -115,7 +115,7 @@ symbol_atomic_swap.offer_sign_with_sss:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_submit_aggregate_signer_json:
-  path: '/symbol-atomic-swap/offers/{offerId}/submit-aggregate-signer-json'
+  path: '/symbol-atomic-swap/settlements/{offerId}/submit-aggregate-signer-json'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAggregateSignerJsonForm'
     _title: 'Submit Aggregate Signer JSON'
@@ -124,7 +124,7 @@ symbol_atomic_swap.offer_submit_aggregate_signer_json:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_submit_cosignature:
-  path: '/symbol-atomic-swap/offers/{offerId}/submit-cosignature'
+  path: '/symbol-atomic-swap/settlements/{offerId}/submit-cosignature'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferCosignatureForm'
     _title: 'Submit Cosignature'
@@ -133,7 +133,7 @@ symbol_atomic_swap.offer_submit_cosignature:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_cosign_with_sss:
-  path: '/symbol-atomic-swap/offers/{offerId}/cosign-with-sss'
+  path: '/symbol-atomic-swap/settlements/{offerId}/cosign-with-sss'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSssCosignForm'
     _title: 'Cosign with SSS'
@@ -142,7 +142,7 @@ symbol_atomic_swap.offer_cosign_with_sss:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_assemble_signed_payload:
-  path: '/symbol-atomic-swap/offers/{offerId}/assemble-signed-payload'
+  path: '/symbol-atomic-swap/settlements/{offerId}/assemble-signed-payload'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAssembleSignedPayloadForm'
     _title: 'Assemble Signed Payload'
@@ -151,7 +151,7 @@ symbol_atomic_swap.offer_assemble_signed_payload:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_announce:
-  path: '/symbol-atomic-swap/offers/{offerId}/announce'
+  path: '/symbol-atomic-swap/settlements/{offerId}/announce'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferAnnounceForm'
     _title: 'Announce Transaction'
@@ -160,7 +160,7 @@ symbol_atomic_swap.offer_announce:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_bonded_partial_announce:
-  path: '/symbol-atomic-swap/offers/{offerId}/bonded-partial-announce'
+  path: '/symbol-atomic-swap/settlements/{offerId}/bonded-partial-announce'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferBondedPartialAnnounceForm'
     _title: 'Announce Aggregate Bonded Partial'
@@ -169,7 +169,7 @@ symbol_atomic_swap.offer_bonded_partial_announce:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_sync_projection:
-  path: '/symbol-atomic-swap/offers/{offerId}/sync-projection'
+  path: '/symbol-atomic-swap/settlements/{offerId}/sync-projection'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSyncProjectionForm'
     _title: 'Sync Projection'
@@ -178,7 +178,7 @@ symbol_atomic_swap.offer_sync_projection:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_delete:
-  path: '/symbol-atomic-swap/offers/{offerId}/delete'
+  path: '/symbol-atomic-swap/settlements/{offerId}/delete'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferDeleteForm'
     _title: 'Delete Atomic Settlement'

@@ -32,12 +32,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->installAccountPublicKeyResolverStub();
     $assert_session = $this->assertSession();
 
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(403);
 
     $viewer = $this->drupalCreateUser(['view symbol atomic swap offers']);
     $this->drupalLogin($viewer);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('No atomic settlements have been created.');
     $assert_session->linkNotExists('Create atomic settlement');
@@ -48,11 +48,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     ]);
     $this->verifySymbolAccount($creator);
     $this->drupalLogin($creator);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Create atomic settlement');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->drupalGet('/symbol-atomic-swap/settlements/add');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Settlement label');
     $assert_session->fieldNotExists('Correlation ID');
@@ -86,7 +86,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->verifySymbolAccount($creator);
     $this->drupalLogin($creator);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->drupalGet('/symbol-atomic-swap/settlements/add');
     $this->submitForm([
       'label' => 'Distinct leg submit offer',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
@@ -133,7 +133,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->verifySymbolAccount($creator);
     $this->drupalLogin($creator);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->drupalGet('/symbol-atomic-swap/settlements/add');
     $this->submitForm([
       'label' => 'Non-transferable mosaic offer',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCF',
@@ -161,7 +161,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     ]);
     $this->drupalLogin($creator);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->drupalGet('/symbol-atomic-swap/settlements/add');
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Create Atomic Settlement requires a verified Symbol address in My Symbol Account.');
@@ -204,7 +204,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
 
     $assert_session = $this->assertSession();
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/accept');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/accept');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldNotExists('Taker recipient address');
     $assert_session->pageTextContains('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI');
@@ -252,7 +252,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     ]));
 
     $this->drupalLogin($operator);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/accept');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/accept');
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
@@ -301,7 +301,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'uid' => (int) $creator->id(),
     ]));
 
-    $this->drupalGet('/symbol-atomic-swap/offers/add');
+    $this->drupalGet('/symbol-atomic-swap/settlements/add');
     $this->submitForm([
       'label' => 'Auto correlation offer',
       'maker_pays[mosaic_id]' => '72C0212E67A08BCE',
@@ -371,7 +371,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($admin);
 
     $assert_session = $this->assertSession();
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Test offer');
     $assert_session->pageTextContains('qr_generated');
@@ -395,7 +395,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->pageTextContains('Public settlement JSON');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('C', 64));
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/qr-payload/' . str_repeat('C', 64));
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('QR payload for Test offer');
     $assert_session->pageTextContains('QR scan text');
@@ -403,13 +403,13 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Unsigned payload');
     $assert_session->pageTextContains('QR payload JSON');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('D', 64));
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/qr-payload/' . str_repeat('D', 64));
     $assert_session->statusCodeEquals(404);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/edit');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/edit');
     $assert_session->statusCodeEquals(403);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/delete');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/delete');
     $assert_session->statusCodeEquals(403);
   }
 
@@ -441,24 +441,24 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($admin);
 
     $assert_session = $this->assertSession();
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $open_id . '/edit');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $open_id . '/edit');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldValueEquals('Settlement label', 'Editable open offer');
     $assert_session->buttonExists('Save settlement');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $open_id . '/delete');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $open_id . '/delete');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Delete Editable open offer?');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $announced_id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkNotExists('Edit');
     $assert_session->linkNotExists('Delete');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_id . '/edit');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $announced_id . '/edit');
     $assert_session->statusCodeEquals(403);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_id . '/delete');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $announced_id . '/delete');
     $assert_session->statusCodeEquals(403);
 
     $owner = $this->drupalCreateUser([
@@ -475,10 +475,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     ]));
     $this->drupalLogin($owner);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $owner_announced_id . '/edit');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $owner_announced_id . '/edit');
     $assert_session->statusCodeEquals(403);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $owner_announced_id . '/delete');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $owner_announced_id . '/delete');
     $assert_session->statusCodeEquals(403);
   }
 
@@ -520,23 +520,23 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $assert_session = $this->assertSession();
     $this->drupalLogin($maker);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $maker_offer_id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $maker_offer_id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Cancel settlement');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $maker_offer_id . '/cancel');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $maker_offer_id . '/cancel');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Cancel Maker cancel offer?');
     $this->submitForm([], 'Cancel settlement');
     $this->assertSame('cancelled', $repository->find($maker_offer_id)['state']);
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $announced_offer_id . '/cancel');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $announced_offer_id . '/cancel');
     $assert_session->statusCodeEquals(403);
 
     $this->drupalLogin($taker);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $taker_offer_id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $taker_offer_id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Cancel settlement');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $taker_offer_id . '/cancel');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $taker_offer_id . '/cancel');
     $assert_session->statusCodeEquals(200);
     $this->submitForm([], 'Cancel settlement');
     $this->assertSame('cancelled', $repository->find($taker_offer_id)['state']);
@@ -579,7 +579,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($admin);
 
     $assert_session = $this->assertSession();
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate bonded partial announcement steps');
     $assert_session->pageTextContains('This is not an aggregate complete transaction.');
@@ -590,7 +590,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Hash lock signer');
     $assert_session->pageTextContains('Taker initiates this aggregate bonded transaction from the accept page and pays the 10 XYM hash lock.');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/qr-payload/' . str_repeat('C', 64));
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/qr-payload/' . str_repeat('C', 64));
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate type');
     $assert_session->pageTextContains('aggregate bonded');
@@ -605,7 +605,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->verifySymbolAccount($operator, 'testnet', 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', str_repeat('B', 64));
     $this->drupalLogin($operator);
 
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Bonded steps offer');
     $assert_session->linkExists('Sign with SSS');
@@ -616,7 +616,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign with SSS');
     $assert_session->linkNotExists('Submit signed payload');
@@ -626,7 +626,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate bonded is initiated by the taker.');
     $assert_session->pageTextContains('Required aggregate signer account');
@@ -638,14 +638,14 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'root_signed_payload' => 'ABCD',
       'root_transaction_hash' => str_repeat('D', 64),
     ]);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign hash lock and announce partial');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign hash lock and announce partial');
     $this->drupalLogin($admin);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/bonded-partial-announce');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/bonded-partial-announce');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('wait for hash lock confirmation');
     $assert_session->pageTextContains('Hash lock signer public key');
@@ -657,11 +657,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'transaction_hash' => str_repeat('D', 64),
     ]);
     $this->drupalLogin($operator);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Cosign and announce partial with SSS');
     $assert_session->linkNotExists('Submit signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Root signed payload sent to SSS');
     $assert_session->buttonExists('Cosign and announce partial with SSS');
@@ -716,15 +716,15 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $viewer = $this->drupalCreateUser(['view symbol atomic swap offers']);
     $this->drupalLogin($viewer);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-signed-payload');
     $this->assertSession()->statusCodeEquals(403);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
     $this->assertSession()->statusCodeEquals(403);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-aggregate-signer-json');
     $this->assertSession()->statusCodeEquals(403);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/assemble-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/assemble-signed-payload');
     $this->assertSession()->statusCodeEquals(403);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
     $this->assertSession()->statusCodeEquals(403);
 
     $non_owner_operator = $this->drupalCreateUser([
@@ -734,30 +734,30 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($non_owner_operator);
 
     $assert_session = $this->assertSession();
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-signed-payload');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Aggregate signer JSON');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/assemble-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/assemble-signed-payload');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Root signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Cosignature JSON');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
 
     $this->drupalLogin($operator);
 
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign with SSS');
     $assert_session->linkNotExists('Cosign with SSS');
@@ -765,7 +765,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign with SSS');
     $assert_session->linkNotExists('Cosign with SSS');
@@ -773,11 +773,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-signed-payload');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Signed payload');
     $assert_session->buttonExists('Verify signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
@@ -786,11 +786,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
     $assert_session->buttonExists('Sign unsigned payload with SSS');
     $assert_session->buttonExists('Verify SSS root signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-aggregate-signer-json');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Aggregate signer JSON');
     $assert_session->buttonExists('Build and verify root signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Parent hash fallback');
@@ -805,7 +805,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
         'requiredCosigners' => [str_repeat('B', 64), str_repeat('A', 64)],
       ], JSON_THROW_ON_ERROR),
     ]);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->pageTextContains(str_repeat('B', 64));
@@ -817,10 +817,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'root_transaction_hash' => str_repeat('E', 64),
     ]);
     $this->drupalLogin($operator);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Cosign with SSS');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Cosign with SSS');
     $assert_session->linkNotExists('Assemble signed payload');
@@ -833,13 +833,13 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'trusted_parent_hash' => TRUE,
       'uid' => (int) $operator->id(),
     ]);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Assemble signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Assemble signed payload');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/assemble-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/assemble-signed-payload');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('1 cosignature(s) will be attached.');
 
@@ -849,16 +849,16 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     ]);
     $this->verifySymbolAccount($taker_operator, 'testnet', 'TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY', str_repeat('B', 64));
     $this->drupalLogin($taker_operator);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkNotExists('Cosign with SSS');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkNotExists('Cosign with SSS');
 
     $this->drupalLogin($operator);
     $repository->markSigned($id, str_repeat('D', 64));
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Sign with SSS');
@@ -866,16 +866,16 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkExists('Announce transaction');
     $assert_session->linkExists('Sync projection');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Announce transaction');
     $assert_session->linkExists('Sync projection');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/announce');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/announce');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Announce Operator offer?');
 
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/sync-projection');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sync-projection');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Sync projection for Operator offer?');
   }
@@ -910,7 +910,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
 
     $assert_session = $this->assertSession();
-    $this->drupalGet('/symbol-atomic-swap/offers', [
+    $this->drupalGet('/symbol-atomic-swap/settlements', [
       'query' => [
         'state' => 'finalized',
         'network' => 'testnet',
@@ -948,7 +948,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
 
     $assert_session = $this->assertSession();
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-signed-payload');
     $assert_session->statusCodeEquals(403);
   }
 
@@ -1015,20 +1015,20 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $assert_session = $this->assertSession();
     $this->drupalLogin($other);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextNotContains('Owner scoped offer');
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/submit-signed-payload');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-signed-payload');
     $assert_session->statusCodeEquals(200);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/bonded-partial-announce');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/bonded-partial-announce');
     $assert_session->statusCodeEquals(200);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id . '/announce');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/announce');
     $assert_session->statusCodeEquals(403);
 
     $this->drupalLogin($owner);
-    $this->drupalGet('/symbol-atomic-swap/offers/' . $id);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Owner scoped offer');
     $assert_session->pageTextContains('Transaction hash');
@@ -1062,7 +1062,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $assert_session = $this->assertSession();
     $this->drupalLogin($signer);
-    $this->drupalGet('/symbol-atomic-swap/offers');
+    $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Signer related offer');
     $assert_session->pageTextNotContains('Unrelated offer');
