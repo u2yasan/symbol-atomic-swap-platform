@@ -638,6 +638,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->pageTextContains(str_repeat('B', 64));
+    $assert_session->pageTextContains('Mobile signing with aLice');
+    $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
 
     $repository->update($id, [
       'state' => 'root_signed',
@@ -750,6 +753,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
+    $assert_session->pageTextContains('Mobile signing with aLice');
+    $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Aggregate signer JSON');
@@ -793,6 +798,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
     $assert_session->buttonExists('Sign unsigned payload with SSS');
+    $assert_session->linkExists('Open aLice signer');
+    $assert_session->pageTextContains('Copy aLice signing URL');
     $assert_session->buttonExists('Verify SSS root signed payload');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-aggregate-signer-json');
     $assert_session->statusCodeEquals(200);

@@ -11,6 +11,7 @@ use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_atomic_swap\Signing\AliceSignUrl;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -52,6 +53,7 @@ final class SwapOfferSssSignForm extends FormBase {
     $required_signer_address = $this->addressFromPublicKey($required_signer, (string) $offer['network']);
     $is_aggregate_bonded = $this->isAggregateBonded($offer);
 
+    $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $unsigned_payload;
@@ -119,6 +121,43 @@ final class SwapOfferSssSignForm extends FormBase {
         ],
       ],
     ];
+    if ($unsigned_payload !== '') {
+      $alice_url = AliceSignUrl::transaction($unsigned_payload, $required_signer);
+      $form['alice'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Mobile signing with aLice'),
+        '#open' => FALSE,
+        'notice' => [
+          '#type' => 'item',
+          '#markup' => $this->t('Scan this QR with a phone that has aLice installed, or open the aLice URL on the mobile device. aLice displays the signed payload when no callback URL is provided; paste that signed payload below and submit it for verification.'),
+        ],
+        'qr' => [
+          '#type' => 'container',
+          '#attributes' => [
+            'class' => ['symbol-atomic-swap-qr'],
+            'data-qr-payload' => $alice_url,
+          ],
+        ],
+        'open' => [
+          '#type' => 'html_tag',
+          '#tag' => 'a',
+          '#value' => (string) $this->t('Open aLice signer'),
+          '#attributes' => [
+            'class' => ['button', 'button--primary'],
+            'href' => $alice_url,
+          ],
+        ],
+        'copy' => [
+          '#type' => 'container',
+          'label' => [
+            '#type' => 'html_tag',
+            '#tag' => 'strong',
+            '#value' => (string) $this->t('Copy aLice signing URL'),
+          ],
+          'value' => $this->copyValue($alice_url),
+        ],
+      ];
+    }
     $form['payload'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Signed payload'),
@@ -291,6 +330,33 @@ final class SwapOfferSssSignForm extends FormBase {
     catch (\InvalidArgumentException) {
       return '';
     }
+  }
+
+  private function copyValue(string $value): array|string {
+    if ($value === '') {
+      return '';
+    }
+
+    return [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['symbol-atomic-swap-copy']],
+      'value' => [
+        '#type' => 'html_tag',
+        '#tag' => 'code',
+        '#value' => $value,
+        '#attributes' => ['class' => ['symbol-atomic-swap-long-value']],
+      ],
+      'copy' => [
+        '#type' => 'html_tag',
+        '#tag' => 'button',
+        '#value' => (string) $this->t('Copy'),
+        '#attributes' => [
+          'type' => 'button',
+          'class' => ['button', 'button--small', 'symbol-atomic-swap-copy__button'],
+          'data-symbol-copy' => $value,
+        ],
+      ],
+    ];
   }
 
   private function aggregateSignerFromPayload(string $payload): string {

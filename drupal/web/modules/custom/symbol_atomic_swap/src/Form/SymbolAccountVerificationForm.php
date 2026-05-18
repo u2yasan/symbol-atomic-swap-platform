@@ -14,6 +14,7 @@ use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_atomic_swap\Signing\AliceSignUrl;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -57,10 +58,12 @@ final class SymbolAccountVerificationForm extends FormBase {
 
     $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
+    $alice_url = '';
     if ($challenge) {
       $form['#attributes']['data-symbol-sss-container'] = '1';
       $form['#attributes']['data-symbol-sss-unsigned-payload'] = (string) $challenge['unsignedPayload'];
       $form['#attributes']['data-symbol-sss-required-signer'] = (string) $challenge['publicKey'];
+      $alice_url = AliceSignUrl::transaction((string) $challenge['unsignedPayload'], (string) $challenge['publicKey']);
     }
 
     $verified = (bool) ($account->get('field_symbol_address_verified')->value ?? FALSE);
@@ -181,6 +184,40 @@ final class SymbolAccountVerificationForm extends FormBase {
               'aria-live' => 'polite',
             ],
           ],
+          ],
+        ],
+        'alice' => [
+          '#type' => 'details',
+          '#title' => $this->t('Mobile signing with aLice'),
+          '#open' => FALSE,
+          'notice' => [
+            '#type' => 'item',
+            '#markup' => $this->t('Scan this QR with a phone that has aLice installed, or open the aLice URL on the mobile device. aLice displays the signed payload when no callback URL is provided; paste that signed payload below and submit it for verification.'),
+          ],
+          'qr' => [
+            '#type' => 'container',
+            '#attributes' => [
+              'class' => ['symbol-atomic-swap-qr'],
+              'data-qr-payload' => $alice_url,
+            ],
+          ],
+          'open' => [
+            '#type' => 'html_tag',
+            '#tag' => 'a',
+            '#value' => (string) $this->t('Open aLice signer'),
+            '#attributes' => [
+              'class' => ['button', 'button--primary'],
+              'href' => $alice_url,
+            ],
+          ],
+          'copy' => [
+            '#type' => 'container',
+            'label' => [
+              '#type' => 'html_tag',
+              '#tag' => 'strong',
+              '#value' => (string) $this->t('Copy aLice signing URL'),
+            ],
+            'value' => $this->copyValue($alice_url),
           ],
         ],
         'onchain' => [
