@@ -47,7 +47,7 @@ final class TransactionHistoryController extends ControllerBase {
         (string) ($offer['block_height'] ?: ''),
         (string) ($offer['finalized_height'] ?: ''),
         !empty($offer['projection_updated_at']) ? (string) $offer['projection_updated_at'] : '',
-        $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : '',
+        $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'custom', 'Y-m-d H:i') : '',
       ];
     }
 
