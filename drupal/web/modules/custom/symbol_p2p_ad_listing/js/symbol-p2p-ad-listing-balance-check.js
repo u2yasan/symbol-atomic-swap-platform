@@ -34,7 +34,9 @@
     const root = container.closest('[data-symbol-p2p-listing-view]') || document;
     root.querySelectorAll('[data-symbol-p2p-take-listing]').forEach((link) => {
       link.hidden = true;
+      link.style.display = 'none';
       link.setAttribute('aria-hidden', 'true');
+      link.setAttribute('tabindex', '-1');
     });
   }
 

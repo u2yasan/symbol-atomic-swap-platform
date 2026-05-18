@@ -7,3 +7,7 @@
   color: #a00000;
   font-weight: 700;
 }
+
+[data-symbol-p2p-take-listing][aria-hidden="true"] {
+  display: none !important;
+}

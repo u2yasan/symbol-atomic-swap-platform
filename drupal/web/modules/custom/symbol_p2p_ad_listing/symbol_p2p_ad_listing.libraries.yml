@@ -1,5 +1,5 @@
 balance_check:
-  version: 1.x
+  version: 1.1
   css:
     component:
       css/symbol-p2p-ad-listing-balance-check.css: {}
