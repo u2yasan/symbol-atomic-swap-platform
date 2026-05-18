@@ -24,8 +24,7 @@
       return;
     }
     status.textContent = message;
-    status.classList.toggle('messages', state !== 'checking');
-    status.classList.toggle('messages--status', state === 'sufficient');
+    status.classList.toggle('messages', Boolean(message) && state !== 'checking');
     status.classList.toggle('messages--warning', state === 'insufficient');
     status.classList.toggle('messages--error', state === 'error');
   }
@@ -52,7 +51,11 @@
         setStatus(container, result.message || Drupal.t('Balance check failed.'), 'error');
         return;
       }
-      setStatus(container, result.message, result.sufficient ? 'sufficient' : 'insufficient');
+      if (result.sufficient) {
+        setStatus(container, '', 'sufficient');
+        return;
+      }
+      setStatus(container, result.message, 'insufficient');
     }
     catch (error) {
       setStatus(container, Drupal.t('Balance check failed.'), 'error');
