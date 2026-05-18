@@ -13,6 +13,7 @@ use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
 use Drupal\symbol_p2p_ad_listing\Form\CheckBalanceForm;
+use Drupal\symbol_p2p_ad_listing\Form\CheckMyBalanceForm;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -119,6 +120,11 @@ final class AdListingController extends ControllerBase {
           '#type' => 'container',
           '#access' => $this->canCheckSellerBalance($listing),
           'form' => $this->inlineFormBuilder->getForm(CheckBalanceForm::class, (int) $listing['id']),
+        ],
+        'check_my_balance' => [
+          '#type' => 'container',
+          '#access' => $this->canCheckMyBalance($listing),
+          'form' => $this->inlineFormBuilder->getForm(CheckMyBalanceForm::class, (int) $listing['id']),
         ],
         'edit' => [
           '#type' => 'link',
@@ -288,6 +294,17 @@ final class AdListingController extends ControllerBase {
     return (string) $listing['status'] === AdListingRepository::ACTIVE
       && !$this->listings->isExpired($listing)
       && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
+      && $this->currentUser()->hasPermission('view symbol p2p ad listings');
+  }
+
+  /**
+   * @param array<string, mixed> $listing
+   */
+  private function canCheckMyBalance(array $listing): bool {
+    return (string) $listing['status'] === AdListingRepository::ACTIVE
+      && !$this->listings->isExpired($listing)
+      && (int) ($listing['seller_uid'] ?? 0) !== (int) $this->currentUser()->id()
+      && $this->currentUser()->isAuthenticated()
       && $this->currentUser()->hasPermission('view symbol p2p ad listings');
   }
 
