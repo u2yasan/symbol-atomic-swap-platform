@@ -282,8 +282,13 @@ final class AdListingForm extends FormBase {
     $offered = (array) $form_state->getValue('offered', []);
     $requested = (array) $form_state->getValue('requested', []);
     $expiration = (array) $form_state->getValue('expiration', []);
+    $label = trim((string) $form_state->getValue('label'));
     $offered_mosaic_id = strtoupper(trim((string) ($offered['mosaic_id'] ?? '')));
     $requested_mosaic_id = strtoupper(trim((string) ($requested['mosaic_id'] ?? '')));
+
+    if ($label !== '' && $this->listings->hasListingLabel($label, $listing ? (int) $listing['id'] : NULL)) {
+      $form_state->setErrorByName('label', $this->t('Listing label is already used by another listing. Choose a unique label.'));
+    }
 
     $offered_amount = $this->validateMosaicAmount($form_state, 'offered', $network, $offered_mosaic_id, (string) ($offered['amount'] ?? ''));
     $requested_amount = $this->validateMosaicAmount($form_state, 'requested', $network, $requested_mosaic_id, (string) ($requested['amount'] ?? ''));

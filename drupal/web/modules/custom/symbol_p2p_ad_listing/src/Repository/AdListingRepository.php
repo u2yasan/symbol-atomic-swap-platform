@@ -118,6 +118,18 @@ final class AdListingRepository {
     return (bool) $query->execute()->fetchField();
   }
 
+  public function hasListingLabel(string $label, ?int $exclude_id = NULL): bool {
+    $query = $this->database->select(self::TABLE, 'l')
+      ->fields('l', ['id'])
+      ->condition('label', trim($label))
+      ->range(0, 1);
+    if ($exclude_id !== NULL) {
+      $query->condition('id', $exclude_id, '<>');
+    }
+
+    return (bool) $query->execute()->fetchField();
+  }
+
   public function sumReservedOfferedAmount(string $network, string $seller_address, string $mosaic_id, ?int $exclude_id = NULL): string {
     $query = $this->database->select(self::TABLE, 'l')
       ->fields('l', ['offered_amount'])

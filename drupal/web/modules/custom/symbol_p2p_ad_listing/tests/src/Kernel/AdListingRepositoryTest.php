@@ -81,6 +81,27 @@ final class AdListingRepositoryTest extends KernelTestBase {
     $this->assertNotNull($this->repository->find($other_seller_id));
   }
 
+  public function testListingLabelLookupIncludesTerminalListings(): void {
+    $active_id = $this->repository->create($this->listingValues([
+      'label' => 'Reusable label',
+    ]));
+    $cancelled_id = $this->repository->create($this->listingValues([
+      'label' => 'Cancelled label',
+    ]));
+    $expired_id = $this->repository->create($this->listingValues([
+      'label' => 'Expired label',
+      'expires_at' => 1700000000,
+    ]));
+    $this->repository->cancel($cancelled_id);
+    $this->repository->markExpired($expired_id);
+
+    $this->assertTrue($this->repository->hasListingLabel('Reusable label'));
+    $this->assertTrue($this->repository->hasListingLabel('Cancelled label'));
+    $this->assertTrue($this->repository->hasListingLabel('Expired label'));
+    $this->assertFalse($this->repository->hasListingLabel('Reusable label', $active_id));
+    $this->assertFalse($this->repository->hasListingLabel('Unused label'));
+  }
+
   public function testMatchCreatesAtomicSettlementAndMarksListingMatched(): void {
     $id = $this->repository->create($this->listingValues());
     $listing = $this->repository->find($id);
