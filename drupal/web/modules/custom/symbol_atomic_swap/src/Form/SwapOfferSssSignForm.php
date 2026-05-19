@@ -63,11 +63,13 @@ final class SwapOfferSssSignForm extends FormBase {
       '#type' => 'value',
       '#value' => (int) $offer['id'],
     ];
-    $form['intent_hash'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Intent hash'),
-      '#markup' => (string) ($offer['intent_hash'] ?: $this->t('No intent hash has been generated.')),
-    ];
+    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers')) {
+      $form['intent_hash'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Intent hash'),
+        '#markup' => (string) ($offer['intent_hash'] ?: $this->t('No intent hash has been generated.')),
+      ];
+    }
     $form['signer'] = [
       '#type' => 'item',
       '#title' => $this->t('Required aggregate signer account'),
@@ -80,7 +82,7 @@ final class SwapOfferSssSignForm extends FormBase {
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('Unsigned payload sent to SSS'),
+      '#title' => $this->t('Unsigned payload sent to external app'),
       '#value' => $unsigned_payload,
       '#rows' => 8,
       '#attributes' => [

@@ -687,6 +687,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains(str_repeat('C', 64));
     $assert_session->pageTextContains('Aggregate bonded is initiated by the taker.');
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
@@ -809,7 +811,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Signed payload');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $assert_session->statusCodeEquals(200);
-    $assert_session->fieldExists('Unsigned payload sent to SSS');
+    $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains(str_repeat('C', 64));
+    $assert_session->fieldExists('Unsigned payload sent to external app');
     $assert_session->fieldExists('Signed payload');
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
@@ -858,7 +862,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->buttonExists('Verify signed payload');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $assert_session->statusCodeEquals(200);
-    $assert_session->fieldExists('Unsigned payload sent to SSS');
+    $assert_session->pageTextNotContains('Intent hash');
+    $assert_session->pageTextNotContains(str_repeat('C', 64));
+    $assert_session->fieldExists('Unsigned payload sent to external app');
     $assert_session->fieldExists('Signed payload');
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
