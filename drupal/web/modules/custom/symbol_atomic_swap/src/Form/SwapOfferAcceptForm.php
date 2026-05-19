@@ -126,7 +126,7 @@ final class SwapOfferAcceptForm extends FormBase {
       ],
       'message' => [
         '#type' => 'item',
-        '#markup' => $this->t('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee. The taker network currency balance is checked before the QR payload is built.'),
+        '#markup' => $this->t('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee. The taker network currency balance is checked before the transaction is built.'),
       ],
     ];
     $form['transaction']['aggregate_complete_cost'] = [
@@ -139,7 +139,7 @@ final class SwapOfferAcceptForm extends FormBase {
       ],
       'message' => [
         '#type' => 'item',
-        '#markup' => $this->t('Aggregate complete transaction fee is paid by the taker account. The taker exchange mosaic balance and XYM fee balance are checked before the QR payload is built.'),
+        '#markup' => $this->t('Aggregate complete transaction fee is paid by the taker account. The taker exchange mosaic balance and XYM fee balance are checked before the transaction is built.'),
       ],
     ];
     $form['transaction']['deadline_hours'] = [
