@@ -132,8 +132,8 @@ symbol_atomic_swap.offer_submit_cosignature:
     _symbol_atomic_swap_offer_access: 'cosign'
     offerId: '\d+'
 
-symbol_atomic_swap.offer_cosign_with_sss:
-  path: '/symbol-atomic-swap/settlements/{offerId}/cosign-with-sss'
+symbol_atomic_swap.offer_cosign_with_external_app:
+  path: '/symbol-atomic-swap/settlements/{offerId}/cosign-with-external-app'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSssCosignForm'
     _title: 'Cosign'

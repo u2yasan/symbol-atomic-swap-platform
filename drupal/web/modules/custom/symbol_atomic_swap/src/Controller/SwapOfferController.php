@@ -318,7 +318,7 @@ final class SwapOfferController extends ControllerBase {
       'cosign_with_sss' => [
         '#type' => 'link',
         '#title' => $can_submit_bonded_cosignature ? $this->t('Cosign and announce partial') : $this->t('Cosign with external app'),
-        '#url' => Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_cosign_with_external_app', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
           && ((!$is_aggregate_bonded && $can_submit_signed_payload && $can_current_user_cosign_complete) || $can_submit_bonded_cosignature),
         '#attributes' => ['class' => ['button', 'button--primary']],

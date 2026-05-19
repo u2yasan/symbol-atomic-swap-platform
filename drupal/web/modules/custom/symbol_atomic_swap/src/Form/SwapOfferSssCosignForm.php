@@ -78,14 +78,24 @@ final class SwapOfferSssCosignForm extends FormBase {
       '#access' => $this->currentUser()->hasPermission('administer symbol atomic swap offers'),
     ];
     $form['expected_signer'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Expected cosigner public key'),
-      '#markup' => $expected_cosigner_address !== ''
-        ? $expected_cosigner_address . ' / ' . $expected_cosigner
-        : $expected_cosigner,
-      '#description' => $is_bonded_cosignature
-        ? $this->t('SSS must be set to the maker account that has not signed the partial aggregate yet.')
-        : $this->t('SSS must be set to the non-root signer account before cosigning. The aggregate signer account must use Sign with SSS instead.'),
+      '#type' => 'container',
+      'heading' => [
+        '#type' => 'item',
+        '#title' => $this->t('Expected cosigner public key'),
+        '#description' => $is_bonded_cosignature
+          ? $this->t('SSS must be set to the maker account that has not signed the partial aggregate yet.')
+          : $this->t('SSS must be set to the non-root signer account before cosigning. The aggregate signer account must use Sign with SSS instead.'),
+      ],
+      'address' => [
+        '#type' => 'item',
+        '#title' => $this->t('Address'),
+        '#markup' => $expected_cosigner_address !== '' ? $expected_cosigner_address : $this->t('Unavailable'),
+      ],
+      'public_key' => [
+        '#type' => 'item',
+        '#title' => $this->t('Public Key'),
+        '#markup' => $expected_cosigner,
+      ],
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',

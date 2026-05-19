@@ -731,7 +731,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Cosign and announce partial');
     $assert_session->linkNotExists('Submit signed payload');
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-external-app');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Root signed payload sent to SSS');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
@@ -799,7 +799,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->assertSession()->statusCodeEquals(403);
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/assemble-signed-payload');
     $this->assertSession()->statusCodeEquals(403);
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-external-app');
     $this->assertSession()->statusCodeEquals(403);
 
     $non_owner_operator = $this->drupalCreateUser([
@@ -832,7 +832,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/assemble-signed-payload');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Root signed payload');
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-external-app');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Cosignature JSON or aLice signature');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
@@ -890,13 +890,17 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Aggregate signer JSON');
     $assert_session->buttonExists('Build and verify root signed payload');
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-external-app');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Parent hash fallback');
     $assert_session->fieldExists('Cosignature JSON or aLice signature');
+    $assert_session->pageTextContains('Expected cosigner public key');
     $assert_session->pageTextContains('SSS must be set to the non-root signer account before cosigning.');
+    $assert_session->pageTextContains('Address');
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
+    $assert_session->pageTextContains('Public Key');
+    $assert_session->pageTextContains(str_repeat('B', 64));
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
