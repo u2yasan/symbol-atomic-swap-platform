@@ -213,6 +213,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Transaction deadline hours');
     $assert_session->buttonExists('Accept and build QR');
     $assert_session->pageTextContains('Maker pays 1.00 of 72C0212E67A08BCF and wants 1.000000 of symbol.xym (72C0212E67A08BCE).');
+    $assert_session->pageTextContains('Aggregate complete transaction fee is paid by the taker account.');
 
     $this->submitForm([
       'transaction[deadline_hours]' => '6',
@@ -222,6 +223,59 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->assertSame('6', (string) $offer['deadline_hours']);
     $this->assertSame('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI', $offer['leg1_recipient_address']);
     $this->assertSame('D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16', $offer['leg2_signer_public_key']);
+  }
+
+  /**
+   * Accepting an offer requires taker exchange mosaic and fee balances.
+   */
+  public function testAcceptOfferRequiresTakerFundingBalances(): void {
+    $this->installAccountPublicKeyResolverStub();
+    \Drupal::state()->set('symbol_atomic_swap.account_mosaic_balance_test_overrides', [
+      'testnet' => [
+        'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI' => [
+          '72C0212E67A08BCE' => [
+            'amount' => '100000000',
+          ],
+          '72C0212E67A08BCF' => [
+            'amount' => '19999',
+          ],
+        ],
+      ],
+    ]);
+    $operator = $this->drupalCreateUser([
+      'view symbol atomic swap offers',
+      'operate symbol atomic swap offers',
+    ]);
+    $this->verifySymbolAccount(
+      $operator,
+      'testnet',
+      'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
+      'D82CF80BDA16BE82EB8ED09995DC3CC5DA56E22D4B75E9B9F44B3FA51543AC16',
+    );
+    $repository = \Drupal::service('symbol_atomic_swap.offer_repository');
+    $id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-accept-insufficient-taker-mosaic',
+      'label' => 'Accept insufficient taker mosaic offer',
+      'state' => 'open',
+      'leg2_mosaic_id' => '72C0212E67A08BCF',
+      'leg2_amount' => '20000',
+      'intent_hash' => NULL,
+      'unsigned_payload' => NULL,
+      'qr_payload' => NULL,
+      'transaction_hash' => NULL,
+      'uid' => (int) $operator->id(),
+    ]));
+
+    $this->drupalLogin($operator);
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/accept');
+    $this->submitForm([
+      'transaction[deadline_hours]' => '2',
+    ], 'Accept and build QR');
+
+    $assert_session = $this->assertSession();
+    $assert_session->pageTextContains('Taker account needs at least 20000 atomic units of mosaic 72C0212E67A08BCF');
+    $offer = $repository->find($id);
+    $this->assertSame('open', $offer['state']);
   }
 
   /**

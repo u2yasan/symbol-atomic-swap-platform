@@ -130,6 +130,19 @@ final class SwapOfferAcceptForm extends FormBase {
         '#markup' => $this->t('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee. The taker network currency balance is checked before the QR payload is built.'),
       ],
     ];
+    $form['transaction']['aggregate_complete_cost'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['messages', 'messages--warning']],
+      '#states' => [
+        'visible' => [
+          ':input[name="transaction[aggregate_type]"]' => ['value' => self::AGGREGATE_COMPLETE],
+        ],
+      ],
+      'message' => [
+        '#type' => 'item',
+        '#markup' => $this->t('Aggregate complete transaction fee is paid by the taker account. The taker exchange mosaic balance and XYM fee balance are checked before the QR payload is built.'),
+      ],
+    ];
     $form['transaction']['deadline_hours'] = [
       '#type' => 'number',
       '#title' => $this->t('Transaction deadline hours'),
@@ -194,9 +207,7 @@ final class SwapOfferAcceptForm extends FormBase {
       return;
     }
 
-    if ($aggregate_type === self::AGGREGATE_BONDED) {
-      $this->validateAggregateBondedCurrencyBalance($form_state, $verified_symbol_account);
-    }
+    $this->validateTakerFundingBalances($form_state, $verified_symbol_account, $aggregate_type);
 
     $form_state->set('symbol_atomic_swap_taker_address', (string) $verified_symbol_account['address']);
     $form_state->set('symbol_atomic_swap_taker_public_key', (string) $verified_symbol_account['public_key']);
@@ -288,40 +299,52 @@ final class SwapOfferAcceptForm extends FormBase {
   /**
    * @param array{network: string, address: string, public_key: string} $verified_symbol_account
    */
-  private function validateAggregateBondedCurrencyBalance(FormStateInterface $form_state, array $verified_symbol_account): void {
+  private function validateTakerFundingBalances(FormStateInterface $form_state, array $verified_symbol_account, string $aggregate_type): void {
     $network = (string) $this->offer['network'];
     $currency_mosaic_id = $this->networkCurrencyMosaicId($network);
     if ($currency_mosaic_id === '') {
-      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Network currency mosaic is not configured for aggregate bonded balance checks.'));
+      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Network currency mosaic is not configured for taker balance checks.'));
       return;
     }
 
-    try {
-      $balance = (string) ($this->accountMosaicBalance($network, (string) $verified_symbol_account['address'], $currency_mosaic_id)['amount'] ?? '0');
+    $required_by_mosaic = [
+      $currency_mosaic_id => self::HASH_LOCK_TRANSACTION_FEE_BUFFER,
+    ];
+    $leg2_mosaic_id = strtoupper((string) ($this->offer['leg2_mosaic_id'] ?? ''));
+    if ($leg2_mosaic_id !== '') {
+      $required_by_mosaic[$leg2_mosaic_id] = $this->addAtomic(
+        $required_by_mosaic[$leg2_mosaic_id] ?? '0',
+        (string) ($this->offer['leg2_amount'] ?? '0'),
+      );
     }
-    catch (SymbolEngineException | \InvalidArgumentException $exception) {
-      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Taker XYM balance could not be verified for aggregate bonded hash lock funding: @message', [
-        '@message' => $exception->getMessage(),
-      ]));
-      return;
+    if ($aggregate_type === self::AGGREGATE_BONDED) {
+      $hash_lock = $this->defaultHashLock($network);
+      $required_by_mosaic[$currency_mosaic_id] = $this->addAtomic(
+        $required_by_mosaic[$currency_mosaic_id] ?? '0',
+        $hash_lock['amount'],
+      );
     }
 
-    $required = $this->requiredAggregateBondedCurrencyAmount($network);
-    if ($this->compareAtomic($balance, $required) < 0) {
-      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Taker account needs at least @required atomic units of network currency for aggregate bonded funding, including the 10 XYM hash lock and transaction fee buffer. Current balance is @balance.', [
-        '@required' => $required,
-        '@balance' => $balance,
-      ]));
-    }
-  }
+    foreach ($required_by_mosaic as $mosaic_id => $required) {
+      try {
+        $balance = (string) ($this->accountMosaicBalance($network, (string) $verified_symbol_account['address'], $mosaic_id)['amount'] ?? '0');
+      }
+      catch (SymbolEngineException | \InvalidArgumentException $exception) {
+        $form_state->setErrorByName('transaction][aggregate_type', $this->t('Taker balance could not be verified for mosaic @mosaic: @message', [
+          '@mosaic' => $mosaic_id,
+          '@message' => $exception->getMessage(),
+        ]));
+        continue;
+      }
 
-  private function requiredAggregateBondedCurrencyAmount(string $network): string {
-    $hash_lock = $this->defaultHashLock($network);
-    $required = $this->addAtomic($hash_lock['amount'], self::HASH_LOCK_TRANSACTION_FEE_BUFFER);
-    if (strtoupper((string) ($this->offer['leg2_mosaic_id'] ?? '')) === $this->networkCurrencyMosaicId($network)) {
-      $required = $this->addAtomic($required, (string) ($this->offer['leg2_amount'] ?? '0'));
+      if ($this->compareAtomic($balance, $required) < 0) {
+        $form_state->setErrorByName('transaction][aggregate_type', $this->t('Taker account needs at least @required atomic units of mosaic @mosaic for the selected aggregate transaction type. Current balance is @balance.', [
+          '@required' => $required,
+          '@mosaic' => $mosaic_id,
+          '@balance' => $balance,
+        ]));
+      }
     }
-    return $required;
   }
 
   /**
