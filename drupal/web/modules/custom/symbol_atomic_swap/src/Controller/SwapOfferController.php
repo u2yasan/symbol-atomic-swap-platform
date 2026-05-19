@@ -337,7 +337,7 @@ final class SwapOfferController extends ControllerBase {
       'sign_with_sss' => [
         '#type' => 'link',
         '#title' => $this->t('Sign with external app'),
-        '#url' => Url::fromRoute('symbol_atomic_swap.offer_sign_with_sss', ['offerId' => $offer['id']]),
+        '#url' => Url::fromRoute('symbol_atomic_swap.offer_sign_with_external_app', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
           && $can_submit_signed_payload
           && ($state === 'qr_generated' || ($is_aggregate_bonded && $state === 'root_signed')),
@@ -794,7 +794,7 @@ final class SwapOfferController extends ControllerBase {
       if ($this->offers->canSubmitSignedPayload($offer)) {
         $state = (string) ($offer['state'] ?? '');
         if ($state === 'qr_generated' || ($is_aggregate_bonded && $state === 'root_signed')) {
-          $operations[] = Link::fromTextAndUrl($this->t('Sign with external app'), Url::fromRoute('symbol_atomic_swap.offer_sign_with_sss', ['offerId' => $offer['id']]))->toString();
+          $operations[] = Link::fromTextAndUrl($this->t('Sign with external app'), Url::fromRoute('symbol_atomic_swap.offer_sign_with_external_app', ['offerId' => $offer['id']]))->toString();
         }
         if (
           !$is_aggregate_bonded
