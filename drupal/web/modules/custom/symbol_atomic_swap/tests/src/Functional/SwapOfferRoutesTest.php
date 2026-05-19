@@ -1126,6 +1126,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
     $assert_session->pageTextNotContains('Root transaction hash');
+    $assert_session->pageTextNotContains('Public settlement JSON');
+
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/qr-payload/' . str_repeat('C', 64));
+    $assert_session->statusCodeEquals(403);
   }
 
   /**

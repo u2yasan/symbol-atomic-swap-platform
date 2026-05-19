@@ -411,21 +411,23 @@ final class SwapOfferController extends ControllerBase {
       ],
     ];
 
-    $build['details'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Public settlement JSON'),
-      '#open' => FALSE,
-      'payload' => [
-      '#type' => 'textarea',
-      '#title' => $this->t('Public settlement JSON'),
-      '#value' => json_encode($this->publicOfferDebugData($offer, $is_admin), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
-      '#rows' => 24,
-      '#attributes' => [
-        'readonly' => 'readonly',
-        'spellcheck' => 'false',
-      ],
-      ],
-    ];
+    if ($is_admin) {
+      $build['details'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Public settlement JSON'),
+        '#open' => FALSE,
+        'payload' => [
+          '#type' => 'textarea',
+          '#title' => $this->t('Public settlement JSON'),
+          '#value' => json_encode($this->publicOfferDebugData($offer, TRUE), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+          '#rows' => 24,
+          '#attributes' => [
+            'readonly' => 'readonly',
+            'spellcheck' => 'false',
+          ],
+        ],
+      ];
+    }
 
     return $build;
   }

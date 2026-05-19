@@ -37,7 +37,7 @@ symbol_atomic_swap.offer_qr_payload:
     _controller: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::qrPayload'
     _title_callback: '\Drupal\symbol_atomic_swap\Controller\SwapOfferController::qrPayloadTitle'
   requirements:
-    _access: 'TRUE'
+    _permission: 'administer symbol atomic swap offers'
     offerId: '\d+'
     intentHash: '[0-9A-Fa-f]{64}'
 
