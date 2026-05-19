@@ -56,7 +56,7 @@ final class SwapOfferProjectionSynchronizer {
     $this->offers->applyProjection($offer_id, $projection);
     $next_state = (string) ($projection['state'] ?? '');
     if ($next_state !== '' && $next_state !== $previous_state) {
-      $this->notifyStateChange($offer_id, $next_state);
+      $this->notifyStateChange($offer_id, $next_state, $projection);
     }
 
     return [
@@ -66,7 +66,10 @@ final class SwapOfferProjectionSynchronizer {
     ];
   }
 
-  private function notifyStateChange(int $offer_id, string $state): void {
+  /**
+   * @param array<string, mixed> $projection
+   */
+  private function notifyStateChange(int $offer_id, string $state, array $projection): void {
     switch ($state) {
       case 'finalized':
         $this->notifications->createOnce($offer_id, 'offer_finalized', 'status', 'Atomic settlement transaction was finalized on-chain.');
@@ -77,13 +80,32 @@ final class SwapOfferProjectionSynchronizer {
         break;
 
       case 'failed':
-        $this->notifications->createOnce($offer_id, 'offer_failed', 'error', 'Atomic settlement transaction failed on-chain.');
+        $failure_code = self::failureCodeFromProjection($projection);
+        $message = 'Atomic settlement transaction failed on-chain.';
+        if ($failure_code !== '') {
+          $message .= ' Failure code: ' . $failure_code . '.';
+        }
+        $this->notifications->createOnce($offer_id, 'offer_failed', 'error', $message);
         break;
 
       case 'rolled_back':
         $this->notifications->createOnce($offer_id, 'offer_rolled_back', 'error', 'Atomic settlement transaction was rolled back before finalization.');
         break;
     }
+  }
+
+  /**
+   * @param array<string, mixed> $projection
+   */
+  public static function failureCodeFromProjection(array $projection): string {
+    $last_event_key = (string) ($projection['lastEventKey'] ?? '');
+    if ($last_event_key === '') {
+      return '';
+    }
+
+    $parts = explode(':', $last_event_key);
+    $status_code = (string) end($parts);
+    return preg_match('/^Failure_[A-Za-z0-9_]+$/', $status_code) === 1 ? $status_code : '';
   }
 
 }

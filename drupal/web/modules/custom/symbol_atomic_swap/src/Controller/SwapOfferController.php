@@ -15,6 +15,7 @@ use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
 use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
 use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_atomic_swap\Service\SwapOfferProjectionSynchronizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -169,6 +170,20 @@ final class SwapOfferController extends ControllerBase {
       ]);
     }
 
+    $projection_rows = [
+      [$this->t('Projection state'), (string) ($offer['projection_state'] ?: '')],
+      [$this->t('Block height'), (string) ($offer['block_height'] ?: '')],
+      [$this->t('Finalized height'), (string) ($offer['finalized_height'] ?: '')],
+      [$this->t('Projection updated at'), $this->formatDateTime($offer['projection_updated_at'] ?? NULL)],
+      [$this->t('Manual sync allowed'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
+      [$this->t('Automatic sync eligible'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
+    ];
+
+    $failure_code = $this->projectionFailureCode($offer);
+    if ($failure_code !== '') {
+      $projection_rows[] = [$this->t('Failure code'), $failure_code];
+    }
+
     $build = [
       '#cache' => [
         'max-age' => 0,
@@ -215,14 +230,7 @@ final class SwapOfferController extends ControllerBase {
         '#type' => 'details',
         '#title' => $this->t('Projection'),
         '#open' => TRUE,
-        'table' => $this->keyValueTable([
-          [$this->t('Projection state'), (string) ($offer['projection_state'] ?: '')],
-          [$this->t('Block height'), (string) ($offer['block_height'] ?: '')],
-          [$this->t('Finalized height'), (string) ($offer['finalized_height'] ?: '')],
-          [$this->t('Projection updated at'), $this->formatDateTime($offer['projection_updated_at'] ?? NULL)],
-          [$this->t('Manual sync allowed'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
-          [$this->t('Automatic sync eligible'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
-        ]),
+        'table' => $this->keyValueTable($projection_rows),
       ],
     ];
 
@@ -386,6 +394,27 @@ final class SwapOfferController extends ControllerBase {
     }
 
     return $build;
+  }
+
+  /**
+   * @param array<string, mixed> $offer
+   */
+  private function projectionFailureCode(array $offer): string {
+    if (($offer['projection_state'] ?? $offer['state'] ?? '') !== 'failed') {
+      return '';
+    }
+    if (empty($offer['network']) || empty($offer['transaction_hash'])) {
+      return '';
+    }
+
+    try {
+      $projection = $this->engineClient->projection((string) $offer['network'], (string) $offer['transaction_hash']);
+    }
+    catch (SymbolEngineException | \InvalidArgumentException) {
+      return '';
+    }
+
+    return SwapOfferProjectionSynchronizer::failureCodeFromProjection($projection);
   }
 
   public function qrPayload($offerId, string $intentHash): array {

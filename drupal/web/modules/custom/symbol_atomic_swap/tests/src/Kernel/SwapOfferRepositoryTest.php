@@ -8,6 +8,7 @@ use Drupal\Core\Database\IntegrityConstraintViolationException;
 use Drupal\Core\Queue\DatabaseQueue;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
+use Drupal\symbol_atomic_swap\Service\SwapOfferProjectionSynchronizer;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -59,6 +60,18 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
     $this->assertSame('1778716800', (string) $offer['projection_updated_at']);
     $this->assertSame(str_repeat('D', 64), $offer['transaction_hash']);
     $this->assertEmpty($offer['finalized_height']);
+  }
+
+  /**
+   * Failed projection status codes are extracted from Symbol Engine event keys.
+   */
+  public function testFailureCodeFromProjectionExtractsStatusCode(): void {
+    $this->assertSame('Failure_Core_Past_Deadline', SwapOfferProjectionSynchronizer::failureCodeFromProjection([
+      'lastEventKey' => 'testnet:' . str_repeat('D', 64) . ':TransactionFailed:0:0:Failure_Core_Past_Deadline',
+    ]));
+    $this->assertSame('', SwapOfferProjectionSynchronizer::failureCodeFromProjection([
+      'lastEventKey' => 'testnet:' . str_repeat('D', 64) . ':TransactionConfirmed:10:0:',
+    ]));
   }
 
   /**
