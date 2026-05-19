@@ -82,7 +82,6 @@ final class SwapOfferAcceptForm extends FormBase {
       '#type' => 'item',
       '#title' => $this->t('Taker recipient address'),
       '#markup' => $this->plainValue((string) ($verified_symbol_account['address'] ?? '')),
-      '#description' => $this->t('Uses the verified address from My Symbol Account. Remove and re-register that account to change it.'),
     ];
     if (!$can_use_verified_account) {
       $form['taker']['account_verification_required'] = [
@@ -156,7 +155,7 @@ final class SwapOfferAcceptForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Accept and build QR'),
+      '#value' => $this->t('Accept and build Transaction'),
       '#button_type' => 'primary',
       '#disabled' => !$this->offers->canAccept($offer) || !$can_use_verified_account,
     ];

@@ -152,7 +152,7 @@ final class TakeListingForm extends ConfirmFormBase {
       'address' => (string) $taker['address'],
       'public_key' => (string) $taker['public_key'],
     ]);
-    $this->messenger()->addStatus($this->t('Atomic settlement was created from the listing. Review and build the QR payload.'));
+    $this->messenger()->addStatus($this->t('Atomic settlement was created from the listing. Review and build the transaction.'));
     $form_state->setRedirect('symbol_atomic_swap.offer_accept', ['offerId' => $offer_id]);
   }
 

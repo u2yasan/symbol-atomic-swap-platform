@@ -208,16 +208,16 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldNotExists('Taker recipient address');
     $assert_session->pageTextContains('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI');
-    $assert_session->pageTextContains('Uses the verified address from My Symbol Account.');
+    $assert_session->pageTextNotContains('Uses the verified address from My Symbol Account.');
     $assert_session->fieldNotExists('Resolved taker public key');
     $assert_session->fieldExists('Transaction deadline hours');
-    $assert_session->buttonExists('Accept and build QR');
+    $assert_session->buttonExists('Accept and build Transaction');
     $assert_session->pageTextContains('Maker pays 1.00 of 72C0212E67A08BCF and wants 1.000000 of symbol.xym (72C0212E67A08BCE).');
     $assert_session->pageTextContains('Aggregate complete transaction fee is paid by the taker account.');
 
     $this->submitForm([
       'transaction[deadline_hours]' => '6',
-    ], 'Accept and build QR');
+    ], 'Accept and build Transaction');
 
     $offer = $repository->find($id);
     $this->assertSame('6', (string) $offer['deadline_hours']);
@@ -270,7 +270,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/accept');
     $this->submitForm([
       'transaction[deadline_hours]' => '2',
-    ], 'Accept and build QR');
+    ], 'Accept and build Transaction');
 
     $assert_session = $this->assertSession();
     $assert_session->pageTextContains('Taker account needs at least 20000 atomic units of mosaic 72C0212E67A08BCF');
@@ -325,7 +325,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->submitForm([
       'transaction[aggregate_type]' => 'aggregate_bonded',
       'transaction[deadline_hours]' => '48',
-    ], 'Accept and build QR');
+    ], 'Accept and build Transaction');
 
     $offer = $repository->find($id);
     $this->assertSame('48', (string) $offer['deadline_hours']);
@@ -668,7 +668,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Submit cosignature JSON');
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
 
@@ -678,7 +678,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Submit cosignature JSON');
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
     $assert_session->pageTextNotContains('Intent hash');
@@ -845,7 +845,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextNotContains('Operations');
     $assert_session->linkNotExists('Sign with external app');
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
@@ -853,7 +853,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign with external app');
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
@@ -919,10 +919,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Cosign with SSS or aLice');
+    $assert_session->linkExists('Cosign with external app');
     $assert_session->linkNotExists('Assemble signed payload');
 
     \Drupal::service('symbol_atomic_swap.offer_cosignature_repository')->upsert([
@@ -951,10 +951,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($taker_operator);
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
 
     $this->drupalLogin($operator);
     $repository->markSigned($id, str_repeat('D', 64));
@@ -962,7 +962,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Sign with external app');
-    $assert_session->linkNotExists('Cosign with SSS or aLice');
+    $assert_session->linkNotExists('Cosign with external app');
     $assert_session->linkNotExists('Announce transaction');
     $assert_session->linkNotExists('Sync projection');
 
