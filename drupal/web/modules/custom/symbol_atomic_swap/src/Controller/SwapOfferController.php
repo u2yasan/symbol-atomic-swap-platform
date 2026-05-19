@@ -65,11 +65,6 @@ final class SwapOfferController extends ControllerBase {
         Link::fromTextAndUrl((string) $offer['label'], Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
         $this->stateLabel((string) $offer['state']),
         $this->formatDateTime($offer['changed']),
-        [
-          'data' => [
-            '#markup' => implode(' | ', $this->operationLinks($offer)),
-          ],
-        ],
       ];
     }
 
@@ -93,7 +88,6 @@ final class SwapOfferController extends ControllerBase {
           $this->t('Settlement'),
           $this->t('State'),
           $this->t('Changed'),
-          $this->t('Operations'),
         ],
         '#rows' => $rows,
         '#empty' => $this->t('No atomic settlements have been created.'),
@@ -776,71 +770,6 @@ final class SwapOfferController extends ControllerBase {
         ],
       ],
     ];
-  }
-
-  /**
-   * @param array<string, mixed> $offer
-   *
-   * @return string[]
-   */
-  private function operationLinks(array $offer): array {
-    $is_aggregate_bonded = $this->isAggregateBondedPayload($this->decodedQrPayload($offer));
-    $operations = [
-      Link::fromTextAndUrl($this->t('View'), Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
-    ];
-    if ($this->currentUser()->hasPermission('operate symbol atomic swap offers')) {
-      $can_submit_bonded_cosignature = $this->offers->canSubmitBondedCosignature($offer);
-      if ($this->offers->canAccept($offer)) {
-        $operations[] = Link::fromTextAndUrl($this->t('Finalize settlement'), Url::fromRoute('symbol_atomic_swap.offer_accept', ['offerId' => $offer['id']]))->toString();
-      }
-      if ($this->offers->canSubmitSignedPayload($offer)) {
-        $state = (string) ($offer['state'] ?? '');
-        if ($state === 'qr_generated' || ($is_aggregate_bonded && $state === 'root_signed')) {
-          $operations[] = Link::fromTextAndUrl($this->t('Sign with external app'), Url::fromRoute('symbol_atomic_swap.offer_sign_with_external_app', ['offerId' => $offer['id']]))->toString();
-        }
-        if (
-          !$is_aggregate_bonded
-          && $state === 'root_signed'
-          && $this->currentUserMatchesSigner($offer, $this->expectedCompleteCosigner($offer))
-        ) {
-          $operations[] = Link::fromTextAndUrl($this->t('Cosign with SSS or aLice'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
-        }
-        if (
-          !$is_aggregate_bonded
-          && $state === 'root_signed'
-          && !empty($offer['root_signed_payload'])
-          && $this->cosignatures->assemblyPayloadsByOffer((int) $offer['id']) !== []
-        ) {
-          $operations[] = Link::fromTextAndUrl($this->t('Assemble signed payload'), Url::fromRoute('symbol_atomic_swap.offer_assemble_signed_payload', ['offerId' => $offer['id']]))->toString();
-        }
-      }
-      if ($can_submit_bonded_cosignature) {
-        $operations[] = Link::fromTextAndUrl($this->t('Cosign and announce partial'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
-      }
-      if (!$is_aggregate_bonded && $this->offers->canAnnounce($offer)) {
-        $operations[] = Link::fromTextAndUrl($this->t('Announce transaction'), Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]))->toString();
-      }
-      if ($this->canRunBondedPartialAnnouncement($offer, $this->decodedQrPayload($offer))) {
-        $operations[] = Link::fromTextAndUrl(
-          $this->t('Sign hash lock and announce partial'),
-          Url::fromRoute('symbol_atomic_swap.offer_bonded_partial_announce', ['offerId' => $offer['id']]),
-        )->toString();
-      }
-      if ($this->offers->canSyncProjection($offer)) {
-        $operations[] = Link::fromTextAndUrl($this->t('Sync projection'), Url::fromRoute('symbol_atomic_swap.offer_sync_projection', ['offerId' => $offer['id']]))->toString();
-      }
-      if ($this->canCurrentUserCancelOffer($offer)) {
-        $operations[] = Link::fromTextAndUrl($this->t('Cancel settlement'), Url::fromRoute('symbol_atomic_swap.offer_cancel', ['offerId' => $offer['id']]))->toString();
-      }
-    }
-    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers') && $this->offers->canEdit($offer)) {
-      $operations[] = Link::fromTextAndUrl($this->t('Edit'), Url::fromRoute('symbol_atomic_swap.offer_edit', ['offerId' => $offer['id']]))->toString();
-    }
-    if ($this->currentUser()->hasPermission('administer symbol atomic swap offers') && $this->offers->canDelete($offer)) {
-      $operations[] = Link::fromTextAndUrl($this->t('Delete'), Url::fromRoute('symbol_atomic_swap.offer_delete', ['offerId' => $offer['id']]))->toString();
-    }
-
-    return $operations;
   }
 
   private function stateLabel(string $state): string {
