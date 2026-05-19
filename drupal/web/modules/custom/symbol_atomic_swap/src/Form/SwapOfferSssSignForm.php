@@ -244,12 +244,8 @@ final class SwapOfferSssSignForm extends FormBase {
 
       $this->offers->markRootSigned($offer_id, $payload, (string) $result['transactionHash']);
       $this->messenger()->addStatus($this->isAggregateBonded($offer)
-        ? $this->t('Root signed payload was verified. Next, build and announce the taker-funded hash lock, then announce the aggregate bonded transaction as partial. Normalized size: @bytes bytes.', [
-          '@bytes' => (string) intdiv(strlen($payload), 2),
-        ])
-        : $this->t('Root signed payload was verified. Next, collect the taker cosignature and assemble the final signed payload. Normalized size: @bytes bytes.', [
-        '@bytes' => (string) intdiv(strlen($payload), 2),
-        ]));
+        ? $this->t('Root signed payload was verified. Next, build and announce the taker-funded hash lock, then announce the aggregate bonded transaction as partial.')
+        : $this->t('Root signed payload was verified. Next, collect the taker cosignature and assemble the final signed payload.'));
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
     }
     catch (SymbolEngineException $exception) {

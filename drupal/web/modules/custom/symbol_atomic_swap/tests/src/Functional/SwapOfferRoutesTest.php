@@ -442,9 +442,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Root transaction hash');
     $assert_session->pageTextContains('Atomic settlement transaction was confirmed but is not finalized yet.');
     $assert_session->pageTextContains('status / unread');
-    $assert_session->pageTextContains('QR payload');
-    $assert_session->pageTextContains('QR URL');
-    $assert_session->pageTextContains('"type": "symbol-aggregate-complete"');
+    $assert_session->pageTextNotContains('QR payload');
+    $assert_session->pageTextNotContains('QR URL');
+    $assert_session->pageTextNotContains('"type": "symbol-aggregate-complete"');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->pageTextContains('Public settlement JSON');
 

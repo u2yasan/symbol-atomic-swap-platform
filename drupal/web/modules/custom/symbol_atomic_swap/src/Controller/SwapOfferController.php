@@ -233,44 +233,6 @@ final class SwapOfferController extends ControllerBase {
       ];
     }
 
-    if ($qr_payload !== [] && $is_admin) {
-      $qr_url = Url::fromRoute('symbol_atomic_swap.offer_qr_payload', [
-        'offerId' => $offer['id'],
-        'intentHash' => $offer['intent_hash'],
-      ], ['absolute' => TRUE])->toString();
-      $build['qr'] = [
-        '#type' => 'container',
-        '#attributes' => [
-          'class' => ['symbol-atomic-swap-qr'],
-          'data-qr-payload' => $qr_url,
-        ],
-        'url' => [
-          '#type' => 'container',
-          'label' => [
-            '#type' => 'html_tag',
-            '#tag' => 'strong',
-            '#value' => (string) $this->t('QR URL'),
-          ],
-          'value' => $this->copyValue($qr_url),
-        ],
-      ];
-      $build['qr_payload'] = [
-        '#type' => 'details',
-        '#title' => $this->t('QR payload'),
-        '#open' => FALSE,
-        'payload' => [
-        '#type' => 'textarea',
-        '#title' => $this->t('QR payload'),
-        '#value' => json_encode($qr_payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
-        '#rows' => 8,
-        '#attributes' => [
-          'readonly' => 'readonly',
-          'spellcheck' => 'false',
-        ],
-        ],
-      ];
-    }
-
     if ($this->isAggregateBondedPayload($qr_payload)) {
       $build['aggregate_bonded_workflow'] = $this->aggregateBondedWorkflow($offer, $qr_payload, $is_admin);
     }
