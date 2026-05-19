@@ -82,9 +82,6 @@ final class SwapOfferSssCosignForm extends FormBase {
       'heading' => [
         '#type' => 'item',
         '#title' => $this->t('Expected cosigner public key'),
-        '#description' => $is_bonded_cosignature
-          ? $this->t('SSS must be set to the maker account that has not signed the partial aggregate yet.')
-          : $this->t('SSS must be set to the non-root signer account before cosigning. The aggregate signer account must use Sign with SSS instead.'),
       ],
       'address' => [
         '#type' => 'item',
@@ -100,7 +97,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['unsigned_payload'] = [
       '#type' => 'textarea',
       '#title' => $is_bonded_cosignature || !empty($offer['root_signed_payload'])
-        ? $this->t('Root signed payload sent to SSS')
+        ? $this->t('Root signed payload sent to signing app')
         : $this->t('Unsigned payload sent to SSS'),
       '#value' => $payload_for_sss,
       '#rows' => 8,
@@ -109,20 +106,26 @@ final class SwapOfferSssCosignForm extends FormBase {
         'spellcheck' => 'false',
       ],
     ];
-    $form['parent_hash'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Parent hash fallback'),
-      '#default_value' => $parent_hash,
-      '#description' => $this->t('Used only when SSS does not return a hash. This must be the root transaction hash produced by the aggregate signer signature.'),
-      '#attributes' => [
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-        'data-symbol-sss-parent-hash' => '1',
-      ],
-    ];
     $form['sss'] = [
-      '#type' => 'container',
+      '#type' => 'details',
+      '#title' => $this->t('Browser signing with SSS Extension'),
+      '#open' => FALSE,
       '#attributes' => ['class' => ['symbol-atomic-swap-sss-sign']],
+      'notice' => [
+        '#type' => 'item',
+        '#markup' => $this->t('Use SSS Extension in this browser to cosign with the expected cosigner account. Confirm the active SSS account before cosigning.'),
+      ],
+      'parent_hash' => [
+        '#type' => 'textfield',
+        '#title' => $this->t('Parent hash fallback'),
+        '#default_value' => $parent_hash,
+        '#description' => $this->t('Used only when SSS does not return a hash. This must be the root transaction hash produced by the aggregate signer signature.'),
+        '#attributes' => [
+          'autocomplete' => 'off',
+          'spellcheck' => 'false',
+          'data-symbol-sss-parent-hash' => '1',
+        ],
+      ],
       'open' => [
         '#type' => 'link',
         '#title' => $this->t('Install SSS Extension'),
@@ -473,7 +476,8 @@ final class SwapOfferSssCosignForm extends FormBase {
    * @return array<string, mixed>|null
    */
   private function cosignatureFromSignature(string $signature, array $offer, FormStateInterface $form_state): ?array {
-    $parent_hash = $this->normalizeHex((string) $form_state->getValue('parent_hash', ''));
+    $sss_values = (array) $form_state->getValue('sss', []);
+    $parent_hash = $this->normalizeHex((string) ($sss_values['parent_hash'] ?? $form_state->getValue('parent_hash', '')));
     if ($parent_hash === '') {
       $parent_hash = $this->normalizeHex((string) (($offer['root_transaction_hash'] ?? '') ?: ($offer['transaction_hash'] ?? '')));
     }
