@@ -428,6 +428,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Test offer');
     $assert_session->pageTextContains('qr_generated');
     $assert_session->pageTextContains('Summary');
+    $assert_session->pageTextContains(\Drupal::service('date.formatter')->format(1700000000, 'custom', 'Y-m-d H:i'));
     $assert_session->pageTextContains('Trade terms');
     $assert_session->pageTextContains('Signer address');
     $assert_session->pageTextContains('symbol.xym (72C0212E67A08BCE)');

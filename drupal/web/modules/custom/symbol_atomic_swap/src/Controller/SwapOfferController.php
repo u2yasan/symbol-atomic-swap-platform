@@ -64,7 +64,7 @@ final class SwapOfferController extends ControllerBase {
       $rows[] = [
         Link::fromTextAndUrl((string) $offer['label'], Url::fromRoute('symbol_atomic_swap.offer_view', ['offerId' => $offer['id']]))->toString(),
         $this->stateLabel((string) $offer['state']),
-        $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : '',
+        $this->formatDateTime($offer['changed']),
         [
           'data' => [
             '#markup' => implode(' | ', $this->operationLinks($offer)),
@@ -164,9 +164,9 @@ final class SwapOfferController extends ControllerBase {
       [$this->t('State'), $this->stateLabel((string) $offer['state'])],
       [$this->t('Network'), (string) $offer['network']],
       [$this->t('Transaction hash'), $this->displayTransactionHash($offer)],
-      [$this->t('Created'), $offer['created'] ? $this->dateFormatter->format((int) $offer['created'], 'short') : ''],
-      [$this->t('Changed'), $offer['changed'] ? $this->dateFormatter->format((int) $offer['changed'], 'short') : ''],
-      [$this->t('Expired at'), !empty($offer['expired_at']) ? $this->dateFormatter->format((int) $offer['expired_at'], 'short') : ''],
+      [$this->t('Created'), $this->formatDateTime($offer['created'])],
+      [$this->t('Changed'), $this->formatDateTime($offer['changed'])],
+      [$this->t('Expired at'), $this->formatDateTime($offer['expired_at'] ?? NULL)],
     ];
     if ($is_admin) {
       array_splice($summary_rows, 2, 0, [
@@ -225,7 +225,7 @@ final class SwapOfferController extends ControllerBase {
           [$this->t('Projection state'), (string) ($offer['projection_state'] ?: '')],
           [$this->t('Block height'), (string) ($offer['block_height'] ?: '')],
           [$this->t('Finalized height'), (string) ($offer['finalized_height'] ?: '')],
-          [$this->t('Projection updated at'), !empty($offer['projection_updated_at']) ? $this->dateFormatter->format((int) $offer['projection_updated_at'], 'custom', 'Y-m-d H:i') : ''],
+          [$this->t('Projection updated at'), $this->formatDateTime($offer['projection_updated_at'] ?? NULL)],
           [$this->t('Manual sync allowed'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
           [$this->t('Automatic sync eligible'), $this->offers->canSyncProjection($offer) ? (string) $this->t('Yes') : (string) $this->t('No')],
         ]),
@@ -286,7 +286,7 @@ final class SwapOfferController extends ControllerBase {
       $notification_items[] = $this->t('@severity: @message (@created)', [
         '@severity' => $this->notificationLabel($notification),
         '@message' => (string) $notification['message'],
-        '@created' => $this->dateFormatter->format((int) $notification['created'], 'short'),
+        '@created' => $this->formatDateTime($notification['created']),
       ]);
     }
 
@@ -304,7 +304,7 @@ final class SwapOfferController extends ControllerBase {
         ['data' => $this->hashValue((string) $cosignature['parent_hash'])],
         ['data' => $this->addressValue((string) $cosignature['signer_public_key'], (string) $offer['network'])],
         !empty($cosignature['trusted_parent_hash']) ? $this->t('Yes') : $this->t('No'),
-        $cosignature['created'] ? $this->dateFormatter->format((int) $cosignature['created'], 'short') : '',
+        $this->formatDateTime($cosignature['created']),
       ];
     }
     if ($cosignature_rows !== []) {
@@ -862,6 +862,13 @@ final class SwapOfferController extends ControllerBase {
   private function notificationLabel(array $notification): string {
     $read_state = empty($notification['read_at']) ? 'unread' : 'read';
     return (string) $notification['severity'] . ' / ' . $read_state;
+  }
+
+  private function formatDateTime(mixed $timestamp): string {
+    if (empty($timestamp)) {
+      return '';
+    }
+    return $this->dateFormatter->format((int) $timestamp, 'custom', 'Y-m-d H:i');
   }
 
   /**
