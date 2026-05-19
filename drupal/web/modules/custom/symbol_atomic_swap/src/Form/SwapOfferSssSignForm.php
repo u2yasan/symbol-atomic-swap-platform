@@ -71,14 +71,24 @@ final class SwapOfferSssSignForm extends FormBase {
       ];
     }
     $form['signer'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Required aggregate signer account'),
-      '#markup' => $required_signer_address !== ''
-        ? $required_signer_address . ' / ' . $required_signer
-        : $required_signer,
-      '#description' => $is_aggregate_bonded
-        ? $this->t('Aggregate bonded is initiated by the taker. Root signed payload must be signed by this taker account.')
-        : $this->t('Root signed payload must be signed by this aggregate signer account. The other party cosigns after the root signature is stored.'),
+      '#type' => 'container',
+      'heading' => [
+        '#type' => 'item',
+        '#title' => $this->t('Required aggregate signer account'),
+        '#description' => $is_aggregate_bonded
+          ? $this->t('Aggregate bonded is initiated by the taker. Root signed payload must be signed by this taker account.')
+          : $this->t('Root signed payload must be signed by this aggregate signer account. The other party cosigns after the root signature is stored.'),
+      ],
+      'address' => [
+        '#type' => 'item',
+        '#title' => $this->t('Address'),
+        '#markup' => $required_signer_address !== '' ? $required_signer_address : $this->t('Unavailable'),
+      ],
+      'public_key' => [
+        '#type' => 'item',
+        '#title' => $this->t('Public Key'),
+        '#markup' => $required_signer,
+      ],
     ];
     $form['unsigned_payload'] = [
       '#type' => 'textarea',

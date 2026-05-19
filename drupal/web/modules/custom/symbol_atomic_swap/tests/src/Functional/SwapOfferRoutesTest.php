@@ -692,7 +692,9 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextNotContains(str_repeat('C', 64));
     $assert_session->pageTextContains('Aggregate bonded is initiated by the taker.');
     $assert_session->pageTextContains('Required aggregate signer account');
+    $assert_session->pageTextContains('Address');
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
+    $assert_session->pageTextContains('Public Key');
     $assert_session->pageTextContains(str_repeat('B', 64));
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
@@ -817,7 +819,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Unsigned payload sent to external app');
     $assert_session->fieldExists('Signed payload');
     $assert_session->pageTextContains('Required aggregate signer account');
+    $assert_session->pageTextContains('Address');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
+    $assert_session->pageTextContains('Public Key');
+    $assert_session->pageTextContains(str_repeat('A', 64));
     $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
@@ -869,7 +874,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Unsigned payload sent to external app');
     $assert_session->fieldExists('Signed payload');
     $assert_session->pageTextContains('Required aggregate signer account');
+    $assert_session->pageTextContains('Address');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
+    $assert_session->pageTextContains('Public Key');
+    $assert_session->pageTextContains(str_repeat('A', 64));
     $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
     $assert_session->pageTextContains('Browser signing with SSS Extension');
     $assert_session->pageTextContains('Use SSS Extension in this browser to sign the unsigned payload with the required aggregate signer account.');
