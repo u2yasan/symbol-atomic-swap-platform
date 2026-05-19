@@ -163,7 +163,7 @@ final class SwapOfferSssSignForm extends FormBase {
       '#title' => $this->t('Signed payload'),
       '#rows' => 10,
       '#required' => TRUE,
-      '#description' => $this->t('SSS fills this field after maker signature approval. Submit it to verify and store the root signed payload before collecting taker cosignatures.'),
+      '#description' => $this->t('Paste the root signed payload returned by the external signing app. Submit it to verify and store the maker signature before collecting taker cosignatures.'),
       '#attributes' => [
         'autocomplete' => 'off',
         'spellcheck' => 'false',
@@ -173,7 +173,7 @@ final class SwapOfferSssSignForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Verify SSS root signed payload'),
+      '#value' => $this->t('Verify root signed payload'),
       '#button_type' => 'primary',
       '#disabled' => !$this->offers->canSubmitSignedPayload($offer) || $unsigned_payload === '',
     ];
@@ -189,7 +189,7 @@ final class SwapOfferSssSignForm extends FormBase {
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (!$this->offers->canSubmitSignedPayload($this->offer)) {
-      $form_state->setErrorByName('payload', $this->t('SSS signing is only available for QR-generated or already signed settlements with a valid intent hash.'));
+      $form_state->setErrorByName('payload', $this->t('External app signing is only available for QR-generated or already signed settlements with a valid intent hash.'));
     }
     if ($this->normalizeHex((string) ($this->offer['unsigned_payload'] ?? '')) === '') {
       $form_state->setErrorByName('payload', $this->t('Unsigned payload is missing.'));
@@ -217,7 +217,7 @@ final class SwapOfferSssSignForm extends FormBase {
       $payload = $this->normalizeHex((string) $form_state->getValue('payload'));
       $result = $this->engineClient->verifyRootSignedPayload((string) $offer['intent_hash'], $payload);
       if (($result['accepted'] ?? FALSE) !== TRUE || empty($result['transactionHash'])) {
-        $this->messenger()->addError($this->t('SSS root signed payload was rejected: @reason', [
+        $this->messenger()->addError($this->t('Root signed payload was rejected: @reason', [
           '@reason' => $this->safeRejectionReason((string) ($result['reason'] ?? 'unknown_reason'), $offer),
         ]));
         $form_state->setRebuild(TRUE);
@@ -226,22 +226,22 @@ final class SwapOfferSssSignForm extends FormBase {
 
       $this->offers->markRootSigned($offer_id, $payload, (string) $result['transactionHash']);
       $this->messenger()->addStatus($this->isAggregateBonded($offer)
-        ? $this->t('SSS root signed payload was verified. Next, build and announce the taker-funded hash lock, then announce the aggregate bonded transaction as partial. Normalized size: @bytes bytes.', [
+        ? $this->t('Root signed payload was verified. Next, build and announce the taker-funded hash lock, then announce the aggregate bonded transaction as partial. Normalized size: @bytes bytes.', [
           '@bytes' => (string) intdiv(strlen($payload), 2),
         ])
-        : $this->t('SSS root signed payload was verified. Next, collect the taker cosignature and assemble the final signed payload. Normalized size: @bytes bytes.', [
+        : $this->t('Root signed payload was verified. Next, collect the taker cosignature and assemble the final signed payload. Normalized size: @bytes bytes.', [
         '@bytes' => (string) intdiv(strlen($payload), 2),
         ]));
       $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
     }
     catch (SymbolEngineException $exception) {
-      $this->messenger()->addError($this->t('SSS root signed payload verification failed: @reason', [
+      $this->messenger()->addError($this->t('Root signed payload verification failed: @reason', [
         '@reason' => $this->safeRejectionReason($this->engineFailureReason($exception), $offer),
       ]));
       $form_state->setRebuild(TRUE);
     }
     catch (\InvalidArgumentException | \RuntimeException) {
-      $this->messenger()->addError($this->t('SSS root signed payload verification failed: @reason', [
+      $this->messenger()->addError($this->t('Root signed payload verification failed: @reason', [
         '@reason' => 'verification_unavailable',
       ]));
       $form_state->setRebuild(TRUE);
