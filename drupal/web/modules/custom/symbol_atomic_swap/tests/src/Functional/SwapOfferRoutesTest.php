@@ -662,7 +662,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Bonded steps offer');
-    $assert_session->linkExists('Sign with SSS');
+    $assert_session->linkExists('Sign with external app');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Submit cosignature JSON');
@@ -672,7 +672,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Sign with SSS');
+    $assert_session->linkExists('Sign with external app');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Submit cosignature JSON');
@@ -684,7 +684,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextNotContains('Engine API payloads');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
 
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate bonded is initiated by the taker.');
     $assert_session->pageTextContains('Required aggregate signer account');
@@ -787,7 +787,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($viewer);
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-signed-payload');
     $this->assertSession()->statusCodeEquals(403);
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $this->assertSession()->statusCodeEquals(403);
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-aggregate-signer-json');
     $this->assertSession()->statusCodeEquals(403);
@@ -806,7 +806,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/submit-signed-payload');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Signed payload');
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
@@ -837,7 +837,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Sign with SSS');
+    $assert_session->linkExists('Sign with external app');
     $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
@@ -845,7 +845,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
 
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Sign with SSS');
+    $assert_session->linkExists('Sign with external app');
     $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
@@ -855,7 +855,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Signed payload');
     $assert_session->buttonExists('Verify signed payload');
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Unsigned payload sent to SSS');
     $assert_session->fieldExists('Signed payload');
@@ -895,7 +895,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
         'requiredCosigners' => [str_repeat('B', 64), str_repeat('A', 64)],
       ], JSON_THROW_ON_ERROR),
     ]);
-    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-sss');
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/sign-with-external-app');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->pageTextContains(str_repeat('B', 64));
@@ -951,7 +951,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkNotExists('Submit signed payload');
-    $assert_session->linkNotExists('Sign with SSS');
+    $assert_session->linkNotExists('Sign with external app');
     $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkExists('Announce transaction');
     $assert_session->linkExists('Sync projection');

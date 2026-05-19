@@ -106,10 +106,10 @@ symbol_atomic_swap.offer_submit_signed_payload:
     offerId: '\d+'
 
 symbol_atomic_swap.offer_sign_with_sss:
-  path: '/symbol-atomic-swap/settlements/{offerId}/sign-with-sss'
+  path: '/symbol-atomic-swap/settlements/{offerId}/sign-with-external-app'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SwapOfferSssSignForm'
-    _title: 'Sign with SSS'
+    _title: 'Sign with external app'
   requirements:
     _symbol_atomic_swap_offer_access: 'sign'
     offerId: '\d+'
