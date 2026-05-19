@@ -361,7 +361,7 @@ final class SwapOfferController extends ControllerBase {
       ],
       'cosign_with_sss' => [
         '#type' => 'link',
-        '#title' => $can_submit_bonded_cosignature ? $this->t('Cosign and announce partial with SSS') : $this->t('Cosign with SSS'),
+        '#title' => $can_submit_bonded_cosignature ? $this->t('Cosign and announce partial') : $this->t('Cosign with SSS or aLice'),
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
           && ((!$is_aggregate_bonded && $can_submit_signed_payload && $can_current_user_cosign_complete) || $can_submit_bonded_cosignature),
@@ -801,7 +801,7 @@ final class SwapOfferController extends ControllerBase {
           && $state === 'root_signed'
           && $this->currentUserMatchesSigner($offer, $this->expectedCompleteCosigner($offer))
         ) {
-          $operations[] = Link::fromTextAndUrl($this->t('Cosign with SSS'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
+          $operations[] = Link::fromTextAndUrl($this->t('Cosign with SSS or aLice'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
         }
         if (
           !$is_aggregate_bonded
@@ -813,7 +813,7 @@ final class SwapOfferController extends ControllerBase {
         }
       }
       if ($can_submit_bonded_cosignature) {
-        $operations[] = Link::fromTextAndUrl($this->t('Cosign and announce partial with SSS'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
+        $operations[] = Link::fromTextAndUrl($this->t('Cosign and announce partial'), Url::fromRoute('symbol_atomic_swap.offer_cosign_with_sss', ['offerId' => $offer['id']]))->toString();
       }
       if (!$is_aggregate_bonded && $this->offers->canAnnounce($offer)) {
         $operations[] = Link::fromTextAndUrl($this->t('Announce transaction'), Url::fromRoute('symbol_atomic_swap.offer_announce', ['offerId' => $offer['id']]))->toString();

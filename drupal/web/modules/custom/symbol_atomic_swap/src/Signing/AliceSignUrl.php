@@ -11,11 +11,11 @@ final class AliceSignUrl {
     $signer = self::normalizeHex($signer_public_key);
     $query = [
       'type' => 'request_sign_transaction',
-      'data' => $payload,
     ];
     if ($signer !== '') {
       $query['set_public_key'] = $signer;
     }
+    $query['data'] = $payload;
 
     return 'alice://sign?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
   }
@@ -26,11 +26,11 @@ final class AliceSignUrl {
     $query = [
       'type' => 'request_sign_cosignature',
       'method' => 'get',
-      'data' => $payload,
     ];
     if ($signer !== '') {
       $query['set_public_key'] = $signer;
     }
+    $query['data'] = $payload;
 
     return 'alice://sign?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
   }

@@ -21,6 +21,7 @@ final class SwapOfferAcceptForm extends FormBase {
   private const AGGREGATE_COMPLETE_MAX_DEADLINE_HOURS = 6;
   private const AGGREGATE_BONDED_MAX_DEADLINE_HOURS = 48;
   private const HASH_LOCK_MAX_DURATION_BLOCKS = 5760;
+  private const HASH_LOCK_TRANSACTION_FEE_BUFFER = '100000';
 
   /**
    * @var array<string, mixed>
@@ -116,6 +117,19 @@ final class SwapOfferAcceptForm extends FormBase {
       ],
       '#description' => $this->t('Aggregate complete requires all cosignatures before announcement. Aggregate bonded can be announced partially and then cosigned on-chain.'),
     ];
+    $form['transaction']['aggregate_bonded_cost'] = [
+      '#type' => 'container',
+      '#attributes' => ['class' => ['messages', 'messages--warning']],
+      '#states' => [
+        'visible' => [
+          ':input[name="transaction[aggregate_type]"]' => ['value' => self::AGGREGATE_BONDED],
+        ],
+      ],
+      'message' => [
+        '#type' => 'item',
+        '#markup' => $this->t('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee. The taker network currency balance is checked before the QR payload is built.'),
+      ],
+    ];
     $form['transaction']['deadline_hours'] = [
       '#type' => 'number',
       '#title' => $this->t('Transaction deadline hours'),
@@ -125,35 +139,6 @@ final class SwapOfferAcceptForm extends FormBase {
       '#step' => 1,
       '#required' => TRUE,
       '#description' => $this->t('Aggregate complete allows 1 to 6 hours. Aggregate bonded allows 1 to 48 hours. The maker offer itself does not expire from this value.'),
-    ];
-    $form['transaction']['hash_lock'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Hash lock settings'),
-      '#open' => TRUE,
-      '#states' => [
-        'visible' => [
-          ':input[name="transaction[aggregate_type]"]' => ['value' => self::AGGREGATE_BONDED],
-        ],
-      ],
-    ];
-    $hash_lock = $this->defaultHashLock((string) $offer['network']);
-    $form['transaction']['hash_lock']['mosaic_id'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Hash lock mosaic ID'),
-      '#markup' => $hash_lock['mosaicId'],
-      '#description' => $this->t('Fixed to the network currency mosaic.'),
-    ];
-    $form['transaction']['hash_lock']['amount'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Hash lock amount'),
-      '#markup' => $hash_lock['amount'],
-      '#description' => $this->t('Fixed atomic amount. This is 10 XYM for networks with 6 divisibility.'),
-    ];
-    $form['transaction']['hash_lock']['duration'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Hash lock duration blocks'),
-      '#markup' => (string) $hash_lock['duration'],
-      '#description' => $this->t('Maximum 5760 blocks, approximately 48 hours on Symbol.'),
     ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
@@ -207,6 +192,10 @@ final class SwapOfferAcceptForm extends FormBase {
     if (strtoupper((string) $verified_symbol_account['public_key']) === strtoupper((string) $this->offer['leg1_signer_public_key'])) {
       $form_state->setErrorByName('taker][recipient_address', $this->t('Taker account must differ from maker account.'));
       return;
+    }
+
+    if ($aggregate_type === self::AGGREGATE_BONDED) {
+      $this->validateAggregateBondedCurrencyBalance($form_state, $verified_symbol_account);
     }
 
     $form_state->set('symbol_atomic_swap_taker_address', (string) $verified_symbol_account['address']);
@@ -294,6 +283,95 @@ final class SwapOfferAcceptForm extends FormBase {
       'amount' => '10000000',
       'duration' => self::HASH_LOCK_MAX_DURATION_BLOCKS,
     ];
+  }
+
+  /**
+   * @param array{network: string, address: string, public_key: string} $verified_symbol_account
+   */
+  private function validateAggregateBondedCurrencyBalance(FormStateInterface $form_state, array $verified_symbol_account): void {
+    $network = (string) $this->offer['network'];
+    $currency_mosaic_id = $this->networkCurrencyMosaicId($network);
+    if ($currency_mosaic_id === '') {
+      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Network currency mosaic is not configured for aggregate bonded balance checks.'));
+      return;
+    }
+
+    try {
+      $balance = (string) ($this->accountMosaicBalance($network, (string) $verified_symbol_account['address'], $currency_mosaic_id)['amount'] ?? '0');
+    }
+    catch (SymbolEngineException | \InvalidArgumentException $exception) {
+      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Taker XYM balance could not be verified for aggregate bonded hash lock funding: @message', [
+        '@message' => $exception->getMessage(),
+      ]));
+      return;
+    }
+
+    $required = $this->requiredAggregateBondedCurrencyAmount($network);
+    if ($this->compareAtomic($balance, $required) < 0) {
+      $form_state->setErrorByName('transaction][aggregate_type', $this->t('Taker account needs at least @required atomic units of network currency for aggregate bonded funding, including the 10 XYM hash lock and transaction fee buffer. Current balance is @balance.', [
+        '@required' => $required,
+        '@balance' => $balance,
+      ]));
+    }
+  }
+
+  private function requiredAggregateBondedCurrencyAmount(string $network): string {
+    $hash_lock = $this->defaultHashLock($network);
+    $required = $this->addAtomic($hash_lock['amount'], self::HASH_LOCK_TRANSACTION_FEE_BUFFER);
+    if (strtoupper((string) ($this->offer['leg2_mosaic_id'] ?? '')) === $this->networkCurrencyMosaicId($network)) {
+      $required = $this->addAtomic($required, (string) ($this->offer['leg2_amount'] ?? '0'));
+    }
+    return $required;
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function accountMosaicBalance(string $network, string $address, string $mosaic_id): array {
+    $normalized_address = strtoupper($address);
+    $normalized_mosaic_id = strtoupper($mosaic_id);
+    $overrides = \Drupal::state()->get('symbol_atomic_swap.account_mosaic_balance_test_overrides', []);
+    $override = $overrides[$network][$normalized_address][$normalized_mosaic_id] ?? NULL;
+    if (is_array($override)) {
+      return $override + [
+        'network' => $network,
+        'address' => $normalized_address,
+        'mosaicId' => $normalized_mosaic_id,
+      ];
+    }
+
+    return $this->engineClient->accountMosaicBalance($network, $normalized_address, $normalized_mosaic_id);
+  }
+
+  private function compareAtomic(string $left, string $right): int {
+    $left = ltrim($left, '0') ?: '0';
+    $right = ltrim($right, '0') ?: '0';
+    return strlen($left) <=> strlen($right) ?: strcmp($left, $right);
+  }
+
+  private function addAtomic(string $left, string $right): string {
+    $left = ltrim($left, '0') ?: '0';
+    $right = ltrim($right, '0') ?: '0';
+    $carry = 0;
+    $sum = '';
+    $left_index = strlen($left) - 1;
+    $right_index = strlen($right) - 1;
+
+    while ($left_index >= 0 || $right_index >= 0 || $carry > 0) {
+      $digit = $carry;
+      if ($left_index >= 0) {
+        $digit += (int) $left[$left_index];
+        $left_index--;
+      }
+      if ($right_index >= 0) {
+        $digit += (int) $right[$right_index];
+        $right_index--;
+      }
+      $sum = (string) ($digit % 10) . $sum;
+      $carry = intdiv($digit, 10);
+    }
+
+    return ltrim($sum, '0') ?: '0';
   }
 
   /**

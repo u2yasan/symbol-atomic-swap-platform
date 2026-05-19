@@ -197,7 +197,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [
       '#type' => 'submit',
-      '#value' => $is_bonded_cosignature ? $this->t('Announce aggregate bonded cosignature') : $this->t('Verify and store SSS cosignature'),
+      '#value' => $is_bonded_cosignature ? $this->t('Announce aggregate bonded cosignature') : $this->t('Verify and store cosignature'),
       '#button_type' => 'primary',
       '#disabled' => (!$this->offers->canSubmitSignedPayload($offer) && !$is_bonded_cosignature) || $payload_for_sss === '',
       '#attributes' => [

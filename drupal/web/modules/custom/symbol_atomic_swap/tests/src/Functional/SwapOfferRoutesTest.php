@@ -261,14 +261,12 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldNotExists('Hash lock mosaic ID');
     $assert_session->fieldNotExists('Hash lock amount');
     $assert_session->fieldNotExists('Hash lock duration blocks');
-    $assert_session->pageTextContains('Hash lock mosaic ID');
-    $assert_session->pageTextContains('72C0212E67A08BCE');
-    $assert_session->pageTextContains('Hash lock amount');
-    $assert_session->pageTextContains('10000000');
-    $assert_session->pageTextContains('Hash lock duration blocks');
-    $assert_session->pageTextContains('5760');
+    $assert_session->pageTextNotContains('Hash lock settings');
+    $assert_session->pageTextNotContains('Hash lock mosaic ID');
+    $assert_session->pageTextNotContains('Hash lock amount');
+    $assert_session->pageTextNotContains('Hash lock duration blocks');
+    $assert_session->pageTextContains('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee.');
     $assert_session->pageTextContains('Aggregate bonded allows 1 to 48 hours.');
-    $assert_session->pageTextContains('Maximum 5760 blocks, approximately 48 hours on Symbol.');
 
     $this->submitForm([
       'transaction[aggregate_type]' => 'aggregate_bonded',
@@ -614,7 +612,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Submit cosignature JSON');
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
 
@@ -624,7 +622,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Submit cosignature JSON');
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkNotExists('Assemble signed payload');
     $assert_session->linkNotExists('Announce transaction');
     $assert_session->pageTextNotContains('Intent hash');
@@ -640,6 +638,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains(str_repeat('B', 64));
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_transaction');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
 
     $repository->update($id, [
@@ -670,7 +669,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Cosign and announce partial with SSS');
+    $assert_session->linkExists('Cosign and announce partial');
     $assert_session->linkNotExists('Submit signed payload');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/cosign-with-sss');
     $assert_session->statusCodeEquals(200);
@@ -679,6 +678,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->buttonExists('Cosign and announce partial with SSS');
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64));
     $this->submitForm([
       'payload' => json_encode([
@@ -774,6 +774,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('TCNAOT3ZKSU45DVFCV3RHMTWHDKL4VS3LG33ELY');
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
@@ -783,7 +784,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign with SSS');
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
@@ -791,7 +792,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->linkExists('Sign with SSS');
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Submit aggregate signer JSON');
     $assert_session->linkNotExists('Announce transaction');
@@ -825,10 +826,11 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->buttonExists('Cosign unsigned payload with SSS');
     $assert_session->pageTextContains('Mobile signing with aLice');
     $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
+    $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
     $assert_session->linkExists('Open aLice signer');
-    $assert_session->buttonExists('Verify and store SSS cosignature');
-    $this->submitForm(['payload' => 'A1B2C3D4'], 'Verify and store SSS cosignature');
+    $assert_session->buttonExists('Verify and store cosignature');
+    $this->submitForm(['payload' => 'A1B2C3D4'], 'Verify and store cosignature');
     $assert_session->pageTextContains('This looks like signed payload HEX, not a 128-hex aLice cosignature signature.');
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
@@ -853,10 +855,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Cosign with SSS');
+    $assert_session->linkExists('Cosign with SSS or aLice');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkExists('Cosign with SSS');
+    $assert_session->linkExists('Cosign with SSS or aLice');
     $assert_session->linkNotExists('Assemble signed payload');
 
     \Drupal::service('symbol_atomic_swap.offer_cosignature_repository')->upsert([
@@ -885,10 +887,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($taker_operator);
     $this->drupalGet('/symbol-atomic-swap/settlements');
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS or aLice');
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS or aLice');
 
     $this->drupalLogin($operator);
     $repository->markSigned($id, str_repeat('D', 64));
@@ -896,7 +898,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->linkNotExists('Submit signed payload');
     $assert_session->linkNotExists('Sign with SSS');
-    $assert_session->linkNotExists('Cosign with SSS');
+    $assert_session->linkNotExists('Cosign with SSS or aLice');
     $assert_session->linkExists('Announce transaction');
     $assert_session->linkExists('Sync projection');
 
@@ -1191,6 +1193,15 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
         '72C0212E67A08BCF' => [
           'divisibility' => 2,
           'aliases' => [],
+        ],
+      ],
+    ]);
+    \Drupal::state()->set('symbol_atomic_swap.account_mosaic_balance_test_overrides', [
+      'testnet' => [
+        'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI' => [
+          '72C0212E67A08BCE' => [
+            'amount' => '100000000',
+          ],
         ],
       ],
     ]);
