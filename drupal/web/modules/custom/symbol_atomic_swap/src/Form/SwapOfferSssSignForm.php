@@ -91,8 +91,14 @@ final class SwapOfferSssSignForm extends FormBase {
       ],
     ];
     $form['sss'] = [
-      '#type' => 'container',
+      '#type' => 'details',
+      '#title' => $this->t('Browser signing with SSS Extension'),
+      '#open' => FALSE,
       '#attributes' => ['class' => ['symbol-atomic-swap-sss-sign']],
+      'notice' => [
+        '#type' => 'item',
+        '#markup' => $this->t('Use SSS Extension in this browser to sign the unsigned payload with the required aggregate signer account. Confirm the active SSS account before signing.'),
+      ],
       'open' => [
         '#type' => 'link',
         '#title' => $this->t('Install SSS Extension'),

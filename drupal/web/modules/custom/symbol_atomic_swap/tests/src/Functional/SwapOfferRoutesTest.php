@@ -871,6 +871,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('Required aggregate signer account');
     $assert_session->pageTextContains('TC4JSF33PUM667PHTJPK5X5IDGGTMXLG2ZHCPPQ');
     $assert_session->pageTextContains('Root signed payload must be signed by this aggregate signer account.');
+    $assert_session->pageTextContains('Browser signing with SSS Extension');
+    $assert_session->pageTextContains('Use SSS Extension in this browser to sign the unsigned payload with the required aggregate signer account.');
     $assert_session->buttonExists('Sign unsigned payload with SSS');
     $assert_session->linkExists('Open aLice signer');
     $assert_session->pageTextContains('Copy aLice signing URL');

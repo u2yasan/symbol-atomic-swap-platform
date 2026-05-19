@@ -251,7 +251,7 @@ final class SwapOfferAcceptForm extends FormBase {
       $this->offers->update($offer_id, $this->offers->engineFields($accepted, $engine_result) + [
         'changed' => \Drupal::time()->getRequestTime(),
       ]);
-      $this->messenger()->addStatus($this->t('Atomic settlement was finalized and QR payload was generated.'));
+      $this->messenger()->addStatus($this->t('Atomic settlement was finalized and payload was generated.'));
     }
     catch (SymbolEngineException | \RuntimeException $exception) {
       $this->messenger()->addError($this->t('Atomic settlement was finalized, but Symbol Engine build failed: @message', [
