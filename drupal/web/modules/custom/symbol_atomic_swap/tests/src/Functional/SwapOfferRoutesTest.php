@@ -659,6 +659,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('wait for hash lock confirmation');
     $assert_session->pageTextContains('Hash lock signer public key');
     $assert_session->buttonExists('Sign hash lock and announce partial');
+    $assert_session->fieldExists('Signed hash lock payload');
+    $assert_session->buttonExists('Submit signed hash lock');
 
     $repository->update($id, [
       'state' => 'partial_announced',
