@@ -23,7 +23,7 @@ final class AdListingForm extends FormBase {
     'mainnet' => '6BED913FA20223F8',
     'testnet' => '72C0212E67A08BCE',
   ];
-  private const MAX_RESERVING_LISTINGS_PER_SELLER = 5;
+  public const MAX_RESERVING_LISTINGS_PER_SELLER = 5;
 
   public function __construct(
     private readonly AdListingRepository $listings,

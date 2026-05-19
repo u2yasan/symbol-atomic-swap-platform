@@ -3,5 +3,6 @@ type: module
 description: Non-custodial P2P advertisement listings for Symbol mosaic swaps.
 core_version_requirement: ^11
 package: Symbol
+configure: symbol_p2p_ad_listing.settings
 dependencies:
   - symbol_atomic_swap:symbol_atomic_swap

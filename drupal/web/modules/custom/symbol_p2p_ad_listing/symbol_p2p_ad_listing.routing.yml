@@ -87,3 +87,11 @@ symbol_p2p_ad_listing.delete:
   requirements:
     _permission: 'create symbol p2p ad listings'
     listingId: '\d+'
+
+symbol_p2p_ad_listing.settings:
+  path: '/admin/config/services/symbol-p2p-ad-listing/settings'
+  defaults:
+    _form: '\Drupal\symbol_p2p_ad_listing\Form\AdListingSettingsForm'
+    _title: 'Symbol P2P Ad Listing Settings'
+  requirements:
+    _permission: 'administer site configuration'

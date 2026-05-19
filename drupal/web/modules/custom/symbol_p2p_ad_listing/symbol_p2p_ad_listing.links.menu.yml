@@ -3,3 +3,9 @@ symbol_p2p_ad_listing.list:
   description: 'Browse non-custodial Symbol mosaic swap advertisements.'
   route_name: symbol_p2p_ad_listing.list
   menu_name: main
+
+symbol_p2p_ad_listing.settings:
+  title: 'Symbol P2P Ad Listing Settings'
+  description: 'Review active P2P listing abuse guards and balance checks.'
+  route_name: symbol_p2p_ad_listing.settings
+  parent: system.admin_config_services
