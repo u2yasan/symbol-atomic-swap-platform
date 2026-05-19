@@ -40,8 +40,16 @@ final class EngineAdminRoutesTest extends BrowserTestBase {
     $this->drupalGet('/admin/config/services/symbol-atomic-swap/settings');
     $assert_session->statusCodeEquals(403);
 
-    $account = $this->drupalCreateUser(['administer site configuration']);
+    $account = $this->drupalCreateUser([
+      'administer modules',
+      'administer site configuration',
+    ]);
     $this->drupalLogin($account);
+
+    $this->drupalGet('/admin/modules');
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Symbol Atomic Swap');
+    $assert_session->linkByHrefExists('/admin/config/services/symbol-atomic-swap/settings');
 
     $this->drupalGet('/admin/config/services/symbol-atomic-swap/engine');
     $assert_session->statusCodeEquals(200);

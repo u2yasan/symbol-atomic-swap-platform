@@ -3,6 +3,7 @@ type: module
 description: Atomic swap coordination UI for Symbol mosaic swaps. Drupal is projection/cache only.
 core_version_requirement: ^11
 package: Symbol
+configure: symbol_atomic_swap.settings
 dependencies:
   - drupal:field
   - drupal:user
