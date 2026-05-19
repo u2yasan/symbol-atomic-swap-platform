@@ -48,11 +48,23 @@ final class AdListingSettingsFormTest extends BrowserTestBase {
     $this->drupalGet('/admin/config/services/symbol-p2p-ad-listing/settings');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Listing abuse guards');
-    $assert_session->pageTextContains('Maximum active-like listings per seller');
+    $assert_session->fieldValueEquals('Maximum active-like listings per seller', '5');
     $assert_session->pageTextContains('Duplicate reserving listing guard');
     $assert_session->pageTextContains('Aggregate reserved balance guard');
     $assert_session->pageTextContains('Balance checks');
-    $assert_session->pageTextContains('Cron seller balance refresh batch size');
+    $assert_session->fieldValueEquals('Cron seller balance refresh batch size', '50');
+
+    $this->submitForm([
+      'max_reserving_listings_per_seller' => '7',
+      'cron_balance_check_batch_size' => '25',
+    ], 'Save configuration');
+    $assert_session->pageTextContains('The configuration options have been saved.');
+    $this->assertSame(7, \Drupal::config('symbol_p2p_ad_listing.settings')->get('max_reserving_listings_per_seller'));
+    $this->assertSame(25, \Drupal::config('symbol_p2p_ad_listing.settings')->get('cron_balance_check_batch_size'));
+
+    $this->drupalGet('/admin/config/services/symbol-p2p-ad-listing/settings');
+    $assert_session->fieldValueEquals('Maximum active-like listings per seller', '7');
+    $assert_session->fieldValueEquals('Cron seller balance refresh batch size', '25');
   }
 
 }

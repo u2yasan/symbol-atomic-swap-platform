@@ -1,0 +1,10 @@
+symbol_p2p_ad_listing.settings:
+  type: config_object
+  label: 'Symbol P2P Ad Listing settings'
+  mapping:
+    max_reserving_listings_per_seller:
+      type: integer
+      label: 'Maximum active-like listings per seller'
+    cron_balance_check_batch_size:
+      type: integer
+      label: 'Cron seller balance refresh batch size'

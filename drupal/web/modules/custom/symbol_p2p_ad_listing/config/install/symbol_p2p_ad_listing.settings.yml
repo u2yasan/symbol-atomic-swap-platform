@@ -1,0 +1,2 @@
+max_reserving_listings_per_seller: 5
+cron_balance_check_batch_size: 50

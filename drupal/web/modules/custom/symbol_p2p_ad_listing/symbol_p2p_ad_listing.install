@@ -65,3 +65,17 @@ function symbol_p2p_ad_listing_update_11001(): void {
     $schema->addIndex('symbol_p2p_ad_listing', 'expires_at', ['expires_at'], symbol_p2p_ad_listing_schema()['symbol_p2p_ad_listing']);
   }
 }
+
+/**
+ * Adds default configurable P2P listing guard settings.
+ */
+function symbol_p2p_ad_listing_update_11002(): void {
+  $config = \Drupal::configFactory()->getEditable('symbol_p2p_ad_listing.settings');
+  if ($config->get('max_reserving_listings_per_seller') === NULL) {
+    $config->set('max_reserving_listings_per_seller', 5);
+  }
+  if ($config->get('cron_balance_check_batch_size') === NULL) {
+    $config->set('cron_balance_check_batch_size', 50);
+  }
+  $config->save();
+}

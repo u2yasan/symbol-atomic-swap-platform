@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_p2p_ad_listing\Form;
 
-use Drupal\Core\Form\FormBase;
+use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
-final class AdListingSettingsForm extends FormBase {
+final class AdListingSettingsForm extends ConfigFormBase {
+
+  protected function getEditableConfigNames(): array {
+    return ['symbol_p2p_ad_listing.settings'];
+  }
 
   public function getFormId(): string {
     return 'symbol_p2p_ad_listing_settings_form';
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
+    $config = $this->config('symbol_p2p_ad_listing.settings');
+
     $form['summary'] = [
       '#type' => 'item',
-      '#markup' => $this->t('Symbol P2P Ad Listing currently uses fixed abuse guards. These values are code-level safeguards and are not editable from Drupal configuration.'),
+      '#markup' => $this->t('Symbol P2P Ad Listing keeps critical abuse guards enabled. Only numeric limits are editable here.'),
     ];
 
     $form['listing_abuse_guards'] = [
@@ -25,9 +31,13 @@ final class AdListingSettingsForm extends FormBase {
       '#open' => TRUE,
     ];
     $form['listing_abuse_guards']['max_reserving_listings_per_seller'] = [
-      '#type' => 'item',
+      '#type' => 'number',
       '#title' => $this->t('Maximum active-like listings per seller'),
-      '#markup' => (string) AdListingForm::MAX_RESERVING_LISTINGS_PER_SELLER,
+      '#default_value' => $this->boundedInt($config->get('max_reserving_listings_per_seller'), AdListingForm::DEFAULT_MAX_RESERVING_LISTINGS_PER_SELLER, 1, 100),
+      '#min' => 1,
+      '#max' => 100,
+      '#step' => 1,
+      '#required' => TRUE,
       '#description' => $this->t('New listing creation is blocked when the seller already has this many reserving listings. Active, matching, and insufficient-balance listings count toward this limit.'),
     ];
     $form['listing_abuse_guards']['duplicate_reserving_listing'] = [
@@ -60,17 +70,52 @@ final class AdListingSettingsForm extends FormBase {
       '#markup' => $this->t('Enabled'),
       '#description' => $this->t('Seller and taker balances are checked again before a listing is matched into an atomic settlement.'),
     ];
-    $form['balance_checks']['cron_balance_check'] = [
-      '#type' => 'item',
+    $form['balance_checks']['cron_balance_check_batch_size'] = [
+      '#type' => 'number',
       '#title' => $this->t('Cron seller balance refresh batch size'),
-      '#markup' => '50',
+      '#default_value' => $this->boundedInt($config->get('cron_balance_check_batch_size'), 50, 1, 500),
+      '#min' => 1,
+      '#max' => 500,
+      '#step' => 1,
+      '#required' => TRUE,
       '#description' => $this->t('Cron refreshes active listing seller balances in batches and marks listings insufficient when the seller can no longer cover the offered amount.'),
     ];
 
-    return $form;
+    return parent::buildForm($form, $form_state);
+  }
+
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    parent::validateForm($form, $form_state);
+
+    $this->validateBoundedInt($form_state, 'max_reserving_listings_per_seller', 1, 100);
+    $this->validateBoundedInt($form_state, 'cron_balance_check_batch_size', 1, 500);
   }
 
   public function submitForm(array &$form, FormStateInterface $form_state): void {
+    $this->config('symbol_p2p_ad_listing.settings')
+      ->set('max_reserving_listings_per_seller', (int) $form_state->getValue('max_reserving_listings_per_seller'))
+      ->set('cron_balance_check_batch_size', (int) $form_state->getValue('cron_balance_check_batch_size'))
+      ->save();
+
+    parent::submitForm($form, $form_state);
+  }
+
+  private function validateBoundedInt(FormStateInterface $form_state, string $name, int $min, int $max): void {
+    $value = $form_state->getValue($name);
+    if (!is_numeric($value) || (int) $value < $min || (int) $value > $max) {
+      $form_state->setErrorByName($name, $this->t('@name must be between @min and @max.', [
+        '@name' => $name,
+        '@min' => (string) $min,
+        '@max' => (string) $max,
+      ]));
+    }
+  }
+
+  private function boundedInt(mixed $value, int $default, int $min, int $max): int {
+    if (!is_numeric($value)) {
+      return $default;
+    }
+    return max($min, min($max, (int) $value));
   }
 
 }

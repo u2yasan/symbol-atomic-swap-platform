@@ -23,7 +23,7 @@ final class AdListingForm extends FormBase {
     'mainnet' => '6BED913FA20223F8',
     'testnet' => '72C0212E67A08BCE',
   ];
-  public const MAX_RESERVING_LISTINGS_PER_SELLER = 5;
+  public const DEFAULT_MAX_RESERVING_LISTINGS_PER_SELLER = 5;
 
   public function __construct(
     private readonly AdListingRepository $listings,
@@ -306,7 +306,7 @@ final class AdListingForm extends FormBase {
         $form_state->setErrorByName('offered][amount', $this->t('Seller balance could not be verified: @message', ['@message' => $exception->getMessage()]));
       }
     }
-    if (!$listing && $this->listings->countListingLimitedBySellerUid($seller_uid) >= self::MAX_RESERVING_LISTINGS_PER_SELLER) {
+    if (!$listing && $this->listings->countListingLimitedBySellerUid($seller_uid) >= $this->maxReservingListingsPerSeller()) {
       $form_state->setErrorByName('seller', $this->t('Seller already has the maximum number of active listings.'));
     }
     if ($offered_amount !== NULL && $requested_amount !== NULL) {
@@ -483,6 +483,14 @@ final class AdListingForm extends FormBase {
 
   private function mainnetEnabled(): bool {
     return (bool) $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled');
+  }
+
+  private function maxReservingListingsPerSeller(): int {
+    $value = $this->config('symbol_p2p_ad_listing.settings')->get('max_reserving_listings_per_seller');
+    if (!is_numeric($value)) {
+      return self::DEFAULT_MAX_RESERVING_LISTINGS_PER_SELLER;
+    }
+    return max(1, min(100, (int) $value));
   }
 
   /**
