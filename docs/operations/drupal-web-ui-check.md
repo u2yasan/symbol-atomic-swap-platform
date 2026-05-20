@@ -246,7 +246,7 @@ Expected:
 - duplicate signer public keys are rejected
 - mainnet is rejected when mainnet UI operations are disabled in settings
 - on successful Engine build, Drupal redirects to the offer detail page
-- state becomes `qr_generated`
+- state becomes `payload_generated`
 - QR code renders
 - QR payload details are visible
 - intent hash is displayed with a `Copy` button
@@ -282,7 +282,7 @@ Expected security behavior:
 - hash copy buttons do not submit forms
 - only valid operations for the current state are visible
 
-Expected state behavior for `qr_generated`:
+Expected state behavior for `payload_generated`:
 
 - `Submit signed payload` is visible to the owner with operate permission
 - `Announce transaction` is not visible

@@ -12,7 +12,7 @@ Only finalized transactions are completed swaps.
 
 The following are not completed swaps:
 
-- QR generated
+- Payload generated
 - signed
 - announced
 - unconfirmed

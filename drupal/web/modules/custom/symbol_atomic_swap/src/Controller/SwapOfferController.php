@@ -304,7 +304,7 @@ final class SwapOfferController extends ControllerBase {
         '#url' => Url::fromRoute('symbol_atomic_swap.offer_sign_with_external_app', ['offerId' => $offer['id']]),
         '#access' => $this->currentUser()->hasPermission('operate symbol atomic swap offers')
           && $can_submit_signed_payload
-          && ($state === 'qr_generated' || ($is_aggregate_bonded && $state === 'root_signed')),
+          && ($state === 'payload_generated' || ($is_aggregate_bonded && $state === 'root_signed')),
         '#attributes' => ['class' => ['button', 'button--primary']],
       ],
       'accept' => [
@@ -746,7 +746,7 @@ final class SwapOfferController extends ControllerBase {
           'states' => [
             'open' => 'open',
             'draft' => 'draft',
-            'qr_generated' => 'qr_generated',
+            'payload_generated' => 'payload_generated',
             'root_signed' => 'root_signed',
             'signed' => 'signed',
             'announced' => 'announced',

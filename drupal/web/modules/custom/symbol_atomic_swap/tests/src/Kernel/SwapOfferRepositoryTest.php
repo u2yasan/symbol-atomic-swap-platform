@@ -170,13 +170,13 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
   public function testExpirationCandidateIds(): void {
     $expired_id = $this->repository->insert($this->offerValues([
       'uuid' => 'offer-expired-candidate',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'created' => 1700000000,
       'deadline_hours' => 1,
     ]));
     $this->repository->insert($this->offerValues([
       'uuid' => 'offer-not-expired',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'created' => 1700003500,
       'deadline_hours' => 1,
     ]));
@@ -304,7 +304,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
     ]));
     $built_id = $this->repository->insert($this->offerValues([
       'uuid' => 'offer-mutable-built',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'intent_hash' => str_repeat('C', 64),
       'unsigned_payload' => 'ABCD',
       'qr_payload' => '{"type":"symbol-aggregate-complete"}',
@@ -336,7 +336,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
   public function testCronExpiresStaleOffers(): void {
     $id = $this->repository->insert($this->offerValues([
       'uuid' => 'offer-cron-expired',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'created' => 100,
       'deadline_hours' => 1,
     ]));
@@ -424,7 +424,7 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
     return $overrides + [
       'uuid' => 'offer-kernel-' . bin2hex(random_bytes(4)),
       'label' => 'Kernel offer',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'network' => 'testnet',
       'correlation_id' => 'swap-test-kernel-' . bin2hex(random_bytes(4)),
       'deadline_hours' => 2,

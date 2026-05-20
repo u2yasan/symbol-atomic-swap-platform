@@ -13,7 +13,7 @@ The state machine exists to prevent unsafe assumptions, especially treating unco
 ```text
 draft
   -> created
-  -> qr_generated
+  -> payload_generated
   -> signed
   -> announced
   -> unconfirmed
@@ -42,7 +42,7 @@ The swap offer exists locally but is not yet ready for signing.
 
 The swap offer has been created in Drupal as a projection record.
 
-### qr_generated
+### payload_generated
 
 Symbol Engine has generated a transaction payload and QR signing payload.
 

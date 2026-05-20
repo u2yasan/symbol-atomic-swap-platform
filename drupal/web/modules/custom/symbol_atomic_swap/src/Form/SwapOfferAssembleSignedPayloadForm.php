@@ -104,7 +104,7 @@ final class SwapOfferAssembleSignedPayloadForm extends FormBase {
 
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     if (!$this->offers->canSubmitSignedPayload($this->offer)) {
-      $form_state->setErrorByName('root_signed_payload', $this->t('Signed payload assembly is only available for QR-generated or already signed settlements with a valid intent hash.'));
+      $form_state->setErrorByName('root_signed_payload', $this->t('Signed payload assembly is only available for payload-generated or already signed settlements with a valid intent hash.'));
     }
 
     $payload = $this->normalizeHex((string) $form_state->getValue('root_signed_payload', ''));

@@ -383,7 +383,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $id = $repository->insert([
       'uuid' => 'offer-test-uuid',
       'label' => 'Test offer',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'network' => 'testnet',
       'correlation_id' => 'swap-test-0001',
       'deadline_hours' => 2,
@@ -426,7 +426,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Test offer');
-    $assert_session->pageTextContains('qr_generated');
+    $assert_session->pageTextContains('payload_generated');
     $assert_session->pageTextContains('Summary');
     $assert_session->pageTextContains(\Drupal::service('date.formatter')->format(1700000000, 'custom', 'Y-m-d H:i'));
     $assert_session->pageTextContains('Trade terms');
@@ -560,7 +560,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $taker_offer_id = $repository->insert($this->offerValues([
       'uuid' => 'offer-taker-cancel',
       'label' => 'Taker cancel offer',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'uid' => 999,
     ]));
     $announced_offer_id = $repository->insert($this->offerValues([
@@ -762,7 +762,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $id = $repository->insert([
       'uuid' => 'offer-operator-uuid',
       'label' => 'Operator offer',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'network' => 'testnet',
       'correlation_id' => 'swap-test-0002',
       'deadline_hours' => 2,
@@ -1233,7 +1233,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     return $overrides + [
       'uuid' => 'offer-functional-' . bin2hex(random_bytes(4)),
       'label' => 'Functional offer',
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'network' => 'testnet',
       'correlation_id' => 'swap-test-functional-' . bin2hex(random_bytes(4)),
       'deadline_hours' => 2,

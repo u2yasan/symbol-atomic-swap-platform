@@ -83,7 +83,7 @@ Enter:
 
 Expected result:
 
-- state becomes `qr_generated`
+- state becomes `payload_generated`
 - `Intent hash` is displayed
 - `QR payload` is available
 - `Submit signed payload` is visible

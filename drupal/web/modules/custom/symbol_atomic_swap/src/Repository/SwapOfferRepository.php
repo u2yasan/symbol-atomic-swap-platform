@@ -13,8 +13,8 @@ final class SwapOfferRepository {
 
   private const TABLE = 'symbol_atomic_swap_offer';
   public const TERMINAL_STATES = ['expired', 'cancelled', 'failed', 'rolled_back', 'finalized'];
-  public const SIGNABLE_STATES = ['qr_generated', 'root_signed', 'signed'];
-  public const CANCELLABLE_STATES = ['open', 'draft', 'qr_generated', 'root_signed', 'signed'];
+  public const SIGNABLE_STATES = ['payload_generated', 'root_signed', 'signed'];
+  public const CANCELLABLE_STATES = ['open', 'draft', 'payload_generated', 'root_signed', 'signed'];
   public const SYNCABLE_STATES = ['signed', 'announced', 'unconfirmed', 'confirmed', 'partial_announced', 'partial_cosigned'];
 
   public function __construct(
@@ -160,7 +160,7 @@ final class SwapOfferRepository {
   public function expirationCandidateIds(int $now, int $limit = 50): array {
     $records = $this->database->select(self::TABLE, 'o')
       ->fields('o', ['id', 'created', 'deadline_hours'])
-      ->condition('state', ['qr_generated', 'root_signed', 'signed'], 'IN')
+      ->condition('state', ['payload_generated', 'root_signed', 'signed'], 'IN')
       ->isNull('expired_at')
       ->orderBy('created', 'ASC')
       ->range(0, max($limit * 10, $limit))
@@ -248,7 +248,7 @@ final class SwapOfferRepository {
       throw new \InvalidArgumentException('Atomic settlement not found.');
     }
     if (!$this->canSubmitSignedPayload($offer)) {
-      throw new \InvalidArgumentException('Signed payload can only be submitted for QR-generated or already signed settlements with an intent hash.');
+      throw new \InvalidArgumentException('Signed payload can only be submitted for payload-generated or already signed settlements with an intent hash.');
     }
 
     $this->update($id, [
@@ -357,7 +357,7 @@ final class SwapOfferRepository {
       throw new \InvalidArgumentException('Atomic settlement not found.');
     }
 
-    if (!in_array($offer['state'], ['open', 'draft', 'qr_generated', 'signed'], TRUE)) {
+    if (!in_array($offer['state'], ['open', 'draft', 'payload_generated', 'signed'], TRUE)) {
       return FALSE;
     }
 
@@ -578,7 +578,7 @@ final class SwapOfferRepository {
     }
 
     return [
-      'state' => 'qr_generated',
+      'state' => 'payload_generated',
       'intent_hash' => isset($engine_result['intentHash']) ? strtoupper((string) $engine_result['intentHash']) : NULL,
       'unsigned_payload' => isset($engine_result['unsignedPayload']) ? strtoupper((string) $engine_result['unsignedPayload']) : NULL,
       'qr_payload' => $qr_payload,
