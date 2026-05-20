@@ -745,6 +745,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64));
+    $assert_session->elementExists('css', '.symbol-atomic-swap-qr[data-qr-payload^="alice://sign?type=request_sign_cosignature"]');
+    $assert_session->responseContains('symbol-atomic-swap-qr.js');
     $this->submitForm([
       'payload' => json_encode([
         'parentHash' => str_repeat('D', 64),
@@ -846,6 +848,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
+    $assert_session->elementExists('css', '.symbol-atomic-swap-qr[data-qr-payload^="alice://sign?type=request_sign_cosignature"]');
+    $assert_session->responseContains('symbol-atomic-swap-qr.js');
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
 
@@ -913,6 +917,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('alice://sign?type=request_sign_cosignature');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
+    $assert_session->elementExists('css', '.symbol-atomic-swap-qr[data-qr-payload^="alice://sign?type=request_sign_cosignature"]');
+    $assert_session->responseContains('symbol-atomic-swap-qr.js');
     $assert_session->linkExists('Open aLice signer');
     $assert_session->buttonExists('Verify and store cosignature');
     $this->submitForm(['payload' => 'A1B2C3D4'], 'Verify and store cosignature');

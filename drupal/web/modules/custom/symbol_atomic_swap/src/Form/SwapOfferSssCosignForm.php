@@ -59,6 +59,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     $expected_cosigner = $this->expectedCosignerPublicKey($offer);
     $expected_cosigner_address = $this->addressFromPublicKey($expected_cosigner, (string) $offer['network']);
 
+    $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $payload_for_sss;
