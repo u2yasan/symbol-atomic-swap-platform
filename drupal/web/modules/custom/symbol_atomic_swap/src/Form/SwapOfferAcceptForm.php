@@ -20,6 +20,8 @@ final class SwapOfferAcceptForm extends FormBase {
   private const AGGREGATE_BONDED = 'aggregate_bonded';
   private const AGGREGATE_COMPLETE_MAX_DEADLINE_HOURS = 6;
   private const AGGREGATE_BONDED_MAX_DEADLINE_HOURS = 48;
+  private const DEFAULT_AGGREGATE_TYPE = self::AGGREGATE_BONDED;
+  private const DEFAULT_DEADLINE_HOURS = self::AGGREGATE_BONDED_MAX_DEADLINE_HOURS;
   private const HASH_LOCK_MAX_DURATION_BLOCKS = 5760;
   private const HASH_LOCK_TRANSACTION_FEE_BUFFER = '100000';
 
@@ -113,7 +115,7 @@ final class SwapOfferAcceptForm extends FormBase {
     $form['transaction']['aggregate_type'] = [
       '#type' => 'radios',
       '#title' => $this->t('Aggregate transaction type'),
-      '#default_value' => self::AGGREGATE_COMPLETE,
+      '#default_value' => self::DEFAULT_AGGREGATE_TYPE,
       '#required' => TRUE,
       '#options' => [
         self::AGGREGATE_COMPLETE => $this->t('Aggregate complete'),
@@ -150,7 +152,7 @@ final class SwapOfferAcceptForm extends FormBase {
     $form['transaction']['deadline_hours'] = [
       '#type' => 'number',
       '#title' => $this->t('Transaction deadline hours'),
-      '#default_value' => self::AGGREGATE_COMPLETE_MAX_DEADLINE_HOURS,
+      '#default_value' => self::DEFAULT_DEADLINE_HOURS,
       '#min' => 1,
       '#max' => self::AGGREGATE_BONDED_MAX_DEADLINE_HOURS,
       '#step' => 1,

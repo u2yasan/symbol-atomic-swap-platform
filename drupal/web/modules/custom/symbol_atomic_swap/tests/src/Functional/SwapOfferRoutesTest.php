@@ -211,14 +211,15 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextNotContains('Uses the Symbol address connected through Symbol Login.');
     $assert_session->fieldNotExists('Resolved taker public key');
     $assert_session->fieldExists('Transaction deadline hours');
-    $assert_session->fieldValueEquals('transaction[deadline_hours]', '6');
+    $assert_session->fieldValueEquals('transaction[deadline_hours]', '48');
     $assert_session->elementExists('css', '[data-symbol-aggregate-deadline-settings][data-symbol-aggregate-complete-deadline-hours="6"][data-symbol-aggregate-bonded-deadline-hours="48"]');
     $assert_session->elementExists('css', '[data-symbol-aggregate-deadline-hours]');
     $assert_session->buttonExists('Accept and build Transaction');
     $assert_session->pageTextContains('Maker pays 1.00 of 72C0212E67A08BCF and wants 1.000000 of symbol.xym (72C0212E67A08BCE).');
-    $assert_session->pageTextContains('Aggregate complete transaction fee is paid by the taker account.');
+    $assert_session->pageTextContains('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee.');
 
     $this->submitForm([
+      'transaction[aggregate_type]' => 'aggregate_complete',
       'transaction[deadline_hours]' => '6',
     ], 'Accept and build Transaction');
 
@@ -272,6 +273,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalLogin($operator);
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/accept');
     $this->submitForm([
+      'transaction[aggregate_type]' => 'aggregate_complete',
       'transaction[deadline_hours]' => '2',
     ], 'Accept and build Transaction');
 
@@ -315,7 +317,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate transaction type');
     $assert_session->fieldExists('transaction[aggregate_type]');
-    $assert_session->fieldValueEquals('transaction[deadline_hours]', '6');
+    $assert_session->fieldValueEquals('transaction[deadline_hours]', '48');
     $assert_session->elementExists('css', '[data-symbol-aggregate-deadline-settings][data-symbol-aggregate-complete-deadline-hours="6"][data-symbol-aggregate-bonded-deadline-hours="48"]');
     $assert_session->fieldNotExists('Hash lock mosaic ID');
     $assert_session->fieldNotExists('Hash lock amount');
