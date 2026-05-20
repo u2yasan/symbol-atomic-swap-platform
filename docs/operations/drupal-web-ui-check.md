@@ -9,7 +9,7 @@ It checks:
 - access control
 - owner scoping
 - offer CRUD screens
-- QR payload display
+- payload page display
 - signed payload verification UI
 - announcement and projection sync UI
 - transaction history
@@ -247,8 +247,7 @@ Expected:
 - mainnet is rejected when mainnet UI operations are disabled in settings
 - on successful Engine build, Drupal redirects to the offer detail page
 - state becomes `payload_generated`
-- QR code renders
-- QR payload details are visible
+- intent hash and signing payload are stored
 - intent hash is displayed with a `Copy` button
 - no private key, mnemonic, wallet password, or signing secret field exists
 
@@ -271,7 +270,6 @@ Expected sections:
 - Summary
 - Trade terms
 - Projection
-- QR payload
 - Public offer JSON
 
 Expected security behavior:
@@ -325,20 +323,19 @@ Use this flow when a real end-to-end signing check is required:
 
 1. Create the offer with real disposable testnet signer public keys.
 2. Open the offer detail page.
-3. Scan the displayed QR with a phone or signing device.
-4. The QR opens a Drupal payload page URL.
-5. On the payload page, copy either `QR scan text` for a compatible signing
+3. Open the external signing operation to reach the dedicated payload page.
+4. On the payload page, copy either `QR scan text` for a compatible signing
    tool, or copy `Unsigned payload` for a signer that accepts raw transaction
    payload HEX.
-6. If the signer cannot consume the payload page, open `QR payload` on the offer
-   detail page and copy the `unsignedPayload` value into the signing tool.
-7. Verify the transaction details in the signer:
+5. If the signer needs raw Engine JSON, copy `unsignedPayload` from `QR payload
+   JSON` on the payload page.
+6. Verify the transaction details in the signer:
    - network is `testnet`
    - transaction type is Aggregate Complete
    - transfer signer public keys match the two offer legs
    - recipients, mosaic IDs, and amounts match the offer
-8. Sign with each required testnet account listed in `requiredCosigners`.
-9. Export or copy the final signed transaction payload as even-length HEX.
+7. Sign with each required testnet account listed in `requiredCosigners`.
+8. Export or copy the final signed transaction payload as even-length HEX.
 
 The final signed payload must include all required signatures. A payload signed
 by only one party is expected to be rejected by Engine with a missing signer

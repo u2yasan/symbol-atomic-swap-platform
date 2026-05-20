@@ -32,10 +32,10 @@ the browser without external CDN assets.
 
 The settlement UI persists agreed atomic settlement terms, calls Symbol Engine
 to build unsigned payloads, stores the resulting intent hash and QR payload, and
-renders the QR payload on the settlement view. It is for final settlement after
-P2P trade terms are already agreed, not for listing or matching. It can also
-submit a signed payload to Symbol Engine for semantic verification and announce
-a verified transaction.
+exposes signing data through the dedicated payload page. It is for final
+settlement after P2P trade terms are already agreed, not for listing or
+matching. It can also submit a signed payload to Symbol Engine for semantic
+verification and announce a verified transaction.
 Drupal stores transaction hashes and state transitions, but not signed payload
 bodies. Settlement records can be manually synced from Symbol Engine projections for
 confirmed, finalized, failed, or rolled back state. Settlement records are local

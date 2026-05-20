@@ -85,7 +85,7 @@ Expected result:
 
 - state becomes `payload_generated`
 - `Intent hash` is displayed
-- `QR payload` is available
+- signing payload is available on the dedicated payload page
 - `Submit signed payload` is visible
 
 If the offer is saved as `draft`, the Engine build failed. Fix the validation or
@@ -106,8 +106,8 @@ Sign outside Drupal:
 3. On the payload page, copy either `QR scan text` for a compatible signing
    tool, or copy `Unsigned payload` for a signer that accepts raw transaction
    payload HEX.
-4. If the signer cannot consume the payload page, open `QR payload` on the offer
-   detail page and copy the `unsignedPayload` value.
+4. If the signer needs raw Engine JSON, copy `unsignedPayload` from `QR payload
+   JSON` on the payload page.
 5. Verify the transaction details in the signer before signing:
    - network
    - Aggregate Complete transaction type
@@ -282,8 +282,8 @@ Confirm:
 | --- | --- |
 | Build failed and offer is `draft` | Fix inputs or Engine availability, then edit and rebuild. |
 | Duplicate correlation ID | Use a new correlation ID for that network. |
-| QR cannot be scanned | Hard reload the browser and confirm the QR payload is visible. |
-| Signer cannot parse QR URL | Open the URL and copy `Unsigned payload`, or copy `unsignedPayload` from `QR payload`. |
+| QR cannot be scanned | Hard reload the payload page and confirm `QR scan text` is visible. |
+| Signer cannot parse QR URL | Open the payload page and copy `Unsigned payload`, or copy `unsignedPayload` from `QR payload JSON`. |
 | Verify failed | Do not announce. Re-sign from the current unsigned payload. |
 | Announce failed because of funds | Fund the signer accounts, then rebuild/sign if deadline expired. |
 | Announce failed because node is unavailable | Restore `SYMBOL_NODE_URL`, then retry while deadline is valid. |

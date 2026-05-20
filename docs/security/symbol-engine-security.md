@@ -131,7 +131,7 @@ The only completed swap state is `finalized`.
 
 Do not run irreversible business logic for:
 
-- QR generated
+- Payload generated
 - signed
 - announced
 - unconfirmed
