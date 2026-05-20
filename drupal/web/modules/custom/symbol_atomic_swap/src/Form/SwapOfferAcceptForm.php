@@ -121,7 +121,6 @@ final class SwapOfferAcceptForm extends FormBase {
         self::AGGREGATE_COMPLETE => $this->t('Aggregate complete'),
         self::AGGREGATE_BONDED => $this->t('Aggregate bonded'),
       ],
-      '#description' => $this->t('Aggregate complete requires all cosignatures before announcement. Aggregate bonded can be announced partially and then cosigned on-chain.'),
     ];
     $form['transaction']['aggregate_bonded_cost'] = [
       '#type' => 'container',
@@ -133,7 +132,7 @@ final class SwapOfferAcceptForm extends FormBase {
       ],
       'message' => [
         '#type' => 'item',
-        '#markup' => $this->t('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee. The taker network currency balance is checked before the transaction is built.'),
+        '#markup' => $this->t('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee. The taker network currency balance is checked before the transaction is built. The 10 XYM hash lock is returned if the transaction succeeds; it is not returned if the transaction fails.'),
       ],
     ];
     $form['transaction']['aggregate_complete_cost'] = [

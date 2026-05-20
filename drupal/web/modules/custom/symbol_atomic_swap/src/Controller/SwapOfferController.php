@@ -627,7 +627,7 @@ final class SwapOfferController extends ControllerBase {
     $build = [
       '#type' => 'details',
       '#title' => $this->t('Aggregate bonded partial announcement steps'),
-      '#open' => TRUE,
+      '#open' => FALSE,
       'warning' => [
         '#type' => 'container',
         '#attributes' => ['class' => ['messages', 'messages--warning']],

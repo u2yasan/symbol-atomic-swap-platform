@@ -217,6 +217,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->buttonExists('Accept and build Transaction');
     $assert_session->pageTextContains('Maker pays 1.00 of 72C0212E67A08BCF and wants 1.000000 of symbol.xym (72C0212E67A08BCE).');
     $assert_session->pageTextContains('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee.');
+    $assert_session->pageTextContains('The 10 XYM hash lock is returned if the transaction succeeds; it is not returned if the transaction fails.');
 
     $this->submitForm([
       'transaction[aggregate_type]' => 'aggregate_complete',
@@ -316,6 +317,8 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate transaction type');
+    $assert_session->pageTextNotContains('Aggregate complete requires all cosignatures before announcement.');
+    $assert_session->pageTextNotContains('Aggregate bonded can be announced partially and then cosigned on-chain.');
     $assert_session->fieldExists('transaction[aggregate_type]');
     $assert_session->fieldValueEquals('transaction[deadline_hours]', '48');
     $assert_session->elementExists('css', '[data-symbol-aggregate-deadline-settings][data-symbol-aggregate-complete-deadline-hours="6"][data-symbol-aggregate-bonded-deadline-hours="48"]');
@@ -327,6 +330,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextNotContains('Hash lock amount');
     $assert_session->pageTextNotContains('Hash lock duration blocks');
     $assert_session->pageTextContains('Aggregate bonded requires the taker account to fund a 10 XYM hash lock plus transaction fee.');
+    $assert_session->pageTextContains('The 10 XYM hash lock is returned if the transaction succeeds; it is not returned if the transaction fails.');
     $assert_session->pageTextContains('Aggregate bonded allows 1 to 48 hours.');
 
     $this->submitForm([
@@ -642,6 +646,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id);
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Aggregate bonded partial announcement steps');
+    $assert_session->elementExists('xpath', '//details[not(@open)]/summary[contains(normalize-space(.), "Aggregate bonded partial announcement steps")]');
     $assert_session->pageTextContains('This is not an aggregate complete transaction.');
     $assert_session->pageTextContains('Required order');
     $assert_session->pageTextContains('POST /v1/hash-lock/build');
