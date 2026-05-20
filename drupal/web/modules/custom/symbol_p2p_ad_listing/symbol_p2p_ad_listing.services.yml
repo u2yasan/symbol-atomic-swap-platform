@@ -5,4 +5,4 @@ services:
 
   symbol_p2p_ad_listing.balance_check_manager:
     class: Drupal\symbol_p2p_ad_listing\Service\AdListingBalanceCheckManager
-    arguments: ['@symbol_p2p_ad_listing.repository', '@symbol_atomic_swap.engine_client', '@logger.factory']
+    arguments: ['@symbol_p2p_ad_listing.repository', '@symbol_engine.client', '@logger.factory']

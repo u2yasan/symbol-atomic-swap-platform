@@ -4,3 +4,8 @@ symbol_login.settings:
   parent: user.admin_index
   route_name: symbol_login.settings
 
+symbol_login.account:
+  title: 'My Symbol Account'
+  description: 'Review the Symbol account connected through Symbol Login.'
+  route_name: symbol_login.account
+  menu_name: main

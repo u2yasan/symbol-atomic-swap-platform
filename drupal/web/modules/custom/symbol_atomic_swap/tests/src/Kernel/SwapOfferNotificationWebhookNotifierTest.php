@@ -22,7 +22,7 @@ final class SwapOfferNotificationWebhookNotifierTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['system', 'symbol_atomic_swap'];
+  protected static $modules = ['system', 'symbol_engine', 'symbol_atomic_swap'];
 
   /**
    * Environment values to restore after each test.

@@ -9,8 +9,8 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -33,7 +33,7 @@ final class CheckMyBalanceForm extends FormBase {
   public static function create(ContainerInterface $container): self {
     return new self(
       $container->get('symbol_p2p_ad_listing.repository'),
-      $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_engine.client'),
       $container->get('current_user'),
       $container->get('entity_type.manager'),
     );

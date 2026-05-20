@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\symbol_atomic_swap\Kernel;
+namespace Drupal\Tests\symbol_engine\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -17,7 +17,7 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * Tests Symbol Engine HTTP client behavior.
  */
-#[Group('symbol_atomic_swap')]
+#[Group('symbol_engine')]
 final class SymbolEngineClientTest extends KernelTestBase {
 
   private const VALID_TOKEN = 'f3b9c1a84e7d42fa9c05b8d63e2a71cb';
@@ -25,7 +25,7 @@ final class SymbolEngineClientTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['symbol_atomic_swap'];
+  protected static $modules = ['symbol_engine'];
 
   /**
    * Environment values to restore after each test.

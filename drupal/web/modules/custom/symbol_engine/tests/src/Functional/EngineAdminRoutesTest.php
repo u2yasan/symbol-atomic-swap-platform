@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\symbol_atomic_swap\Functional;
+namespace Drupal\Tests\symbol_engine\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 use PHPUnit\Framework\Attributes\Group;
@@ -11,14 +11,14 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 /**
  * Tests Symbol Engine admin routes.
  */
-#[Group('symbol_atomic_swap')]
+#[Group('symbol_engine')]
 #[RunTestsInSeparateProcesses]
 final class EngineAdminRoutesTest extends BrowserTestBase {
 
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['symbol_atomic_swap'];
+  protected static $modules = ['symbol_engine'];
 
   /**
    * {@inheritdoc}
@@ -28,30 +28,30 @@ final class EngineAdminRoutesTest extends BrowserTestBase {
   /**
    * Admin Engine pages must be closed to anonymous users and available to admins.
    */
-  public function testAdminRoutesRequireSiteConfigurationPermission(): void {
+  public function testAdminRoutesRequireSymbolEnginePermission(): void {
     $assert_session = $this->assertSession();
 
-    $this->drupalGet('/admin/config/services/symbol-atomic-swap/engine');
+    $this->drupalGet('/admin/config/services/symbol-engine/lookup');
     $assert_session->statusCodeEquals(403);
 
-    $this->drupalGet('/admin/config/services/symbol-atomic-swap/engine/operations');
+    $this->drupalGet('/admin/config/services/symbol-engine/operations');
     $assert_session->statusCodeEquals(403);
 
-    $this->drupalGet('/admin/config/services/symbol-atomic-swap/settings');
+    $this->drupalGet('/admin/config/services/symbol-engine/settings');
     $assert_session->statusCodeEquals(403);
 
     $account = $this->drupalCreateUser([
       'administer modules',
-      'administer site configuration',
+      'administer symbol engine',
     ]);
     $this->drupalLogin($account);
 
     $this->drupalGet('/admin/modules');
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Symbol Atomic Swap');
-    $assert_session->linkByHrefExists('/admin/config/services/symbol-atomic-swap/settings');
+    $assert_session->pageTextContains('Symbol Engine');
+    $assert_session->linkByHrefExists('/admin/config/services/symbol-engine/settings');
 
-    $this->drupalGet('/admin/config/services/symbol-atomic-swap/engine');
+    $this->drupalGet('/admin/config/services/symbol-engine/lookup');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Symbol Engine read API lookup and health dashboard');
     $assert_session->buttonExists('Read health');
@@ -59,21 +59,18 @@ final class EngineAdminRoutesTest extends BrowserTestBase {
     $assert_session->fieldExists('Intent hash');
     $assert_session->fieldExists('Transaction hash');
 
-    $this->drupalGet('/admin/config/services/symbol-atomic-swap/engine/operations');
+    $this->drupalGet('/admin/config/services/symbol-engine/operations');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Manual Symbol Engine operations');
     $assert_session->buttonExists('Build unsigned transaction');
     $assert_session->buttonExists('Verify signed payload');
     $assert_session->buttonExists('Announce transaction');
 
-    $this->drupalGet('/admin/config/services/symbol-atomic-swap/settings');
+    $this->drupalGet('/admin/config/services/symbol-engine/settings');
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldExists('Engine base URL');
     $assert_session->fieldExists('Engine timeout seconds');
     $assert_session->pageTextContains('API token state');
-    $assert_session->fieldExists('Notification email recipient');
-    $assert_session->fieldExists('Webhook URL');
-    $assert_session->pageTextContains('Webhook token state');
   }
 
 }

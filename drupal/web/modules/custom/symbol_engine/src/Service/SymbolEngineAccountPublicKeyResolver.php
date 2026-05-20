@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\symbol_atomic_swap\Service;
+namespace Drupal\symbol_engine\Service;
 
 use Drupal\Core\State\StateInterface;
 
@@ -33,7 +33,10 @@ final class SymbolEngineAccountPublicKeyResolver implements SymbolAccountPublicK
   }
 
   private function testOverride(string $network, string $address): ?string {
-    $overrides = $this->state->get('symbol_atomic_swap.account_public_key_test_overrides', []);
+    $overrides = $this->state->get('symbol_engine.account_public_key_test_overrides', []);
+    if (!is_array($overrides) || $overrides === []) {
+      $overrides = $this->state->get('symbol_atomic_swap.account_public_key_test_overrides', []);
+    }
     if (!is_array($overrides)) {
       return NULL;
     }

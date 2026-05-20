@@ -1,15 +1,4 @@
 services:
-  symbol_atomic_swap.engine_client:
-    class: Drupal\symbol_atomic_swap\Service\SymbolEngineClient
-    arguments: ['@http_client', '@config.factory']
-
-  symbol_atomic_swap.address_deriver:
-    class: Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver
-
-  symbol_atomic_swap.account_public_key_resolver:
-    class: Drupal\symbol_atomic_swap\Service\SymbolEngineAccountPublicKeyResolver
-    arguments: ['@symbol_atomic_swap.engine_client', '@symbol_atomic_swap.address_deriver', '@state']
-
   symbol_atomic_swap.offer_repository:
     class: Drupal\symbol_atomic_swap\Repository\SwapOfferRepository
     arguments: ['@database']
@@ -32,7 +21,7 @@ services:
 
   symbol_atomic_swap.offer_projection_synchronizer:
     class: Drupal\symbol_atomic_swap\Service\SwapOfferProjectionSynchronizer
-    arguments: ['@symbol_atomic_swap.offer_repository', '@symbol_atomic_swap.engine_client', '@symbol_atomic_swap.offer_notification_repository']
+    arguments: ['@symbol_atomic_swap.offer_repository', '@symbol_engine.client', '@symbol_atomic_swap.offer_notification_repository']
 
   symbol_atomic_swap.offer_expiration_manager:
     class: Drupal\symbol_atomic_swap\Service\SwapOfferExpirationManager

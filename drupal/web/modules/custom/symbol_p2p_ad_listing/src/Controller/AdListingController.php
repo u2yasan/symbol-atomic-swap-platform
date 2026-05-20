@@ -9,8 +9,8 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Link;
 use Drupal\Core\Url;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Drupal\symbol_p2p_ad_listing\Repository\AdListingRepository;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -31,7 +31,7 @@ final class AdListingController extends ControllerBase {
       $container->get('symbol_p2p_ad_listing.repository'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
-      $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_engine.client'),
     );
   }
 

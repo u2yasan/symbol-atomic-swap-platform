@@ -5,3 +5,9 @@ services:
       - '@http_client'
       - '@config.factory'
 
+  symbol_engine.address_deriver:
+    class: Drupal\symbol_engine\Service\SymbolAddressDeriver
+
+  symbol_engine.account_public_key_resolver:
+    class: Drupal\symbol_engine\Service\SymbolEngineAccountPublicKeyResolver
+    arguments: ['@symbol_engine.client', '@symbol_engine.address_deriver', '@state']

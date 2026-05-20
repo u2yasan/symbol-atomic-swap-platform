@@ -4,3 +4,14 @@ symbol_engine.settings:
   route_name: symbol_engine.settings
   parent: system.admin_config_services
 
+symbol_engine.lookup:
+  title: 'Symbol Engine Lookup'
+  description: 'Read Symbol Engine health, network, intent, and projection state.'
+  route_name: symbol_engine.lookup
+  parent: system.admin_config_services
+
+symbol_engine.operations:
+  title: 'Symbol Engine Operations'
+  description: 'Build, verify, and announce Symbol Engine transactions.'
+  route_name: symbol_engine.operations
+  parent: system.admin_config_services

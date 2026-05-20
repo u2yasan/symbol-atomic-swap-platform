@@ -15,7 +15,7 @@ final class AdListingRepositoryTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['system', 'user', 'field', 'symbol_atomic_swap', 'symbol_p2p_ad_listing'];
+  protected static $modules = ['system', 'user', 'field', 'symbol_engine', 'symbol_atomic_swap', 'symbol_p2p_ad_listing'];
 
   private AdListingRepository $repository;
 

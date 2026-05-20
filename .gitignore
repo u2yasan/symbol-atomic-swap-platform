@@ -12,6 +12,10 @@
 /drupal/web/modules/custom/*
 !/drupal/web/modules/custom/symbol_atomic_swap/
 !/drupal/web/modules/custom/symbol_atomic_swap/**
+!/drupal/web/modules/custom/symbol_engine/
+!/drupal/web/modules/custom/symbol_engine/**
+!/drupal/web/modules/custom/symbol_login/
+!/drupal/web/modules/custom/symbol_login/**
 !/drupal/web/modules/custom/symbol_p2p_ad_listing/
 !/drupal/web/modules/custom/symbol_p2p_ad_listing/**
 .DS_Store

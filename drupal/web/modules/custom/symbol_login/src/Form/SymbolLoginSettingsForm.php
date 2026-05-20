@@ -72,6 +72,14 @@ final class SymbolLoginSettingsForm extends ConfigFormBase {
       '#description' => $this->t('Leave disabled to keep Drupal username and password login available beside Symbol login. UID 1 and users with the configured emergency permission are never blocked.'),
     ];
 
+    $form['compatibility']['password_login_permission'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Emergency password login permission'),
+      '#default_value' => (string) ($config->get('password_login_permission') ?: 'use password login'),
+      '#required' => TRUE,
+      '#description' => $this->t('Permission machine name that can still use password login when password login is disabled. Keep this aligned with symbol_login.permissions.yml unless you provide the permission elsewhere.'),
+    ];
+
     $form['compatibility']['disable_password_reset'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Disable public password reset route'),
@@ -109,6 +117,9 @@ final class SymbolLoginSettingsForm extends ConfigFormBase {
         $form_state->setErrorByName('rest_endpoints', $this->t('REST endpoints must use HTTPS.'));
       }
     }
+    if (trim((string) $form_state->getValue('password_login_permission')) === '') {
+      $form_state->setErrorByName('password_login_permission', $this->t('Emergency password login permission is required.'));
+    }
 
     $rules = json_decode((string) $form_state->getValue('role_rules_json'), TRUE);
     if (!is_array($rules)) {
@@ -134,6 +145,7 @@ final class SymbolLoginSettingsForm extends ConfigFormBase {
       ->set('challenge_ttl_seconds', (int) $form_state->getValue('challenge_ttl_seconds'))
       ->set('request_timeout_seconds', (int) $form_state->getValue('request_timeout_seconds'))
       ->set('disable_password_login', (bool) $form_state->getValue('disable_password_login'))
+      ->set('password_login_permission', trim((string) $form_state->getValue('password_login_permission')))
       ->set('disable_password_reset', (bool) $form_state->getValue('disable_password_reset'))
       ->set('disable_public_registration', (bool) $form_state->getValue('disable_public_registration'))
       ->set('role_rules', json_decode((string) $form_state->getValue('role_rules_json'), TRUE) ?: [])

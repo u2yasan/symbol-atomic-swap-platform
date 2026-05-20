@@ -1,7 +1,7 @@
 ## Symbol Atomic Swap
 
-Drupal is a read/proxy layer for Symbol Engine. It must not hold private keys
-and must not sign Symbol transactions.
+Atomic Settlements Drupal UI and local projection storage. Shared Symbol Engine
+connection, lookup, and operation surfaces live in the `symbol_engine` module.
 
 ### Routes
 
@@ -15,20 +15,6 @@ and must not sign Symbol transactions.
 - `/symbol-atomic-swap/settlements/{offerId}/announce`
 - `/symbol-atomic-swap/settlements/{offerId}/sync-projection`
 - `/symbol-atomic-swap/settlements/{offerId}/delete`
-- `GET /symbol-atomic-swap/engine/network`
-- `GET /symbol-atomic-swap/engine/intent/{intentHash}`
-- `GET /symbol-atomic-swap/engine/projection/{network}/{transactionHash}`
-- `/admin/config/services/symbol-atomic-swap/engine`
-- `/admin/config/services/symbol-atomic-swap/engine/operations`
-
-The admin page is a read-only lookup surface for Engine network, intent, and
-projection state.
-
-The operations page can build unsigned Aggregate Complete payloads, submit
-signed payloads for Engine semantic verification, and announce already verified
-transactions. Drupal does not sign and does not accept private key material.
-When an Engine response contains `qrPayload`, Drupal renders it as a QR code in
-the browser without external CDN assets.
 
 The settlement UI persists agreed atomic settlement terms, calls Symbol Engine
 to build unsigned payloads, stores the resulting intent hash and QR payload, and

@@ -7,10 +7,10 @@ namespace Drupal\symbol_atomic_swap\Form;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Service\SymbolAddressDeriver;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Drupal\symbol_atomic_swap\Signing\AliceSignUrl;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -33,8 +33,8 @@ final class SwapOfferSssSignForm extends FormBase {
   public static function create(ContainerInterface $container): self {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
-      $container->get('symbol_atomic_swap.engine_client'),
-      $container->get('symbol_atomic_swap.address_deriver'),
+      $container->get('symbol_engine.client'),
+      $container->get('symbol_engine.address_deriver'),
     );
   }
 
@@ -53,7 +53,7 @@ final class SwapOfferSssSignForm extends FormBase {
     $required_signer_address = $this->addressFromPublicKey($required_signer, (string) $offer['network']);
     $is_aggregate_bonded = $this->isAggregateBonded($offer);
 
-    $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
+    $form['#attached']['library'][] = 'symbol_engine/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $unsigned_payload;

@@ -9,11 +9,11 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
-use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Service\SymbolAccountPublicKeyResolverInterface;
+use Drupal\symbol_engine\Service\SymbolAddressDeriver;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -39,9 +39,9 @@ final class SwapOfferForm extends FormBase {
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('uuid'),
       $container->get('current_user'),
-      $container->get('symbol_atomic_swap.address_deriver'),
-      $container->get('symbol_atomic_swap.account_public_key_resolver'),
-      $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_engine.address_deriver'),
+      $container->get('symbol_engine.account_public_key_resolver'),
+      $container->get('symbol_engine.client'),
     );
   }
 
@@ -75,7 +75,7 @@ final class SwapOfferForm extends FormBase {
         'link' => [
           '#type' => 'link',
           '#title' => $this->t('Open My Symbol Account'),
-          '#url' => Url::fromRoute('symbol_atomic_swap.account_verification'),
+          '#url' => Url::fromRoute('symbol_login.account'),
           '#attributes' => ['class' => ['button']],
         ],
       ];

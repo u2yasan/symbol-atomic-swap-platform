@@ -6,3 +6,45 @@ symbol_engine.settings:
   requirements:
     _permission: 'administer symbol engine'
 
+symbol_engine.network:
+  path: '/symbol-engine/network'
+  defaults:
+    _controller: '\Drupal\symbol_engine\Controller\EngineController::network'
+    _title: 'Symbol Engine Network'
+  requirements:
+    _permission: 'access content'
+
+symbol_engine.intent:
+  path: '/symbol-engine/intent/{intentHash}'
+  defaults:
+    _controller: '\Drupal\symbol_engine\Controller\EngineController::intent'
+    _title: 'Symbol Engine Intent'
+  requirements:
+    _permission: 'access content'
+    intentHash: '[0-9A-Fa-f]{64}'
+
+symbol_engine.projection:
+  path: '/symbol-engine/projection/{network}/{transactionHash}'
+  defaults:
+    _controller: '\Drupal\symbol_engine\Controller\EngineController::projection'
+    _title: 'Symbol Engine Projection'
+  requirements:
+    _permission: 'access content'
+    network: 'mainnet|testnet'
+    transactionHash: '[0-9A-Fa-f]{64}'
+
+symbol_engine.lookup:
+  path: '/admin/config/services/symbol-engine/lookup'
+  defaults:
+    _form: '\Drupal\symbol_engine\Form\EngineLookupForm'
+    _title: 'Symbol Engine Lookup'
+  requirements:
+    _permission: 'administer symbol engine'
+
+symbol_engine.operations:
+  path: '/admin/config/services/symbol-engine/operations'
+  defaults:
+    _form: '\Drupal\symbol_engine\Form\EngineOperationsForm'
+    _title: 'Symbol Engine Operations'
+  requirements:
+    _permission: 'administer symbol engine'

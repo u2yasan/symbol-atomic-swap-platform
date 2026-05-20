@@ -2,28 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Drupal\symbol_atomic_swap\Form;
+namespace Drupal\symbol_engine\Form;
 
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 final class EngineOperationsForm extends FormBase {
 
   public function __construct(
-    private readonly SymbolEngineClient $engineClient,
+    protected SymbolEngineClient $engineClient,
   ) {}
 
   public static function create(ContainerInterface $container): self {
     return new self(
-      $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_engine.client'),
     );
   }
 
   public function getFormId(): string {
-    return 'symbol_atomic_swap_engine_operations_form';
+    return 'symbol_engine_operations_form';
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {
@@ -183,9 +183,9 @@ final class EngineOperationsForm extends FormBase {
       '#validate' => ['::validateAnnounce'],
     ];
 
-    $result = $form_state->get('symbol_atomic_swap_operation_result');
+    $result = $form_state->get('symbol_engine_operation_result');
     if (is_array($result)) {
-      $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
+      $form['#attached']['library'][] = 'symbol_engine/qr';
       $form['result'] = [
         '#type' => 'details',
         '#title' => $this->t('Result'),
@@ -312,17 +312,17 @@ final class EngineOperationsForm extends FormBase {
 
   private function storeResult(FormStateInterface $form_state, callable $callback): void {
     try {
-      $form_state->set('symbol_atomic_swap_operation_result', $callback());
+      $form_state->set('symbol_engine_operation_result', $callback());
     }
     catch (SymbolEngineException $exception) {
-      $form_state->set('symbol_atomic_swap_operation_result', [
+      $form_state->set('symbol_engine_operation_result', [
         'error' => $exception->engineError ?? 'symbol_engine_error',
         'message' => $exception->getMessage(),
         'details' => $exception->details,
       ]);
     }
     catch (\InvalidArgumentException | \RuntimeException $exception) {
-      $form_state->set('symbol_atomic_swap_operation_result', [
+      $form_state->set('symbol_engine_operation_result', [
         'error' => 'invalid_request',
         'message' => $exception->getMessage(),
       ]);

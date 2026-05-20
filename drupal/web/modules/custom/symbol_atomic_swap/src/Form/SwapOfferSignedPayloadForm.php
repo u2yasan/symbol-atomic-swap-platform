@@ -7,9 +7,9 @@ namespace Drupal\symbol_atomic_swap\Form;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -30,7 +30,7 @@ final class SwapOfferSignedPayloadForm extends FormBase {
   public static function create(ContainerInterface $container): self {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
-      $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_engine.client'),
     );
   }
 

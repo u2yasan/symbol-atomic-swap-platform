@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\symbol_atomic_swap\Form;
+namespace Drupal\symbol_login\Form;
 
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
@@ -12,12 +12,12 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
-final class SymbolAccountVerificationForm extends FormBase {
+final class SymbolAccountForm extends FormBase {
 
   public function __construct(
-    private readonly AccountProxyInterface $currentUser,
-    private readonly EntityTypeManagerInterface $entityTypeManager,
-    private readonly DateFormatterInterface $dateFormatter,
+    protected AccountProxyInterface $currentUser,
+    protected EntityTypeManagerInterface $entityTypeManager,
+    protected DateFormatterInterface $dateFormatter,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -29,7 +29,7 @@ final class SymbolAccountVerificationForm extends FormBase {
   }
 
   public function getFormId(): string {
-    return 'symbol_atomic_swap_account_verification_form';
+    return 'symbol_login_account_form';
   }
 
   public function buildForm(array $form, FormStateInterface $form_state): array {

@@ -53,7 +53,7 @@ final class TransactionHistoryController extends ControllerBase {
 
     return [
       '#cache' => ['max-age' => 0],
-      '#attached' => ['library' => ['symbol_atomic_swap/qr']],
+      '#attached' => ['library' => ['symbol_engine/qr']],
       'filters' => $this->filterForm($filters),
       'transactions' => [
         '#type' => 'table',

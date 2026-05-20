@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Drupal\symbol_atomic_swap\Controller;
+namespace Drupal\symbol_engine\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -18,7 +18,7 @@ final class EngineController extends ControllerBase {
 
   public static function create(ContainerInterface $container): self {
     return new self(
-      $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_engine.client'),
     );
   }
 

@@ -1,14 +1,3 @@
-qr:
-  version: 1.x
-  css:
-    component:
-      css/symbol-atomic-swap-qr.css: {}
-  js:
-    js/symbol-atomic-swap-qr.js: {}
-  dependencies:
-    - core/drupal
-    - core/once
-
 sss_sign:
   version: 1.x
   js:

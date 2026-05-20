@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_atomic_swap\Service;
 
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 

@@ -2,33 +2,33 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\symbol_atomic_swap\Functional;
+namespace Drupal\Tests\symbol_login\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 
 /**
- * Tests Symbol account verification UI wiring.
+ * Tests Symbol account management UI.
  */
-#[Group('symbol_atomic_swap')]
+#[Group('symbol_login')]
 #[RunTestsInSeparateProcesses]
-final class SymbolAccountVerificationFormTest extends BrowserTestBase {
+final class SymbolAccountFormTest extends BrowserTestBase {
 
   /**
    * {@inheritdoc}
    */
-  protected static $modules = ['symbol_atomic_swap'];
+  protected static $modules = ['symbol_login'];
 
   /**
    * {@inheritdoc}
    */
   protected $defaultTheme = 'stark';
 
-  public function testAccountVerificationRouteRequiresLoginAndRendersFields(): void {
+  public function testAccountRouteRequiresLoginAndRendersFields(): void {
     $assert_session = $this->assertSession();
 
-    $this->drupalGet('/symbol-atomic-swap/account');
+    $this->drupalGet('/symbol/account');
     $assert_session->statusCodeEquals(403);
 
     $account = $this->drupalCreateUser();
@@ -41,7 +41,7 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $this->assertTrue($account->hasField('field_symbol_challenge_hash'));
 
     $this->drupalLogin($account);
-    $this->drupalGet('/symbol-atomic-swap/account');
+    $this->drupalGet('/symbol/account');
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Identity provider');
     $assert_session->pageTextContains('Symbol Login');
@@ -51,7 +51,6 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $assert_session->linkExists('Continue with aLice');
     $assert_session->fieldNotExists('Symbol network');
     $assert_session->fieldNotExists('Symbol address');
-    $assert_session->buttonNotExists('Generate verification payload');
   }
 
   public function testVerifiedAccountIsDisplayedReadOnlyUntilRemoved(): void {
@@ -66,7 +65,7 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $account->save();
 
     $this->drupalLogin($account);
-    $this->drupalGet('/symbol-atomic-swap/account');
+    $this->drupalGet('/symbol/account');
 
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
@@ -75,7 +74,6 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $assert_session->pageTextContains('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
     $assert_session->pageTextContains('sss_zero_fee_transfer');
     $assert_session->fieldNotExists('Symbol address');
-    $assert_session->buttonNotExists('Generate verification payload');
     $assert_session->buttonExists('Disconnect Symbol account');
 
     $this->submitForm([], 'Disconnect Symbol account');

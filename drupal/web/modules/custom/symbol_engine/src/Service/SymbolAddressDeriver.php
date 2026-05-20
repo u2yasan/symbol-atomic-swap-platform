@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\symbol_atomic_swap\Service;
+namespace Drupal\symbol_engine\Service;
 
 final class SymbolAddressDeriver {
 

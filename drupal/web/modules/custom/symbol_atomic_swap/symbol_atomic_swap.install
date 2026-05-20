@@ -342,8 +342,6 @@ function symbol_atomic_swap_update_11004(): void {
 function symbol_atomic_swap_update_11005(): void {
   $config = \Drupal::configFactory()->getEditable('symbol_atomic_swap.settings');
   $defaults = [
-    'engine_base_url' => 'http://symbol-engine:3000',
-    'engine_timeout' => 10,
     'notification_email' => '',
     'webhook_url' => '',
     'webhook_timeout' => 3,
@@ -521,6 +519,22 @@ function symbol_atomic_swap_update_11013(): void {
   if (function_exists('symbol_engine_migrate_legacy_settings')) {
     symbol_engine_migrate_legacy_settings();
   }
+}
+
+/**
+ * Removes obsolete Symbol integration settings now owned by other modules.
+ */
+function symbol_atomic_swap_update_11014(): void {
+  $config = \Drupal::configFactory()->getEditable('symbol_atomic_swap.settings');
+  foreach ([
+    'engine_base_url',
+    'engine_timeout',
+    'account_verification_recipient_testnet',
+    'account_verification_recipient_mainnet',
+  ] as $key) {
+    $config->clear($key);
+  }
+  $config->save();
 }
 
 /**

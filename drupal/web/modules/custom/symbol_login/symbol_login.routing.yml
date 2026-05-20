@@ -56,6 +56,14 @@ symbol_login.sss_verify:
   requirements:
     _user_is_logged_in: 'FALSE'
 
+symbol_login.account:
+  path: '/symbol/account'
+  defaults:
+    _form: '\Drupal\symbol_login\Form\SymbolAccountForm'
+    _title: 'My Symbol Account'
+  requirements:
+    _user_is_logged_in: 'TRUE'
+
 symbol_login.settings:
   path: '/admin/config/people/symbol-login'
   defaults:

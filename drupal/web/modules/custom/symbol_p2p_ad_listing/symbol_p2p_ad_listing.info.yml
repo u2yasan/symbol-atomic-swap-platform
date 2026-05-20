@@ -5,4 +5,6 @@ core_version_requirement: ^11
 package: Symbol
 configure: symbol_p2p_ad_listing.settings
 dependencies:
+  - symbol_engine:symbol_engine
+  - symbol_login:symbol_login
   - symbol_atomic_swap:symbol_atomic_swap

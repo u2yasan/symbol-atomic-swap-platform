@@ -21,12 +21,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 final class SymbolLoginForm extends FormBase {
 
   public function __construct(
-    private readonly RouteMatchInterface $currentRouteMatch,
-    private readonly ChallengeManager $challengeManager,
-    private readonly SignatureVerifier $signatureVerifier,
-    private readonly SymbolEngineClient $symbolEngineClient,
-    private readonly SymbolUserMapper $symbolUserMapper,
-    private readonly RoleSynchronizer $roleSynchronizer,
+    protected RouteMatchInterface $currentRouteMatch,
+    protected ChallengeManager $challengeManager,
+    protected SignatureVerifier $signatureVerifier,
+    protected SymbolEngineClient $symbolEngineClient,
+    protected SymbolUserMapper $symbolUserMapper,
+    protected RoleSynchronizer $roleSynchronizer,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -117,36 +117,33 @@ final class SymbolLoginForm extends FormBase {
 
   public function validateAliceGenerate(array &$form, FormStateInterface $form_state): void {
     $address = $this->normalizeAddress((string) $form_state->getValue('address'));
-    $public_key = $this->normalizePublicKey((string) $form_state->getValue('public_key'));
-
-    if ($address === '' || $public_key === '') {
-      return;
-    }
-    if (!preg_match('/^[0-9A-F]{64}$/', $public_key)) {
-      $form_state->setErrorByName('public_key', $this->t('Public key must be 64 hex characters.'));
-      return;
-    }
-
-    try {
-      if ($this->signatureVerifier->addressFromPublicKey($public_key) !== $address) {
-        $form_state->setErrorByName('address', $this->t('Address does not match public key.'));
-      }
-    }
-    catch (SymbolLoginException | \InvalidArgumentException $exception) {
-      $form_state->setErrorByName('public_key', $this->t('Public key could not be verified.'));
+    $network = (string) ($this->config('symbol_login.settings')->get('network_type') ?: 'testnet');
+    if (!$this->isNetworkAddress($address, $network)) {
+      $form_state->setErrorByName('address', $this->t('Symbol address must be a valid raw address for the configured network.'));
     }
   }
 
   public function submitAliceGenerate(array &$form, FormStateInterface $form_state): void {
     $address = $this->normalizeAddress((string) $form_state->getValue('address'));
-    $public_key = $this->normalizePublicKey((string) $form_state->getValue('public_key'));
     $network = (string) ($this->config('symbol_login.settings')->get('network_type') ?: 'testnet');
 
     try {
+      $resolved = $this->symbolEngineClient->accountPublicKey($network, $address);
+      $public_key = $this->normalizePublicKey((string) ($resolved['publicKey'] ?? ''));
+      if (!preg_match('/^[0-9A-F]{64}$/', $public_key)) {
+        throw new SymbolLoginException('No public key was found for this address. Use an account that has sent at least one signed transaction.');
+      }
       $challenge = $this->challengeManager->createForAccount($address, $public_key);
       $built = $this->symbolEngineClient->buildAccountVerification($network, $address, $public_key, (string) $challenge['message']);
     }
-    catch (SymbolEngineException | SymbolLoginException | \InvalidArgumentException | \RuntimeException $exception) {
+    catch (SymbolEngineException $exception) {
+      $message = $exception->engineError === 'account_public_key_not_found'
+        ? $this->t('No public key was found for this address. Use an account that has sent at least one signed transaction.')
+        : $exception->getMessage();
+      $this->messenger()->addError($this->t('aLice signing URL generation failed: @message', ['@message' => $message]));
+      return;
+    }
+    catch (SymbolLoginException | \InvalidArgumentException | \RuntimeException $exception) {
       $this->messenger()->addError($this->t('aLice signing URL generation failed: @message', ['@message' => $exception->getMessage()]));
       return;
     }
@@ -196,17 +193,17 @@ final class SymbolLoginForm extends FormBase {
   }
 
   private function buildAliceForm(array $form, FormStateInterface $form_state): array {
-    $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
+    $form['#attached']['library'][] = 'symbol_engine/qr';
 
     $challenge = $form_state->get('alice_challenge');
     $address = $challenge['address'] ?? $this->normalizeAddress((string) $form_state->getValue('address'));
-    $public_key = $challenge['publicKey'] ?? $this->normalizePublicKey((string) $form_state->getValue('public_key'));
+    $public_key = $challenge['publicKey'] ?? '';
     $unsigned_payload = (string) ($challenge['unsignedPayload'] ?? '');
     $alice_url = $unsigned_payload !== '' ? $this->aliceTransactionUrl($unsigned_payload, (string) $public_key) : '';
 
     $form['notice'] = [
       '#type' => 'item',
-      '#markup' => $this->t('Enter the Symbol address and public key registered in aLice, generate a signing URL, then scan the QR or open the URL with aLice. Paste the signed payload returned by aLice to log in.'),
+      '#markup' => $this->t('Enter the Symbol address registered in aLice, generate a signing URL, then scan the QR or open the URL with aLice. Paste the signed payload returned by aLice to log in. The account must already have a public key on-chain.'),
     ];
     $form['address'] = [
       '#type' => 'textfield',
@@ -220,18 +217,13 @@ final class SymbolLoginForm extends FormBase {
         'spellcheck' => 'false',
       ],
     ];
-    $form['public_key'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Symbol public key'),
-      '#maxlength' => 64,
-      '#size' => 72,
-      '#default_value' => $public_key,
-      '#required' => TRUE,
-      '#attributes' => [
-        'autocomplete' => 'off',
-        'spellcheck' => 'false',
-      ],
-    ];
+    if ($public_key !== '') {
+      $form['public_key'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Resolved Symbol public key'),
+        '#markup' => $public_key,
+      ];
+    }
     $form['generate'] = [
       '#type' => 'actions',
       'submit' => [
@@ -341,6 +333,15 @@ final class SymbolLoginForm extends FormBase {
 
   private function normalizePublicKey(string $public_key): string {
     return $this->normalizeHex($public_key);
+  }
+
+  private function isNetworkAddress(string $address, string $network): bool {
+    $prefix = match ($network) {
+      'mainnet' => 'N',
+      'testnet' => 'T',
+      default => '',
+    };
+    return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper(trim($address))) === 1;
   }
 
   private function normalizeHex(string $value): string {

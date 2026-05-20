@@ -7,8 +7,19 @@ Drupal 11 shared integration module for the Symbol Engine service.
 - Stores non-secret Engine connection settings.
 - Reads `SYMBOL_ENGINE_API_TOKEN` from the environment.
 - Provides the `symbol_engine.client` service.
+- Provides address derivation and account public-key resolver services.
+- Provides Engine lookup and manual operations admin pages.
+- Provides shared QR/copy rendering assets for Symbol payloads.
 - Supports account verification payload build and signed payload verification for SSS and aLice login flows.
-- Keeps legacy fallback reads from `symbol_atomic_swap.settings` during migration.
+
+## Routes
+
+- `GET /symbol-engine/network`
+- `GET /symbol-engine/intent/{intentHash}`
+- `GET /symbol-engine/projection/{network}/{transactionHash}`
+- `/admin/config/services/symbol-engine/settings`
+- `/admin/config/services/symbol-engine/lookup`
+- `/admin/config/services/symbol-engine/operations`
 
 ## Required environment
 

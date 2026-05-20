@@ -61,7 +61,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->fieldNotExists('Max fee');
     $assert_session->fieldNotExists('Maker address');
     $assert_session->pageTextContains('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
-    $assert_session->pageTextContains('Uses the verified address from My Symbol Account.');
+    $assert_session->pageTextContains('Uses the Symbol address connected through Symbol Login.');
     $assert_session->fieldNotExists('Resolved maker public key');
     $assert_session->fieldValueEquals('maker_pays[mosaic_id]', '72C0212E67A08BCE');
     $assert_session->fieldValueEquals('maker_wants[mosaic_id]', '72C0212E67A08BCE');
@@ -166,7 +166,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->pageTextContains('Create Atomic Settlement requires a Symbol account connected through Symbol Login.');
     $assert_session->linkExists('Open My Symbol Account');
-    $assert_session->linkByHrefExists('/symbol-atomic-swap/account');
+    $assert_session->linkByHrefExists('/symbol/account');
     $assert_session->pageTextContains('Connect a Symbol account with Symbol Login before creating an atomic settlement.');
   }
 
@@ -208,7 +208,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->statusCodeEquals(200);
     $assert_session->fieldNotExists('Taker recipient address');
     $assert_session->pageTextContains('TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI');
-    $assert_session->pageTextNotContains('Uses the verified address from My Symbol Account.');
+    $assert_session->pageTextNotContains('Uses the Symbol address connected through Symbol Login.');
     $assert_session->fieldNotExists('Resolved taker public key');
     $assert_session->fieldExists('Transaction deadline hours');
     $assert_session->fieldValueEquals('transaction[deadline_hours]', '6');
@@ -746,7 +746,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('A', 64));
     $assert_session->elementExists('css', '.symbol-atomic-swap-qr[data-qr-payload^="alice://sign?type=request_sign_cosignature"]');
-    $assert_session->responseContains('symbol-atomic-swap-qr.js');
+    $assert_session->responseContains('symbol-engine-qr.js');
     $this->submitForm([
       'payload' => json_encode([
         'parentHash' => str_repeat('D', 64),
@@ -849,7 +849,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
     $assert_session->elementExists('css', '.symbol-atomic-swap-qr[data-qr-payload^="alice://sign?type=request_sign_cosignature"]');
-    $assert_session->responseContains('symbol-atomic-swap-qr.js');
+    $assert_session->responseContains('symbol-engine-qr.js');
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
 
@@ -918,7 +918,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64) . '&data=');
     $assert_session->pageTextContains('set_public_key=' . str_repeat('B', 64));
     $assert_session->elementExists('css', '.symbol-atomic-swap-qr[data-qr-payload^="alice://sign?type=request_sign_cosignature"]');
-    $assert_session->responseContains('symbol-atomic-swap-qr.js');
+    $assert_session->responseContains('symbol-engine-qr.js');
     $assert_session->linkExists('Open aLice signer');
     $assert_session->buttonExists('Verify and store cosignature');
     $this->submitForm(['payload' => 'A1B2C3D4'], 'Verify and store cosignature');

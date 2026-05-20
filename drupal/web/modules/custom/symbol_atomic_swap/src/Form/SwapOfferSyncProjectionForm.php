@@ -7,7 +7,7 @@ namespace Drupal\symbol_atomic_swap\Form;
 use Drupal\Core\Form\ConfirmFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
 use Drupal\symbol_atomic_swap\Service\SwapOfferProjectionSynchronizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;

@@ -3,6 +3,7 @@ type: module
 description: Provides Symbol address signature authentication and role synchronization from mosaics and metadata.
 package: Authentication
 core_version_requirement: ^11
+configure: symbol_login.settings
 dependencies:
   - drupal:user
   - drupal:field

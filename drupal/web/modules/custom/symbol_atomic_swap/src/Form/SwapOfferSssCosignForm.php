@@ -7,11 +7,11 @@ namespace Drupal\symbol_atomic_swap\Form;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Service\SymbolAddressDeriver;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Drupal\symbol_atomic_swap\Signing\AliceSignUrl;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -36,8 +36,8 @@ final class SwapOfferSssCosignForm extends FormBase {
     return new self(
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.offer_cosignature_repository'),
-      $container->get('symbol_atomic_swap.engine_client'),
-      $container->get('symbol_atomic_swap.address_deriver'),
+      $container->get('symbol_engine.client'),
+      $container->get('symbol_engine.address_deriver'),
     );
   }
 
@@ -59,7 +59,7 @@ final class SwapOfferSssCosignForm extends FormBase {
     $expected_cosigner = $this->expectedCosignerPublicKey($offer);
     $expected_cosigner_address = $this->addressFromPublicKey($expected_cosigner, (string) $offer['network']);
 
-    $form['#attached']['library'][] = 'symbol_atomic_swap/qr';
+    $form['#attached']['library'][] = 'symbol_engine/qr';
     $form['#attached']['library'][] = 'symbol_atomic_swap/sss_sign';
     $form['#attributes']['data-symbol-sss-container'] = '1';
     $form['#attributes']['data-symbol-sss-unsigned-payload'] = $payload_for_sss;

@@ -11,10 +11,10 @@ use Drupal\Core\Url;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferCosignatureRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferNotificationRepository;
 use Drupal\symbol_atomic_swap\Repository\SwapOfferRepository;
-use Drupal\symbol_atomic_swap\Exception\SymbolEngineException;
-use Drupal\symbol_atomic_swap\Service\SymbolAccountPublicKeyResolverInterface;
-use Drupal\symbol_atomic_swap\Service\SymbolAddressDeriver;
-use Drupal\symbol_atomic_swap\Service\SymbolEngineClient;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
+use Drupal\symbol_engine\Service\SymbolAccountPublicKeyResolverInterface;
+use Drupal\symbol_engine\Service\SymbolAddressDeriver;
+use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Drupal\symbol_atomic_swap\Service\SwapOfferProjectionSynchronizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -39,9 +39,9 @@ final class SwapOfferController extends ControllerBase {
       $container->get('symbol_atomic_swap.offer_repository'),
       $container->get('symbol_atomic_swap.offer_notification_repository'),
       $container->get('symbol_atomic_swap.offer_cosignature_repository'),
-      $container->get('symbol_atomic_swap.account_public_key_resolver'),
-      $container->get('symbol_atomic_swap.address_deriver'),
-      $container->get('symbol_atomic_swap.engine_client'),
+      $container->get('symbol_engine.account_public_key_resolver'),
+      $container->get('symbol_engine.address_deriver'),
+      $container->get('symbol_engine.client'),
       $container->get('date.formatter'),
       $container->get('request_stack'),
     );
@@ -71,7 +71,7 @@ final class SwapOfferController extends ControllerBase {
 
     return [
       '#cache' => ['max-age' => 0],
-      '#attached' => ['library' => ['symbol_atomic_swap/qr']],
+      '#attached' => ['library' => ['symbol_engine/qr']],
       'filters' => $this->filterForm($filters),
       'actions' => [
         '#type' => 'actions',
@@ -188,7 +188,7 @@ final class SwapOfferController extends ControllerBase {
       '#cache' => [
         'max-age' => 0,
       ],
-      '#attached' => ['library' => ['symbol_atomic_swap/qr']],
+      '#attached' => ['library' => ['symbol_engine/qr']],
       'summary' => [
         '#type' => 'details',
         '#title' => $this->t('Summary'),
@@ -438,7 +438,7 @@ final class SwapOfferController extends ControllerBase {
 
     $build = [
       '#cache' => ['max-age' => 0],
-      '#attached' => ['library' => ['symbol_atomic_swap/qr']],
+      '#attached' => ['library' => ['symbol_engine/qr']],
       'summary' => [
         '#type' => 'details',
         '#title' => $this->t('Summary'),

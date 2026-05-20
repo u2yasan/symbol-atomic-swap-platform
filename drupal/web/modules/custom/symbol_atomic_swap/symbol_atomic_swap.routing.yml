@@ -64,7 +64,7 @@ symbol_atomic_swap.mosaic_metadata:
 symbol_atomic_swap.account_verification:
   path: '/symbol-atomic-swap/account'
   defaults:
-    _form: '\Drupal\symbol_atomic_swap\Form\SymbolAccountVerificationForm'
+    _controller: '\Drupal\symbol_login\Controller\SymbolAccountController::legacyRedirect'
     _title: 'My Symbol Account'
   requirements:
     _user_is_logged_in: 'TRUE'
@@ -219,53 +219,10 @@ symbol_atomic_swap.notification_mark_all_read:
   requirements:
     _symbol_atomic_swap_notification_access: 'mark_all_read'
 
-symbol_atomic_swap.engine_network:
-  path: '/symbol-atomic-swap/engine/network'
-  defaults:
-    _controller: '\Drupal\symbol_atomic_swap\Controller\EngineController::network'
-    _title: 'Symbol Engine Network'
-  requirements:
-    _permission: 'access content'
-
-symbol_atomic_swap.engine_intent:
-  path: '/symbol-atomic-swap/engine/intent/{intentHash}'
-  defaults:
-    _controller: '\Drupal\symbol_atomic_swap\Controller\EngineController::intent'
-    _title: 'Symbol Engine Intent'
-  requirements:
-    _permission: 'access content'
-    intentHash: '[0-9A-Fa-f]{64}'
-
-symbol_atomic_swap.engine_projection:
-  path: '/symbol-atomic-swap/engine/projection/{network}/{transactionHash}'
-  defaults:
-    _controller: '\Drupal\symbol_atomic_swap\Controller\EngineController::projection'
-    _title: 'Symbol Engine Projection'
-  requirements:
-    _permission: 'access content'
-    network: 'mainnet|testnet'
-    transactionHash: '[0-9A-Fa-f]{64}'
-
-symbol_atomic_swap.engine_lookup:
-  path: '/admin/config/services/symbol-atomic-swap/engine'
-  defaults:
-    _form: '\Drupal\symbol_atomic_swap\Form\EngineLookupForm'
-    _title: 'Symbol Engine'
-  requirements:
-    _permission: 'administer site configuration'
-
 symbol_atomic_swap.settings:
   path: '/admin/config/services/symbol-atomic-swap/settings'
   defaults:
     _form: '\Drupal\symbol_atomic_swap\Form\SymbolAtomicSwapSettingsForm'
     _title: 'Symbol Atomic Swap Settings'
-  requirements:
-    _permission: 'administer site configuration'
-
-symbol_atomic_swap.engine_operations:
-  path: '/admin/config/services/symbol-atomic-swap/engine/operations'
-  defaults:
-    _form: '\Drupal\symbol_atomic_swap\Form\EngineOperationsForm'
-    _title: 'Symbol Engine Operations'
   requirements:
     _permission: 'administer site configuration'

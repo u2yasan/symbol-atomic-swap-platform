@@ -1,0 +1,10 @@
+qr:
+  version: 1.x
+  css:
+    component:
+      css/symbol-engine-qr.css: {}
+  js:
+    js/symbol-engine-qr.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
