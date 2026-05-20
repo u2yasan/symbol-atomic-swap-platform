@@ -1,0 +1,108 @@
+<?php
+
+/**
+ * @file
+ * Runtime hooks for Symbol login.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Url;
+use Drupal\user\UserInterface;
+
+/**
+ * Implements hook_help().
+ */
+function symbol_login_help(string $route_name, RouteMatchInterface $route_match): ?string {
+  if ($route_name === 'help.page.symbol_login') {
+    return '<p>' . t('Provides Symbol address signature login and role synchronization from Symbol mosaics and metadata.') . '</p>';
+  }
+  return NULL;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for user_login_form.
+ */
+function symbol_login_form_user_login_form_alter(array &$form, FormStateInterface $form_state): void {
+  $form['#attached']['library'][] = 'symbol_login/login';
+  if (\Drupal::config('symbol_login.settings')->get('disable_password_login')) {
+    $form['#validate'][] = 'symbol_login_user_login_validate';
+  }
+  $form['symbol_login_external_auth'] = [
+    '#type' => 'container',
+    '#weight' => 100,
+    '#attributes' => [
+      'class' => ['symbol-login-external-auth'],
+    ],
+  ];
+  $form['symbol_login_external_auth']['symbol_login_sss'] = [
+    '#type' => 'link',
+    '#title' => t('Continue with SSS'),
+    '#url' => Url::fromRoute('symbol_login.login_sss'),
+    '#attributes' => [
+      'class' => ['button', 'symbol-login-button'],
+    ],
+  ];
+  $form['symbol_login_external_auth']['symbol_login_alice'] = [
+    '#type' => 'link',
+    '#title' => t('Continue with aLice'),
+    '#url' => Url::fromRoute('symbol_login.login_alice'),
+    '#attributes' => [
+      'class' => ['button', 'symbol-login-button'],
+    ],
+  ];
+}
+
+/**
+ * Blocks password login for non-admin users.
+ */
+function symbol_login_user_login_validate(array &$form, FormStateInterface $form_state): void {
+  $account = $form_state->get('uid') ? \Drupal::entityTypeManager()->getStorage('user')->load($form_state->get('uid')) : NULL;
+  if (!$account instanceof UserInterface) {
+    return;
+  }
+
+  $permission = (string) (\Drupal::config('symbol_login.settings')->get('password_login_permission') ?: 'use password login');
+  if ((int) $account->id() === 1 || $account->hasPermission($permission)) {
+    return;
+  }
+
+  $form_state->setErrorByName('name', t('Password login is disabled. Use Symbol signature login.'));
+}
+
+/**
+ * Implements hook_user_presave().
+ */
+function symbol_login_user_presave(UserInterface $account): void {
+  if (!$account->hasField('field_symbol_address') || $account->get('field_symbol_address')->isEmpty()) {
+    return;
+  }
+
+  $address = strtoupper(str_replace(['-', ' '], '', (string) $account->get('field_symbol_address')->value));
+  $matches = \Drupal::entityTypeManager()->getStorage('user')->getQuery()
+    ->accessCheck(FALSE)
+    ->condition('field_symbol_address', $address)
+    ->execute();
+
+  foreach ($matches as $uid) {
+    if ((string) $uid !== (string) $account->id()) {
+      throw new \InvalidArgumentException('Symbol address is already linked to another user.');
+    }
+  }
+
+  $account->set('field_symbol_address', $address);
+}
+
+/**
+ * Implements hook_route_alter().
+ */
+function symbol_login_route_alter(\Symfony\Component\Routing\RouteCollection $collection): void {
+  $config = \Drupal::config('symbol_login.settings');
+
+  if ($config->get('disable_password_reset') && ($route = $collection->get('user.pass'))) {
+    $route->setRequirement('_custom_access', '\Drupal\symbol_login\Access\PasswordRouteAccess::access');
+  }
+  if ($config->get('disable_public_registration') && ($route = $collection->get('user.register'))) {
+    $route->setRequirement('_custom_access', '\Drupal\symbol_login\Access\PasswordRouteAccess::access');
+  }
+}

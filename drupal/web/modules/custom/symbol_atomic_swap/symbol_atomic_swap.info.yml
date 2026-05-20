@@ -7,3 +7,5 @@ configure: symbol_atomic_swap.settings
 dependencies:
   - drupal:field
   - drupal:user
+  - symbol_engine:symbol_engine
+  - symbol_login:symbol_login

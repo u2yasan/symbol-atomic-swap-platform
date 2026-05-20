@@ -1,0 +1,37 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for Symbol Engine.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function symbol_engine_install(): void {
+  symbol_engine_migrate_legacy_settings();
+}
+
+/**
+ * Copies legacy Symbol Atomic Swap engine settings when available.
+ */
+function symbol_engine_migrate_legacy_settings(): void {
+  $config_factory = \Drupal::configFactory();
+  $engine = $config_factory->getEditable('symbol_engine.settings');
+  $legacy = $config_factory->get('symbol_atomic_swap.settings');
+
+  if (($engine->get('engine_base_url') === NULL || $engine->get('engine_base_url') === '') && $legacy->get('engine_base_url')) {
+    $engine->set('engine_base_url', $legacy->get('engine_base_url'));
+  }
+  if (($engine->get('engine_timeout') === NULL || (int) $engine->get('engine_timeout') <= 0) && $legacy->get('engine_timeout')) {
+    $engine->set('engine_timeout', (int) $legacy->get('engine_timeout'));
+  }
+  if ($engine->get('engine_base_url') === NULL || $engine->get('engine_base_url') === '') {
+    $engine->set('engine_base_url', 'http://symbol-engine:3000');
+  }
+  if ($engine->get('engine_timeout') === NULL || (int) $engine->get('engine_timeout') <= 0) {
+    $engine->set('engine_timeout', 10);
+  }
+  $engine->save();
+}
+

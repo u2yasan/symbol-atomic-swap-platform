@@ -164,10 +164,10 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $this->drupalGet('/symbol-atomic-swap/settlements/add');
     $assert_session = $this->assertSession();
     $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('Create Atomic Settlement requires a verified Symbol address in My Symbol Account.');
+    $assert_session->pageTextContains('Create Atomic Settlement requires a Symbol account connected through Symbol Login.');
     $assert_session->linkExists('Open My Symbol Account');
     $assert_session->linkByHrefExists('/symbol-atomic-swap/account');
-    $assert_session->pageTextContains('Register and verify My Symbol Account before creating an atomic settlement.');
+    $assert_session->pageTextContains('Connect a Symbol account with Symbol Login before creating an atomic settlement.');
   }
 
   /**

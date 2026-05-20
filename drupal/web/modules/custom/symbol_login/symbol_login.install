@@ -1,0 +1,124 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for Symbol login.
+ */
+
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
+
+/**
+ * Implements hook_install().
+ */
+function symbol_login_install(): void {
+  symbol_login_ensure_user_account_fields();
+}
+
+/**
+ * Ensures user fields used by Symbol login and Symbol-dependent modules exist.
+ */
+function symbol_login_ensure_user_account_fields(): void {
+  $fields = [
+    'field_symbol_network' => [
+      'label' => 'Symbol network',
+      'type' => 'string',
+      'settings' => ['max_length' => 16],
+    ],
+    'field_symbol_address' => [
+      'label' => 'Symbol address',
+      'type' => 'string',
+      'settings' => ['max_length' => 46],
+    ],
+    'field_symbol_public_key' => [
+      'label' => 'Symbol public key',
+      'type' => 'string',
+      'settings' => ['max_length' => 64],
+    ],
+    'field_symbol_address_verified' => [
+      'label' => 'Symbol address verified',
+      'type' => 'boolean',
+      'settings' => [],
+    ],
+    'field_symbol_address_verified_at' => [
+      'label' => 'Symbol address verified at',
+      'type' => 'timestamp',
+      'settings' => [],
+    ],
+    'field_symbol_verification_method' => [
+      'label' => 'Symbol verification method',
+      'type' => 'string',
+      'settings' => ['max_length' => 64],
+    ],
+    'field_symbol_challenge_hash' => [
+      'label' => 'Symbol verification challenge hash',
+      'type' => 'string',
+      'settings' => ['max_length' => 64],
+    ],
+    'field_symbol_last_verified' => [
+      'label' => 'Symbol last verified',
+      'type' => 'datetime',
+      'settings' => [],
+    ],
+  ];
+
+  foreach ($fields as $field_name => $definition) {
+    $storage = FieldStorageConfig::loadByName('user', $field_name);
+    if (!$storage) {
+      FieldStorageConfig::create([
+        'field_name' => $field_name,
+        'entity_type' => 'user',
+        'type' => $definition['type'],
+        'settings' => $definition['settings'],
+      ])->save();
+    }
+    elseif ($definition['type'] === 'string' && isset($definition['settings']['max_length'])) {
+      $current_length = (int) ($storage->getSetting('max_length') ?: 0);
+      $required_length = (int) $definition['settings']['max_length'];
+      if ($current_length > 0 && $current_length < $required_length) {
+        $storage->setSetting('max_length', $required_length);
+        $storage->save();
+      }
+    }
+
+    if (!FieldConfig::loadByName('user', 'user', $field_name)) {
+      FieldConfig::create([
+        'field_name' => $field_name,
+        'entity_type' => 'user',
+        'bundle' => 'user',
+        'label' => $definition['label'],
+      ])->save();
+    }
+  }
+}
+
+/**
+ * Keeps existing Drupal login routes enabled unless explicitly disabled.
+ */
+function symbol_login_update_11001(): void {
+  $config = \Drupal::configFactory()->getEditable('symbol_login.settings');
+  $config
+    ->set('disable_password_login', FALSE)
+    ->set('disable_password_reset', FALSE)
+    ->set('disable_public_registration', FALSE)
+    ->save();
+}
+
+/**
+ * Adds the shared Symbol account identity fields used by Symbol Atomic Swap.
+ */
+function symbol_login_update_11002(): void {
+  symbol_login_ensure_user_account_fields();
+}
+
+/**
+ * Enables the shared Symbol Engine module required by Symbol Login.
+ */
+function symbol_login_update_11003(): void {
+  if (!\Drupal::moduleHandler()->moduleExists('symbol_engine')) {
+    \Drupal::service('module_installer')->install(['symbol_engine']);
+  }
+  if (function_exists('symbol_engine_migrate_legacy_settings')) {
+    symbol_engine_migrate_legacy_settings();
+  }
+}

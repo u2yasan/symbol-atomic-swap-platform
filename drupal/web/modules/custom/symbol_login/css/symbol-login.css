@@ -1,0 +1,30 @@
+.symbol-login-status {
+  margin-block: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.symbol-login-status[data-symbol-login-status="pending"] {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.symbol-login-status[data-symbol-login-status="error"] {
+  border-color: #b91c1c;
+  background: #fef2f2;
+}
+
+.symbol-login-external-auth {
+  margin-block-start: 1rem;
+  padding-block-start: 1rem;
+  border-block-start: 1px solid #d4d4d8;
+}
+
+.symbol-login-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+}

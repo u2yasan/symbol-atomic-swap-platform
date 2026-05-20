@@ -1,0 +1,32 @@
+services:
+  symbol_login.challenge_manager:
+    class: Drupal\symbol_login\Service\ChallengeManager
+    arguments:
+      - '@keyvalue.expirable'
+      - '@datetime.time'
+      - '@config.factory'
+      - '@uuid'
+
+  symbol_login.signature_verifier:
+    class: Drupal\symbol_login\Service\SignatureVerifier
+    arguments:
+      - '@config.factory'
+
+  symbol_login.rest_client:
+    class: Drupal\symbol_login\Service\SymbolRestClient
+    arguments:
+      - '@http_client'
+      - '@config.factory'
+
+  symbol_login.user_mapper:
+    class: Drupal\symbol_login\Service\SymbolUserMapper
+    arguments:
+      - '@entity_type.manager'
+      - '@datetime.time'
+      - '@config.factory'
+
+  symbol_login.role_synchronizer:
+    class: Drupal\symbol_login\Service\RoleSynchronizer
+    arguments:
+      - '@config.factory'
+      - '@symbol_login.rest_client'

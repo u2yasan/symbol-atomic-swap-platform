@@ -512,6 +512,18 @@ function symbol_atomic_swap_update_11012(): void {
 }
 
 /**
+ * Enables the shared Symbol Engine module used by Symbol integrations.
+ */
+function symbol_atomic_swap_update_11013(): void {
+  if (!\Drupal::moduleHandler()->moduleExists('symbol_engine')) {
+    \Drupal::service('module_installer')->install(['symbol_engine']);
+  }
+  if (function_exists('symbol_engine_migrate_legacy_settings')) {
+    symbol_engine_migrate_legacy_settings();
+  }
+}
+
+/**
  * Ensures configurable user fields used for Symbol account verification exist.
  */
 function symbol_atomic_swap_ensure_user_account_fields(): void {

@@ -1,0 +1,9 @@
+name: Symbol Engine
+type: module
+description: Provides shared Symbol Engine client services for Symbol authentication and transaction verification.
+package: Symbol
+core_version_requirement: ^11
+configure: symbol_engine.settings
+dependencies:
+  - drupal:user
+

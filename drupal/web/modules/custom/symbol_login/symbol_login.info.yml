@@ -1,0 +1,10 @@
+name: Symbol Login
+type: module
+description: Provides Symbol address signature authentication and role synchronization from mosaics and metadata.
+package: Authentication
+core_version_requirement: ^11
+dependencies:
+  - drupal:user
+  - drupal:field
+  - drupal:datetime
+  - symbol_engine:symbol_engine

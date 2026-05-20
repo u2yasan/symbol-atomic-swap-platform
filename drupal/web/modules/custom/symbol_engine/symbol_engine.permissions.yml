@@ -1,0 +1,5 @@
+administer symbol engine:
+  title: 'Administer Symbol Engine'
+  description: 'Configure shared Symbol Engine integration settings.'
+  restrict access: true
+

@@ -1,0 +1,8 @@
+symbol_engine.settings:
+  path: '/admin/config/services/symbol-engine/settings'
+  defaults:
+    _form: '\Drupal\symbol_engine\Form\SymbolEngineSettingsForm'
+    _title: 'Symbol Engine'
+  requirements:
+    _permission: 'administer symbol engine'
+

@@ -43,29 +43,15 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $this->drupalLogin($account);
     $this->drupalGet('/symbol-atomic-swap/account');
     $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Identity provider');
+    $assert_session->pageTextContains('Symbol Login');
     $assert_session->pageTextContains('Verification status');
-    $assert_session->pageTextContains('Not verified.');
-    $assert_session->fieldExists('Symbol network');
-    $assert_session->optionExists('Symbol network', 'testnet');
-    $assert_session->optionNotExists('Symbol network', 'mainnet');
-    $assert_session->fieldExists('Symbol address');
-    $assert_session->buttonExists('Generate verification payload');
-  }
-
-  public function testMainnetAccountVerificationRequiresExplicitEnablement(): void {
-    $account = $this->drupalCreateUser();
-    $this->drupalLogin($account);
-
-    $this->drupalGet('/symbol-atomic-swap/account');
-    $assert_session = $this->assertSession();
-    $assert_session->statusCodeEquals(200);
-    $assert_session->optionNotExists('Symbol network', 'mainnet');
-
-    $this->config('symbol_atomic_swap.settings')
-      ->set('mainnet_enabled', TRUE)
-      ->save();
-    $this->drupalGet('/symbol-atomic-swap/account');
-    $assert_session->optionExists('Symbol network', 'mainnet');
+    $assert_session->pageTextContains('Not connected.');
+    $assert_session->linkExists('Continue with SSS');
+    $assert_session->linkExists('Continue with aLice');
+    $assert_session->fieldNotExists('Symbol network');
+    $assert_session->fieldNotExists('Symbol address');
+    $assert_session->buttonNotExists('Generate verification payload');
   }
 
   public function testVerifiedAccountIsDisplayedReadOnlyUntilRemoved(): void {
@@ -87,40 +73,16 @@ final class SymbolAccountVerificationFormTest extends BrowserTestBase {
     $assert_session->pageTextContains('Verified at');
     $assert_session->pageTextContains('testnet');
     $assert_session->pageTextContains('TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ');
+    $assert_session->pageTextContains('sss_zero_fee_transfer');
     $assert_session->fieldNotExists('Symbol address');
     $assert_session->buttonNotExists('Generate verification payload');
-    $assert_session->buttonExists('Remove registered Symbol account');
+    $assert_session->buttonExists('Disconnect Symbol account');
 
-    $this->submitForm([], 'Remove registered Symbol account');
+    $this->submitForm([], 'Disconnect Symbol account');
     $assert_session->pageTextContains('Registered Symbol account was removed.');
-    $assert_session->fieldExists('Symbol address');
-    $assert_session->buttonExists('Generate verification payload');
-  }
-
-  public function testAddressAlreadyVerifiedByAnotherUserCannotBeRegistered(): void {
-    $address = 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ';
-    $existing = $this->drupalCreateUser();
-    $existing->set('field_symbol_network', 'testnet');
-    $existing->set('field_symbol_address', $address);
-    $existing->set('field_symbol_public_key', '97E42C98FF3E5D0DD4BEB7234628DFE658402EDAD7A2CF5190451F7EFFA5B79D');
-    $existing->set('field_symbol_address_verified', TRUE);
-    $existing->set('field_symbol_address_verified_at', 1700000000);
-    $existing->set('field_symbol_verification_method', 'sss_zero_fee_transfer');
-    $existing->set('field_symbol_challenge_hash', str_repeat('A', 64));
-    $existing->save();
-
-    $account = $this->drupalCreateUser();
-    $this->drupalLogin($account);
-    $this->drupalGet('/symbol-atomic-swap/account');
-    $this->submitForm([
-      'network' => 'testnet',
-      'address' => $address,
-    ], 'Generate verification payload');
-
-    $assert_session = $this->assertSession();
-    $assert_session->statusCodeEquals(200);
-    $assert_session->pageTextContains('This Symbol address is already registered by another user.');
-    $assert_session->pageTextContains('Not verified.');
+    $assert_session->pageTextContains('Not connected.');
+    $assert_session->linkExists('Continue with SSS');
+    $assert_session->linkExists('Continue with aLice');
   }
 
 }

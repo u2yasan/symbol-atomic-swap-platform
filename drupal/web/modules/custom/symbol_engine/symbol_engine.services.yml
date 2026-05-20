@@ -1,0 +1,7 @@
+services:
+  symbol_engine.client:
+    class: Drupal\symbol_engine\Service\SymbolEngineClient
+    arguments:
+      - '@http_client'
+      - '@config.factory'
+

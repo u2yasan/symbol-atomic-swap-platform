@@ -24,7 +24,7 @@ symbol_atomic_swap.offer_list:
 
 symbol_atomic_swap.account_verification:
   title: 'My Symbol Account'
-  description: 'Register and verify your Symbol account address.'
+  description: 'Review the Symbol account connected through Symbol Login.'
   route_name: symbol_atomic_swap.account_verification
   menu_name: main
 

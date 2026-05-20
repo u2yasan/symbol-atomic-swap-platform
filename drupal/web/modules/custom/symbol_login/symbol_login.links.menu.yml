@@ -1,0 +1,6 @@
+symbol_login.settings:
+  title: 'Symbol login'
+  description: 'Configure Symbol signature authentication and role synchronization.'
+  parent: user.admin_index
+  route_name: symbol_login.settings
+

@@ -90,8 +90,8 @@ final class SwapOfferAcceptForm extends FormBase {
         'message' => [
           '#type' => 'item',
           '#markup' => $verified_symbol_account
-            ? $this->t('My Symbol Account network must match this offer network before accepting the offer.')
-            : $this->t('Finalize Atomic Settlement requires a verified Symbol address in My Symbol Account.'),
+            ? $this->t('The Symbol Login account network must match this offer network before accepting the offer.')
+            : $this->t('Finalize Atomic Settlement requires a Symbol account connected through Symbol Login.'),
         ],
         'link' => [
           '#type' => 'link',
@@ -200,12 +200,12 @@ final class SwapOfferAcceptForm extends FormBase {
     }
 
     if (!$verified_symbol_account) {
-      $form_state->setErrorByName('taker][recipient_address', $this->t('Register and verify My Symbol Account before finalizing an atomic settlement.'));
+      $form_state->setErrorByName('taker][recipient_address', $this->t('Connect a Symbol account with Symbol Login before finalizing an atomic settlement.'));
       return;
     }
 
     if ((string) $verified_symbol_account['network'] !== (string) $this->offer['network']) {
-      $form_state->setErrorByName('taker][recipient_address', $this->t('My Symbol Account network must match the offer network.'));
+      $form_state->setErrorByName('taker][recipient_address', $this->t('The Symbol Login account network must match the offer network.'));
       return;
     }
 

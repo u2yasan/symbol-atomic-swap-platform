@@ -1,0 +1,59 @@
+symbol_login.settings:
+  type: config_object
+  label: 'Symbol login settings'
+  mapping:
+    network_type:
+      type: string
+      label: 'Symbol network type'
+    rest_endpoints:
+      type: sequence
+      label: 'Symbol REST endpoints'
+      sequence:
+        type: uri
+        label: 'REST endpoint'
+    challenge_ttl_seconds:
+      type: integer
+      label: 'Challenge TTL seconds'
+    request_timeout_seconds:
+      type: integer
+      label: 'Request timeout seconds'
+    password_login_permission:
+      type: string
+      label: 'Password login permission'
+    disable_password_login:
+      type: boolean
+      label: 'Disable password login'
+    disable_password_reset:
+      type: boolean
+      label: 'Disable password reset'
+    disable_public_registration:
+      type: boolean
+      label: 'Disable public registration'
+    role_rules:
+      type: sequence
+      label: 'Role synchronization rules'
+      sequence:
+        type: mapping
+        label: 'Role rule'
+        mapping:
+          role:
+            type: string
+            label: 'Drupal role'
+          mosaic_id:
+            type: string
+            label: 'Mosaic ID'
+          minimum_amount:
+            type: string
+            label: 'Minimum amount'
+          metadata_source_address:
+            type: string
+            label: 'Metadata source address'
+          metadata_key:
+            type: string
+            label: 'Metadata key'
+          metadata_value:
+            type: string
+            label: 'Metadata value'
+          enabled:
+            type: boolean
+            label: 'Enabled'

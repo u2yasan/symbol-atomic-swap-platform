@@ -1,0 +1,10 @@
+network_type: testnet
+rest_endpoints:
+  - 'https://sym-test-01.opening-line.jp:3001'
+challenge_ttl_seconds: 300
+request_timeout_seconds: 5
+password_login_permission: 'use password login'
+disable_password_login: false
+disable_password_reset: false
+disable_public_registration: false
+role_rules: {  }

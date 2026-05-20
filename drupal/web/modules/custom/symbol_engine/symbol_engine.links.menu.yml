@@ -1,0 +1,6 @@
+symbol_engine.settings:
+  title: 'Symbol Engine'
+  description: 'Configure shared Symbol Engine integration settings.'
+  route_name: symbol_engine.settings
+  parent: system.admin_config_services
+

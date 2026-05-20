@@ -70,7 +70,7 @@ final class SwapOfferForm extends FormBase {
         '#attributes' => ['class' => ['messages', 'messages--warning']],
         'message' => [
           '#type' => 'item',
-          '#markup' => $this->t('Create Atomic Settlement requires a verified Symbol address in My Symbol Account.'),
+          '#markup' => $this->t('Create Atomic Settlement requires a Symbol account connected through Symbol Login.'),
         ],
         'link' => [
           '#type' => 'link',
@@ -155,7 +155,7 @@ final class SwapOfferForm extends FormBase {
         '#type' => 'item',
         '#title' => $this->t('Maker address'),
         '#markup' => $this->plainValue($maker_address),
-        '#description' => $this->t('Uses the verified address from My Symbol Account. Remove and re-register that account to change it.'),
+        '#description' => $this->t('Uses the Symbol address connected through Symbol Login. Disconnect that account to change it.'),
       ];
       $form['maker_pays']['address'] = [
         '#type' => 'hidden',
@@ -167,7 +167,7 @@ final class SwapOfferForm extends FormBase {
       if (!$verified_symbol_account) {
         $form['maker_pays']['account_required'] = [
           '#type' => 'item',
-          '#markup' => $this->t('Register and verify My Symbol Account before creating an atomic settlement.'),
+          '#markup' => $this->t('Connect a Symbol account with Symbol Login before creating an atomic settlement.'),
         ];
       }
     }
@@ -387,12 +387,12 @@ final class SwapOfferForm extends FormBase {
     if (!$offer_id) {
       $verified_symbol_account = $this->verifiedSymbolAccount();
       if (!$verified_symbol_account) {
-        $form_state->setErrorByName('maker_pays][address', $this->t('Register and verify My Symbol Account before creating an atomic settlement.'));
+        $form_state->setErrorByName('maker_pays][address', $this->t('Connect a Symbol account with Symbol Login before creating an atomic settlement.'));
         return;
       }
       $maker_address = (string) $verified_symbol_account['address'];
       if ($network !== (string) $verified_symbol_account['network']) {
-        $form_state->setErrorByName('network', $this->t('Offer network must match My Symbol Account network.'));
+        $form_state->setErrorByName('network', $this->t('Offer network must match the Symbol Login account network.'));
       }
       $form_state->set('symbol_atomic_swap_maker_address', $maker_address);
       $form_state->set('symbol_atomic_swap_maker_public_key', (string) $verified_symbol_account['public_key']);

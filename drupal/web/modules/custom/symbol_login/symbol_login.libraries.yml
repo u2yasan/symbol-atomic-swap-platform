@@ -1,0 +1,11 @@
+login:
+  version: 20260520.2
+  js:
+    js/symbol-login.js: {}
+  css:
+    component:
+      css/symbol-login.css: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings
+    - core/once

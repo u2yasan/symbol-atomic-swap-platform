@@ -1,0 +1,10 @@
+administer symbol login:
+  title: 'Administer Symbol login'
+  description: 'Configure Symbol signature authentication and role synchronization rules.'
+  restrict access: true
+
+use password login:
+  title: 'Use password login'
+  description: 'Allow password authentication through the Drupal user login form.'
+  restrict access: true
+
