@@ -1137,6 +1137,7 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
       'label' => 'Owner scoped offer',
       'state' => 'signed',
       'transaction_hash' => str_repeat('D', 64),
+      'root_transaction_hash' => str_repeat('E', 64),
       'uid' => (int) $owner->id(),
     ]));
 
@@ -1163,6 +1164,23 @@ final class SwapOfferRoutesTest extends BrowserTestBase {
     $assert_session->pageTextNotContains('Intent hash');
     $assert_session->pageTextNotContains(str_repeat('C', 64));
     $assert_session->pageTextNotContains('Root transaction hash');
+    $assert_session->pageTextNotContains(str_repeat('E', 64));
+    $assert_session->pageTextNotContains('Public settlement JSON');
+
+    $root_only_id = $repository->insert($this->offerValues([
+      'uuid' => 'offer-owner-root-only',
+      'label' => 'Owner root only offer',
+      'state' => 'root_signed',
+      'transaction_hash' => NULL,
+      'root_transaction_hash' => str_repeat('F', 64),
+      'uid' => (int) $owner->id(),
+    ]));
+    $this->drupalGet('/symbol-atomic-swap/settlements/' . $root_only_id);
+    $assert_session->statusCodeEquals(200);
+    $assert_session->pageTextContains('Owner root only offer');
+    $assert_session->pageTextContains('Transaction hash');
+    $assert_session->pageTextNotContains('Root transaction hash');
+    $assert_session->pageTextNotContains(str_repeat('F', 64));
     $assert_session->pageTextNotContains('Public settlement JSON');
 
     $this->drupalGet('/symbol-atomic-swap/settlements/' . $id . '/qr-payload/' . str_repeat('C', 64));

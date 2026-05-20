@@ -158,7 +158,7 @@ final class SwapOfferController extends ControllerBase {
     $summary_rows = [
       [$this->t('State'), $this->stateLabel((string) $offer['state'])],
       [$this->t('Network'), (string) $offer['network']],
-      [$this->t('Transaction hash'), $this->displayTransactionHash($offer)],
+      [$this->t('Transaction hash'), $this->displayTransactionHash($offer, $is_admin)],
       [$this->t('Created'), $this->formatDateTime($offer['created'])],
       [$this->t('Changed'), $this->formatDateTime($offer['changed'])],
       [$this->t('Expired at'), $this->formatDateTime($offer['expired_at'] ?? NULL)],
@@ -933,9 +933,9 @@ final class SwapOfferController extends ControllerBase {
   /**
    * @param array<string, mixed> $offer
    */
-  private function displayTransactionHash(array $offer): array|string {
+  private function displayTransactionHash(array $offer, bool $include_root_fallback = FALSE): array|string {
     $transaction_hash = (string) ($offer['transaction_hash'] ?: '');
-    if ($transaction_hash === '') {
+    if ($transaction_hash === '' && $include_root_fallback) {
       $transaction_hash = (string) ($offer['root_transaction_hash'] ?? '');
     }
     return $this->hashValue($transaction_hash);
