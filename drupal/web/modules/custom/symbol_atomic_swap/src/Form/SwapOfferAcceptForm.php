@@ -104,6 +104,11 @@ final class SwapOfferAcceptForm extends FormBase {
     $form['transaction'] = [
       '#type' => 'fieldset',
       '#title' => $this->t('Transaction settings'),
+      '#attributes' => [
+        'data-symbol-aggregate-deadline-settings' => '1',
+        'data-symbol-aggregate-complete-deadline-hours' => (string) self::AGGREGATE_COMPLETE_MAX_DEADLINE_HOURS,
+        'data-symbol-aggregate-bonded-deadline-hours' => (string) self::AGGREGATE_BONDED_MAX_DEADLINE_HOURS,
+      ],
     ];
     $form['transaction']['aggregate_type'] = [
       '#type' => 'radios',
@@ -145,12 +150,15 @@ final class SwapOfferAcceptForm extends FormBase {
     $form['transaction']['deadline_hours'] = [
       '#type' => 'number',
       '#title' => $this->t('Transaction deadline hours'),
-      '#default_value' => 2,
+      '#default_value' => self::AGGREGATE_COMPLETE_MAX_DEADLINE_HOURS,
       '#min' => 1,
       '#max' => self::AGGREGATE_BONDED_MAX_DEADLINE_HOURS,
       '#step' => 1,
       '#required' => TRUE,
       '#description' => $this->t('Aggregate complete allows 1 to 6 hours. Aggregate bonded allows 1 to 48 hours. The maker offer itself does not expire from this value.'),
+      '#attributes' => [
+        'data-symbol-aggregate-deadline-hours' => '1',
+      ],
     ];
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['submit'] = [

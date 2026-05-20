@@ -146,6 +146,27 @@
     });
   }
 
+  function bindAggregateDeadlineDefaults(container) {
+    const deadline = container.querySelector('[data-symbol-aggregate-deadline-hours]');
+    const complete = container.querySelector('input[name="transaction[aggregate_type]"][value="aggregate_complete"]');
+    const bonded = container.querySelector('input[name="transaction[aggregate_type]"][value="aggregate_bonded"]');
+    if (!deadline || !complete || !bonded) {
+      return;
+    }
+
+    const completeHours = container.getAttribute('data-symbol-aggregate-complete-deadline-hours') || '6';
+    const bondedHours = container.getAttribute('data-symbol-aggregate-bonded-deadline-hours') || '48';
+    const update = () => {
+      deadline.value = bonded.checked ? bondedHours : completeHours;
+      deadline.dispatchEvent(new Event('input', { bubbles: true }));
+      deadline.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    complete.addEventListener('change', update);
+    bonded.addEventListener('change', update);
+    update();
+  }
+
   Drupal.behaviors.symbolAtomicSwapOfferForm = {
     attach(context) {
       once('symbol-atomic-swap-maker-address', '[data-symbol-maker-address-form]', context).forEach((form) => {
@@ -254,6 +275,8 @@
         address.addEventListener('change', update);
         update();
       });
+
+      once('symbol-atomic-swap-aggregate-deadline', '[data-symbol-aggregate-deadline-settings]', context).forEach(bindAggregateDeadlineDefaults);
     },
   };
 })(Drupal, once);
