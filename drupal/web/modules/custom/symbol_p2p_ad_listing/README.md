@@ -4,6 +4,12 @@ Drupal module for non-custodial P2P advertisement listings between Symbol mosaic
 
 This module is not an order book and does not custody or lock assets. A listing is only an advertisement. Final settlement is delegated to the existing `symbol_atomic_swap` module.
 
+It depends on:
+
+- `symbol_engine` for metadata and balance checks.
+- `symbol_login` for verified Symbol account ownership.
+- `symbol_atomic_swap` for final settlement execution.
+
 ## Scope
 
 Implemented:
@@ -56,9 +62,12 @@ Do not treat `seller_balance_checked_amount` as guaranteed inventory. It is only
 | `symbol_p2p_ad_listing.view` | `/symbol-p2p/listings/{listingId}` | View listing |
 | `symbol_p2p_ad_listing.edit` | `/symbol-p2p/listings/{listingId}/edit` | Owner edit active listing |
 | `symbol_p2p_ad_listing.check_balance` | `/symbol-p2p/listings/{listingId}/check-balance` | Refresh seller balance |
+| `symbol_p2p_ad_listing.balance_check_seller` | `/symbol-p2p/listings/{listingId}/balance-check/seller` | AJAX seller balance refresh |
+| `symbol_p2p_ad_listing.balance_check_mine` | `/symbol-p2p/listings/{listingId}/balance-check/me` | AJAX current-user balance refresh |
 | `symbol_p2p_ad_listing.take` | `/symbol-p2p/listings/{listingId}/take` | Match listing into atomic settlement |
 | `symbol_p2p_ad_listing.cancel` | `/symbol-p2p/listings/{listingId}/cancel` | Admin cancel |
 | `symbol_p2p_ad_listing.delete` | `/symbol-p2p/listings/{listingId}/delete` | Owner delete active listing |
+| `symbol_p2p_ad_listing.settings` | `/admin/config/services/symbol-p2p-ad-listing/settings` | Admin settings |
 
 ## Permissions
 
@@ -126,7 +135,7 @@ Amounts are stored as atomic integer strings, not display decimals.
 
 ## Create Flow
 
-1. User must have a verified Symbol account from `symbol_atomic_swap`.
+1. User must have a verified Symbol account from `symbol_login`.
 2. Seller enters offered mosaic, offered amount, requested mosaic, requested amount, settlement window, and listing end date/time.
 3. Module checks both mosaics via Symbol Engine metadata.
 4. Module rejects non-transferable mosaics.
@@ -193,10 +202,10 @@ leg2: taker pays requested_mosaic_id/requested_amount to seller
 
 ## Testing
 
-Run Drupal tests:
+Run this module's tests from the repository root:
 
 ```bash
-make test-drupal
+docker compose exec -T drupal sh -lc 'cd /opt/drupal && runuser -u www-data -- env SIMPLETEST_BASE_URL=http://127.0.0.1 SIMPLETEST_DB=pgsql://drupal:drupal@postgres/drupal BROWSERTEST_OUTPUT_BASE_URL=http://127.0.0.1:8080 vendor/bin/phpunit -c phpunit.xml.dist --group symbol_p2p_ad_listing'
 ```
 
 Run only this module's kernel test:
