@@ -27,7 +27,7 @@ export type NormalizedSwapIntent = NormalizedCompleteSwapIntent | NormalizedBond
 
 export type QrPayload = {
   type: 'symbol-aggregate-complete' | 'symbol-aggregate-bonded';
-  network: 'mainnet' | 'testnet';
+  network: string;
   unsignedPayload: string;
   deadline: string;
   requiredCosigners: string[];
@@ -43,7 +43,7 @@ export type QrPayload = {
 export type SwapIntentRecord = {
   id: string;
   correlationId: string;
-  network: 'mainnet' | 'testnet';
+  network: string;
   intentHash: string;
   state: SwapIntentState;
   aggregateType: AggregateType;

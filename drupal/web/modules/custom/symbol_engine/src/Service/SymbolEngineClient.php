@@ -34,6 +34,38 @@ final class SymbolEngineClient {
     return $this->request('GET', '/v1/network');
   }
 
+  /**
+   * @return array<int, array<string, mixed>>
+   */
+  public function networkProfiles(): array {
+    $response = $this->request('GET', '/v1/network-profiles');
+    $profiles = $response['profiles'] ?? [];
+    return is_array($profiles) ? $profiles : [];
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  public function networkProfile(string $network): array {
+    $network = strtolower(trim($network));
+    foreach ($this->networkProfiles() as $profile) {
+      if (is_array($profile) && strtolower((string) ($profile['key'] ?? '')) === $network) {
+        return $profile;
+      }
+    }
+    throw new \InvalidArgumentException('Unsupported Symbol network profile.');
+  }
+
+  public function isSupportedNetwork(string $network): bool {
+    try {
+      $this->networkProfile($network);
+      return TRUE;
+    }
+    catch (\InvalidArgumentException | SymbolEngineException) {
+      return FALSE;
+    }
+  }
+
   public function buildAggregateComplete(array $payload): array {
     return $this->request('POST', '/v1/aggregate-complete/build', TRUE, $payload);
   }
@@ -48,33 +80,25 @@ final class SymbolEngineClient {
   }
 
   public function projection(string $network, string $transaction_hash): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     $this->assertHash($transaction_hash, 'transaction hash');
     return $this->request('GET', '/v1/projections/' . $network . '/' . strtoupper($transaction_hash));
   }
 
   public function reconcileProjection(string $network, string $transaction_hash): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     $this->assertHash($transaction_hash, 'transaction hash');
     return $this->request('POST', '/v1/projections/' . $network . '/' . strtoupper($transaction_hash) . '/reconcile');
   }
 
   public function accountPublicKey(string $network, string $address): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     $this->assertRawAddress($address, $network);
     return $this->request('GET', '/v1/accounts/' . $network . '/' . strtoupper($address) . '/public-key');
   }
 
   public function mosaicMetadata(string $network, string $mosaic_id): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     if (!preg_match('/^[0-9A-Fa-f]{16}$/', $mosaic_id)) {
       throw new \InvalidArgumentException('Invalid mosaic ID.');
     }
@@ -82,9 +106,7 @@ final class SymbolEngineClient {
   }
 
   public function accountMosaicBalance(string $network, string $address, string $mosaic_id): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     $this->assertRawAddress($address, $network);
     if (!preg_match('/^[0-9A-Fa-f]{16}$/', $mosaic_id)) {
       throw new \InvalidArgumentException('Invalid mosaic ID.');
@@ -108,9 +130,7 @@ final class SymbolEngineClient {
       $network = (string) ($request['network'] ?? '');
       $address = (string) ($request['address'] ?? '');
       $mosaic_id = (string) ($request['mosaic_id'] ?? '');
-      if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-        throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-      }
+      $this->networkProfile($network);
       $this->assertRawAddress($address, $network);
       if (!preg_match('/^[0-9A-Fa-f]{16}$/', $mosaic_id)) {
         throw new \InvalidArgumentException('Invalid mosaic ID.');
@@ -166,9 +186,7 @@ final class SymbolEngineClient {
   }
 
   public function buildAccountVerification(string $network, string $address, string $signer_public_key, string $challenge): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     $this->assertRawAddress($address, $network);
     $this->assertPublicKey($signer_public_key);
     return $this->request('POST', '/v1/account-verification/build', TRUE, [
@@ -181,9 +199,7 @@ final class SymbolEngineClient {
   }
 
   public function verifyAccountVerification(string $network, string $address, string $signer_public_key, string $challenge, string $payload): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     $this->assertRawAddress($address, $network);
     $this->assertPublicKey($signer_public_key);
     if (!preg_match('/^[0-9A-Fa-f]+$/', $payload) || strlen($payload) % 2 !== 0) {
@@ -199,9 +215,7 @@ final class SymbolEngineClient {
   }
 
   public function verifyOnChainAccountVerification(string $network, string $address, string $signer_public_key, string $challenge, string $recipient_address, string $transaction_hash): array {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
-    }
+    $this->networkProfile($network);
     $this->assertRawAddress($address, $network);
     $this->assertRawAddress($recipient_address, $network);
     $this->assertPublicKey($signer_public_key);
@@ -396,12 +410,9 @@ final class SymbolEngineClient {
   }
 
   private function assertRawAddress(string $value, string $network): void {
-    $prefix = match ($network) {
-      'mainnet' => 'N',
-      'testnet' => 'T',
-      default => '',
-    };
-    if ($prefix === '' || preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper($value)) !== 1) {
+    $profile = $this->networkProfile($network);
+    $prefix = strtoupper((string) ($profile['addressPrefix'] ?? ''));
+    if ($prefix === '' || preg_match('/^' . preg_quote($prefix, '/') . '[A-Z2-7]{38}$/', strtoupper($value)) !== 1) {
       throw new \InvalidArgumentException('Invalid Symbol address.');
     }
   }

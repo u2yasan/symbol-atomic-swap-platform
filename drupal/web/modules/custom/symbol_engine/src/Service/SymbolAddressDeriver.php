@@ -8,17 +8,20 @@ final class SymbolAddressDeriver {
 
   private const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
-  public function deriveFromPublicKey(string $public_key, string $network): string {
+  public function deriveFromPublicKey(string $public_key, string $network, ?int $network_identifier = NULL): string {
     $public_key = strtoupper(trim($public_key));
     if (preg_match('/^[0-9A-F]{64}$/', $public_key) !== 1) {
       throw new \InvalidArgumentException('Public key must be 64 hex characters.');
     }
 
-    $network_byte = match ($network) {
+    $network_byte = $network_identifier ?? match ($network) {
       'mainnet' => 0x68,
       'testnet' => 0x98,
-      default => throw new \InvalidArgumentException('Network must be mainnet or testnet.'),
+      default => throw new \InvalidArgumentException('Network identifier is required for private Symbol networks.'),
     };
+    if ($network_byte < 0 || $network_byte > 255) {
+      throw new \InvalidArgumentException('Network identifier must be a byte.');
+    }
 
     $public_key_bytes = hex2bin($public_key);
     if ($public_key_bytes === FALSE) {

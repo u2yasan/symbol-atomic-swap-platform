@@ -2,7 +2,7 @@ import type { QrPayload } from '../repository/types.js';
 
 export function createQrPayload(input: {
   type?: QrPayload['type'];
-  network: 'mainnet' | 'testnet';
+  network: string;
   unsignedPayload: string;
   deadline: string;
   requiredCosigners: string[];

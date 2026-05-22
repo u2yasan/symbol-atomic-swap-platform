@@ -1,6 +1,7 @@
 import { Hash256, PublicKey, Signature, utils } from 'symbol-sdk';
 import { descriptors, models, SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
 import { z } from 'zod';
+import { createSymbolFacadeForNetwork, deserializeTransactionForNetwork } from '../config/networkProfile.js';
 import { integerStringSchema, publicKeySchema } from '../dto/aggregateComplete.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { NormalizedBondedSwapIntent, SwapIntentRecord } from '../repository/types.js';
@@ -31,7 +32,7 @@ const signedHashLockAnnouncementSchema = z.object({
 export type HashLockBuildResult = {
   intentHash: string;
   aggregateTransactionHash: string;
-  network: 'mainnet' | 'testnet';
+  network: string;
   lockSignerPublicKey: string;
   unsignedPayload: string;
   deadline: string;
@@ -91,7 +92,7 @@ export async function buildHashLockTransaction(
   const intent = requireSignedBondedIntent(
     await swapIntents.findByIntentHash(request.intentHash.toUpperCase()),
   );
-  const facade = new SymbolFacade(intent.network);
+  const { facade } = createSymbolFacadeForNetwork(intent.network);
   const hashLock = intent.intent.hashLock;
   const transaction = facade.createTransactionFromTypedDescriptor(
     new descriptors.HashLockTransactionV1Descriptor(
@@ -186,13 +187,13 @@ export function verifySignedHashLockPayload(input: unknown, intent: SwapIntentRe
       return { accepted: false, reason: 'intent hash mismatch' };
     }
 
-    const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(parsed.data.payload));
-    const facade = new SymbolFacade(signedIntent.network);
+    const { facade, profile } = createSymbolFacadeForNetwork(signedIntent.network);
+    const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(parsed.data.payload), signedIntent.network);
     if (transaction.type.value !== models.TransactionType.HASH_LOCK.value) {
       return { accepted: false, reason: 'transaction is not hash lock' };
     }
 
-    if (transaction.network.value !== (signedIntent.network === 'mainnet' ? 104 : 152)) {
+    if (transaction.network.value !== profile.networkIdentifier) {
       return { accepted: false, reason: 'network mismatch' };
     }
 
@@ -307,21 +308,23 @@ export async function announceSignedHashLock(
     nodeUrl: string | undefined;
     swapIntents: SwapIntentRepository;
     nodeRequestTimeoutMs?: number;
+    nodeUrlForNetwork?: (network: string) => string | undefined;
   },
 ): Promise<HashLockAnnouncementResult> {
   const request = signedHashLockAnnouncementSchema.parse(input);
-  if (!dependencies.nodeUrl) {
-    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for hash lock announcement.');
-  }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());
+  const nodeUrl = intent ? dependencies.nodeUrlForNetwork?.(intent.network) ?? dependencies.nodeUrl : dependencies.nodeUrl;
+  if (!nodeUrl) {
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for hash lock announcement.');
+  }
   const verification = verifySignedHashLockPayload(input, intent);
   if (!verification.accepted || !verification.payload || !verification.transactionHash || !intent?.transactionHash) {
     throw new InvalidHashLockError(verification.reason);
   }
 
   const nodeLookupDependencies = {
-    nodeUrl: dependencies.nodeUrl,
+    nodeUrl,
     ...(dependencies.nodeRequestTimeoutMs === undefined ? {} : { nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs }),
   };
 
@@ -339,7 +342,7 @@ export async function announceSignedHashLock(
     };
   }
 
-  const response = await putJsonToSymbolNode(dependencies.nodeUrl, '/transactions', {
+  const response = await putJsonToSymbolNode(nodeUrl, '/transactions', {
     payload: verification.payload,
   }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 

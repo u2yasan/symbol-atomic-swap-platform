@@ -30,11 +30,13 @@ import type { ProjectionRepository } from '../repository/projectionRepository.js
 import { accountPublicKeyParamsSchema, intentParamsSchema, mosaicMetadataParamsSchema, projectionParamsSchema } from '../dto/readModels.js';
 import { LARGE_PAYLOAD_BODY_LIMIT_BYTES, SMALL_BODY_LIMIT_BYTES } from './security.js';
 import { intentResponse } from './intentResponse.js';
+import { publicNetworkProfile, type SymbolNetworkProfile } from '../config/networkProfile.js';
 
 export type RouteDependencies = {
-  network: 'mainnet' | 'testnet';
+  network: string;
   nodeUrl: string | undefined;
   nodeRequestTimeoutMs: number;
+  profiles: SymbolNetworkProfile[];
   repositories: {
     swapIntents: SwapIntentRepository;
     events: EventRepository;
@@ -42,7 +44,25 @@ export type RouteDependencies = {
   };
 };
 
+function nodeUrlForNetwork(network: string, dependencies: RouteDependencies): string | undefined {
+  const profile = dependencies.profiles.find((candidate) => candidate.key === network.toLowerCase());
+  if (!profile) {
+    return undefined;
+  }
+  return profile.nodeUrl ?? dependencies.nodeUrl;
+}
+
+function isConfiguredNetwork(network: string, dependencies: RouteDependencies): boolean {
+  return dependencies.profiles.some((candidate) => candidate.key === network.toLowerCase());
+}
+
 export async function registerRoutes(app: FastifyInstance, dependencies: RouteDependencies): Promise<void> {
+  app.get('/v1/network-profiles', async () => {
+    return {
+      profiles: dependencies.profiles.map(publicNetworkProfile),
+    };
+  });
+
   app.get('/v1/projections/:network/:transactionHash', async (request, reply) => {
     const params = projectionParamsSchema.parse(request.params);
     const projection = await dependencies.repositories.projections.find(params.network, params.transactionHash);
@@ -57,12 +77,11 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
 
   app.post('/v1/projections/:network/:transactionHash/reconcile', async (request, reply) => {
     const params = projectionParamsSchema.parse(request.params);
-    if (params.network !== dependencies.network) {
-      return reply.code(400).send({
-        error: 'network_mismatch',
-      });
+    if (!isConfiguredNetwork(params.network, dependencies)) {
+      return reply.code(400).send({ error: 'network_not_supported' });
     }
-    if (!dependencies.nodeUrl) {
+    const nodeUrl = nodeUrlForNetwork(params.network, dependencies);
+    if (!nodeUrl) {
       return reply.code(503).send({
         error: 'symbol_node_unavailable',
       });
@@ -72,7 +91,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
       network: params.network,
       transactionHash: params.transactionHash,
       client: new SymbolRestClient(
-        dependencies.nodeUrl,
+        nodeUrl,
         fetch,
         dependencies.nodeRequestTimeoutMs,
       ),
@@ -101,19 +120,18 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
 
   app.get('/v1/accounts/:network/:address/public-key', async (request, reply) => {
     const params = accountPublicKeyParamsSchema.parse(request.params);
-    if (params.network !== dependencies.network) {
-      return reply.code(400).send({
-        error: 'network_mismatch',
-      });
+    if (!isConfiguredNetwork(params.network, dependencies)) {
+      return reply.code(400).send({ error: 'network_not_supported' });
     }
-    if (!dependencies.nodeUrl) {
+    const nodeUrl = nodeUrlForNetwork(params.network, dependencies);
+    if (!nodeUrl) {
       return reply.code(503).send({
         error: 'symbol_node_unavailable',
       });
     }
 
     const lookup = await new SymbolRestClient(
-      dependencies.nodeUrl,
+      nodeUrl,
       fetch,
       dependencies.nodeRequestTimeoutMs,
     ).getAccountPublicKey(params.address);
@@ -128,19 +146,18 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
 
   app.get('/v1/mosaics/:network/:mosaicId', async (request, reply) => {
     const params = mosaicMetadataParamsSchema.parse(request.params);
-    if (params.network !== dependencies.network) {
-      return reply.code(400).send({
-        error: 'network_mismatch',
-      });
+    if (!isConfiguredNetwork(params.network, dependencies)) {
+      return reply.code(400).send({ error: 'network_not_supported' });
     }
-    if (!dependencies.nodeUrl) {
+    const nodeUrl = nodeUrlForNetwork(params.network, dependencies);
+    if (!nodeUrl) {
       return reply.code(503).send({
         error: 'symbol_node_unavailable',
       });
     }
 
     const lookup = await new SymbolRestClient(
-      dependencies.nodeUrl,
+      nodeUrl,
       fetch,
       dependencies.nodeRequestTimeoutMs,
     ).getMosaicMetadata(params.mosaicId);
@@ -156,19 +173,23 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   app.get('/v1/accounts/:network/:address/mosaics/:mosaicId', async (request, reply) => {
     const accountParams = accountPublicKeyParamsSchema.parse(request.params);
     const mosaicParams = mosaicMetadataParamsSchema.parse(request.params);
-    if (accountParams.network !== dependencies.network || mosaicParams.network !== dependencies.network) {
+    if (accountParams.network !== mosaicParams.network) {
       return reply.code(400).send({
         error: 'network_mismatch',
       });
     }
-    if (!dependencies.nodeUrl) {
+    if (!isConfiguredNetwork(accountParams.network, dependencies)) {
+      return reply.code(400).send({ error: 'network_not_supported' });
+    }
+    const nodeUrl = nodeUrlForNetwork(accountParams.network, dependencies);
+    if (!nodeUrl) {
       return reply.code(503).send({
         error: 'symbol_node_unavailable',
       });
     }
 
     const lookup = await new SymbolRestClient(
-      dependencies.nodeUrl,
+      nodeUrl,
       fetch,
       dependencies.nodeRequestTimeoutMs,
     ).getAccountMosaicBalance(accountParams.address, mosaicParams.mosaicId);
@@ -402,6 +423,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announceVerifiedTransaction(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeUrlForNetwork: (network) => nodeUrlForNetwork(network, dependencies),
       nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
       events: dependencies.repositories.events,
@@ -421,6 +443,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announcePartialAggregateBonded(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeUrlForNetwork: (network) => nodeUrlForNetwork(network, dependencies),
       nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
       events: dependencies.repositories.events,
@@ -440,6 +463,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announceAggregateBondedCosignature(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeUrlForNetwork: (network) => nodeUrlForNetwork(network, dependencies),
       nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
       events: dependencies.repositories.events,
@@ -472,6 +496,7 @@ export async function registerRoutes(app: FastifyInstance, dependencies: RouteDe
   }, async (request, reply) => {
     const result = await announceSignedHashLock(request.body, {
       nodeUrl: dependencies.nodeUrl,
+      nodeUrlForNetwork: (network) => nodeUrlForNetwork(network, dependencies),
       nodeRequestTimeoutMs: dependencies.nodeRequestTimeoutMs,
       swapIntents: dependencies.repositories.swapIntents,
     });

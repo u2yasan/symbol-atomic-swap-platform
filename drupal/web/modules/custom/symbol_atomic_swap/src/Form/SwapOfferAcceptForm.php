@@ -273,12 +273,8 @@ final class SwapOfferAcceptForm extends FormBase {
 
   private function isNetworkAddress(string $value, string $network): bool {
     $value = strtoupper(trim($value));
-    $prefix = match ($network) {
-      'mainnet' => 'N',
-      'testnet' => 'T',
-      default => '',
-    };
-    return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', $value) === 1;
+    $prefix = strtoupper((string) ($this->networkProfile($network)['addressPrefix'] ?? ''));
+    return $prefix !== '' && preg_match('/^' . preg_quote($prefix, '/') . '[A-Z2-7]{38}$/', $value) === 1;
   }
 
   private function plainValue(string $value): string {
@@ -286,11 +282,7 @@ final class SwapOfferAcceptForm extends FormBase {
   }
 
   private function networkCurrencyMosaicId(string $network): string {
-    return match ($network) {
-      'mainnet' => '6BED913FA20223F8',
-      'testnet' => '72C0212E67A08BCE',
-      default => '',
-    };
+    return (string) ($this->networkProfile($network)['currencyMosaicId'] ?? '');
   }
 
   /**
@@ -417,7 +409,7 @@ final class SwapOfferAcceptForm extends FormBase {
     $network = (string) ($account->get('field_symbol_network')->value ?? '');
     $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
     $public_key = strtoupper((string) ($account->get('field_symbol_public_key')->value ?? ''));
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)
+    if ($this->networkProfile($network) === []
       || !$this->isNetworkAddress($address, $network)
       || !preg_match('/^[0-9A-F]{64}$/', $public_key)) {
       return NULL;
@@ -474,6 +466,22 @@ final class SwapOfferAcceptForm extends FormBase {
     catch (SymbolEngineException) {
       return ['mosaicId' => $normalized, 'aliases' => []];
     }
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function networkProfile(string $network): array {
+    try {
+      foreach ($this->engineClient->networkProfiles() as $profile) {
+        if (is_array($profile) && strtolower((string) ($profile['key'] ?? '')) === strtolower($network)) {
+          return $profile;
+        }
+      }
+    }
+    catch (SymbolEngineException | \RuntimeException) {
+    }
+    return [];
   }
 
 }

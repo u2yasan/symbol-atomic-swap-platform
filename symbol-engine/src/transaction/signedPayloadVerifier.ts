@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PublicKey, Signature, utils } from 'symbol-sdk';
 import { Address, models, SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
+import { createSymbolFacadeForNetwork, deserializeTransactionForNetwork } from '../config/networkProfile.js';
 import type { SwapIntentRecord } from '../repository/types.js';
 
 const signedPayloadVerificationSchema = z.object({
@@ -90,8 +91,8 @@ export function verifySignedPayload(
   }
 
   try {
-    const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(parsed.data.payload));
-    const facade = new SymbolFacade(intent.network);
+    const { facade, profile } = createSymbolFacadeForNetwork(intent.network);
+    const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(parsed.data.payload), intent.network);
     const expectedTransactionType = intent.aggregateType === 'aggregate_complete'
       ? models.TransactionType.AGGREGATE_COMPLETE
       : models.TransactionType.AGGREGATE_BONDED;
@@ -100,7 +101,7 @@ export function verifySignedPayload(
       return { accepted: false, reason: `transaction is not ${intent.aggregateType}` };
     }
 
-    if (transaction.network.value !== (intent.network === 'mainnet' ? 104 : 152)) {
+    if (transaction.network.value !== profile.networkIdentifier) {
       return { accepted: false, reason: 'network mismatch' };
     }
 

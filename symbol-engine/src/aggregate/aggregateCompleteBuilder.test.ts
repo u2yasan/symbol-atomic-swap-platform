@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { PrivateKey } from 'symbol-sdk';
+import { createSymbolFacadeForNetwork } from '../config/networkProfile.js';
 import { buildAggregateComplete } from './aggregateCompleteBuilder.js';
 
 const validRequest = {
@@ -89,4 +91,57 @@ test('buildAggregateComplete rejects invalid amount and mosaic id', () => {
       validRequest.legs[1]!,
     ],
   }), /mosaic id/);
+});
+
+test('buildAggregateComplete supports a configured private network profile', () => {
+  const originalProfiles = process.env.SYMBOL_NETWORK_PROFILES_JSON;
+  process.env.SYMBOL_NETWORK_PROFILES_JSON = JSON.stringify([
+    {
+      key: 'private-alpha',
+      label: 'Private Alpha',
+      networkIdentifier: 168,
+      addressPrefix: 'V',
+      generationHashSeed: '1'.repeat(64),
+      epochAdjustment: 1700000000,
+      currencyMosaicId: '1234567890ABCDEF',
+      currencyDivisibility: 6,
+      enabledForSwap: true,
+      allowInsecureTransport: true,
+    },
+  ]);
+
+  try {
+    const { facade, profile } = createSymbolFacadeForNetwork('private-alpha');
+    const maker = facade.createAccount(PrivateKey.random());
+    const taker = facade.createAccount(PrivateKey.random());
+    const result = buildAggregateComplete({
+      network: 'private-alpha',
+      deadlineHours: 2,
+      correlationId: 'swap-private-0001',
+      legs: [
+        {
+          signerPublicKey: maker.publicKey.toString(),
+          recipientAddress: taker.address.toString(),
+          mosaicId: '1234567890ABCDEF',
+          amount: '100',
+        },
+        {
+          signerPublicKey: taker.publicKey.toString(),
+          recipientAddress: maker.address.toString(),
+          mosaicId: '1234567890ABCDEF',
+          amount: '200',
+        },
+      ],
+    });
+
+    assert.equal(result.network, 'private-alpha');
+    assert.equal(result.qrPayload.network, 'private-alpha');
+    assert.equal(maker.address.toString()[0], profile.addressPrefix);
+  } finally {
+    if (originalProfiles === undefined) {
+      delete process.env.SYMBOL_NETWORK_PROFILES_JSON;
+    } else {
+      process.env.SYMBOL_NETWORK_PROFILES_JSON = originalProfiles;
+    }
+  }
 });

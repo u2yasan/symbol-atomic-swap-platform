@@ -1,6 +1,7 @@
 import { PublicKey, Signature, utils } from 'symbol-sdk';
 import { Address, descriptors, models, SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
 import { z } from 'zod';
+import { createSymbolFacadeForNetwork, deserializeTransactionForNetwork, networkKeySchema } from '../config/networkProfile.js';
 import { addressSchema, publicKeySchema } from '../dto/aggregateComplete.js';
 import type { SymbolRestClient } from './symbolRestClient.js';
 
@@ -9,7 +10,7 @@ const signedPayloadSchema = z.string().regex(/^[0-9A-Fa-f]+$/, 'payload must be 
 const transactionHashSchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'transaction hash must be 64 hex characters');
 
 const accountVerificationBuildSchema = z.object({
-  network: z.enum(['mainnet', 'testnet']),
+  network: networkKeySchema,
   address: addressSchema,
   signerPublicKey: publicKeySchema,
   challenge: challengeSchema,
@@ -26,7 +27,7 @@ const accountVerificationOnChainSchema = accountVerificationBuildSchema.omit({ d
 });
 
 export type AccountVerificationBuildResult = {
-  network: 'mainnet' | 'testnet';
+  network: string;
   address: string;
   signerPublicKey: string;
   challenge: string;
@@ -40,10 +41,6 @@ export type AccountVerificationResult = {
   signerPublicKey?: string;
   transactionHash?: string;
 };
-
-function networkByte(network: 'mainnet' | 'testnet'): number {
-  return network === 'mainnet' ? 104 : 152;
-}
 
 function readMessage(transaction: unknown): string {
   const message = (transaction as { message?: Uint8Array | string }).message;
@@ -80,14 +77,9 @@ function decodePlainMessage(payload: string): string {
   return decoded;
 }
 
-function networkIdentifier(network: 'mainnet' | 'testnet'): string {
-  return network === 'mainnet' ? '104' : '152';
-}
-
-function normalizeRestAddress(value: string, network: 'mainnet' | 'testnet'): string {
+function normalizeRestAddress(value: string): string {
   const normalized = value.toUpperCase();
-  const prefix = network === 'mainnet' ? 'N' : 'T';
-  if (new RegExp(`^${prefix}[A-Z2-7]{38}$`).test(normalized)) {
+  if (/^[A-Z2-7]{39}$/.test(normalized)) {
     return normalized;
   }
   if (/^[0-9A-F]{48}$/.test(normalized)) {
@@ -117,7 +109,7 @@ function extractRestPlainMessage(value: unknown): string | null {
 
 export function buildAccountVerificationPayload(input: unknown): AccountVerificationBuildResult {
   const request = accountVerificationBuildSchema.parse(input);
-  const facade = new SymbolFacade(request.network);
+  const { facade } = createSymbolFacadeForNetwork(request.network);
   const transaction = facade.createTransactionFromTypedDescriptor(
     new descriptors.TransferTransactionV1Descriptor(
       new Address(request.address),
@@ -155,14 +147,14 @@ export function verifyAccountVerificationPayload(input: unknown): AccountVerific
 
   try {
     const request = parsed.data;
-    const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(request.payload));
-    const facade = new SymbolFacade(request.network);
+    const { facade, profile } = createSymbolFacadeForNetwork(request.network);
+    const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(request.payload), request.network);
     const signerPublicKey = transaction.signerPublicKey.toString().toUpperCase();
 
     if (transaction.type.value !== models.TransactionType.TRANSFER.value) {
       return { accepted: false, reason: 'transaction is not transfer' };
     }
-    if (transaction.network.value !== networkByte(request.network)) {
+    if (transaction.network.value !== profile.networkIdentifier) {
       return { accepted: false, reason: 'network mismatch' };
     }
     if (signerPublicKey !== request.signerPublicKey.toUpperCase()) {
@@ -233,12 +225,12 @@ export async function verifyOnChainAccountVerificationTransaction(
     const meta = asRecord(root.meta);
     const transaction = asRecord(root.transaction);
     const signerPublicKey = readRestString(transaction.signerPublicKey)?.toUpperCase() ?? '';
-    const recipientAddress = normalizeRestAddress(readRestString(transaction.recipientAddress) ?? '', request.network);
+    const recipientAddress = normalizeRestAddress(readRestString(transaction.recipientAddress) ?? '');
     const type = transaction.type;
     const network = transaction.network;
     const hash = readRestString(meta.hash, root.hash, lookup.transactionHash)?.toUpperCase() ?? '';
     const plainMessage = extractRestPlainMessage(transaction.message);
-    const facade = new SymbolFacade(request.network);
+    const { facade, profile } = createSymbolFacadeForNetwork(request.network);
 
     if (hash !== request.transactionHash.toUpperCase()) {
       return { accepted: false, reason: 'transaction hash mismatch' };
@@ -246,7 +238,7 @@ export async function verifyOnChainAccountVerificationTransaction(
     if (type !== models.TransactionType.TRANSFER.value) {
       return { accepted: false, reason: 'transaction is not transfer' };
     }
-    if (String(network) !== networkIdentifier(request.network)) {
+    if (Number(network) !== profile.networkIdentifier) {
       return { accepted: false, reason: 'network mismatch' };
     }
     if (signerPublicKey !== request.signerPublicKey.toUpperCase()) {

@@ -20,11 +20,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class SwapOfferForm extends FormBase {
 
-  private const CURRENCY_MOSAIC_IDS = [
-    'mainnet' => '6BED913FA20223F8',
-    'testnet' => '72C0212E67A08BCE',
-  ];
-
   public function __construct(
     private readonly SwapOfferRepository $offers,
     private readonly UuidInterface $uuid,
@@ -120,10 +115,7 @@ final class SwapOfferForm extends FormBase {
       $form['network'] = [
         '#type' => 'select',
         '#title' => $this->t('Network'),
-        '#options' => [
-          'testnet' => $this->t('Testnet'),
-          'mainnet' => $this->t('Mainnet'),
-        ],
+        '#options' => $this->networkOptions(),
         '#default_value' => $offer['network'] ?? 'testnet',
         '#description' => $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')
           ? $this->t('Mainnet operations are enabled. Verify all transaction terms before building QR payloads.')
@@ -366,6 +358,9 @@ final class SwapOfferForm extends FormBase {
     if ($network === 'mainnet' && !$this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')) {
       $form_state->setErrorByName('network', $this->t('Mainnet operations are disabled in Symbol Atomic Swap settings.'));
     }
+    if (!$this->isSupportedSwapNetwork($network)) {
+      $form_state->setErrorByName('network', $this->t('Unsupported Symbol network profile.'));
+    }
     if ($offer_id) {
       $offer = $this->offers->find((int) $offer_id);
       if (!$offer || !$this->offers->canEdit($offer)) {
@@ -532,12 +527,8 @@ final class SwapOfferForm extends FormBase {
   }
 
   private function isNetworkAddress(string $value, string $network): bool {
-    $prefix = match ($network) {
-      'mainnet' => 'N',
-      'testnet' => 'T',
-      default => '',
-    };
-    return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper(trim($value))) === 1;
+    $prefix = $this->networkAddressPrefix($network);
+    return $prefix !== '' && preg_match('/^' . preg_quote($prefix, '/') . '[A-Z2-7]{38}$/', strtoupper(trim($value))) === 1;
   }
 
   private function resolveMakerPublicKey(string $maker_address, string $network): string {
@@ -615,7 +606,64 @@ final class SwapOfferForm extends FormBase {
    */
   private function defaultCurrencyMosaicId(?array $offer): string {
     $network = (string) ($offer['network'] ?? 'testnet');
-    return self::CURRENCY_MOSAIC_IDS[$network] ?? self::CURRENCY_MOSAIC_IDS['testnet'];
+    return (string) ($this->networkProfile($network)['currencyMosaicId'] ?? '72C0212E67A08BCE');
+  }
+
+  /**
+   * @return array<string, \Drupal\Core\StringTranslation\TranslatableMarkup|string>
+   */
+  private function networkOptions(): array {
+    $options = [];
+    foreach ($this->networkProfiles() as $profile) {
+      $key = (string) ($profile['key'] ?? '');
+      if ($key === '' || ($profile['enabledForSwap'] ?? FALSE) !== TRUE) {
+        continue;
+      }
+      if ($key === 'mainnet' && !$this->config('symbol_atomic_swap.settings')->get('mainnet_enabled')) {
+        continue;
+      }
+      $options[$key] = (string) ($profile['label'] ?? $key);
+    }
+    return $options ?: ['testnet' => $this->t('Testnet')];
+  }
+
+  private function isSupportedSwapNetwork(string $network): bool {
+    $profile = $this->networkProfile($network);
+    if ($profile === []) {
+      return FALSE;
+    }
+    if (($profile['enabledForSwap'] ?? FALSE) !== TRUE) {
+      return FALSE;
+    }
+    return $network !== 'mainnet' || (bool) $this->config('symbol_atomic_swap.settings')->get('mainnet_enabled');
+  }
+
+  /**
+   * @return array<int, array<string, mixed>>
+   */
+  private function networkProfiles(): array {
+    try {
+      return $this->engineClient->networkProfiles();
+    }
+    catch (SymbolEngineException | \RuntimeException) {
+      return [];
+    }
+  }
+
+  /**
+   * @return array<string, mixed>
+   */
+  private function networkProfile(string $network): array {
+    foreach ($this->networkProfiles() as $profile) {
+      if (is_array($profile) && strtolower((string) ($profile['key'] ?? '')) === strtolower($network)) {
+        return $profile;
+      }
+    }
+    return [];
+  }
+
+  private function networkAddressPrefix(string $network): string {
+    return strtoupper((string) ($this->networkProfile($network)['addressPrefix'] ?? ''));
   }
 
   /**
@@ -653,7 +701,7 @@ final class SwapOfferForm extends FormBase {
     $network = (string) ($account->get('field_symbol_network')->value ?? '');
     $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
     $public_key = strtoupper((string) ($account->get('field_symbol_public_key')->value ?? ''));
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)
+    if (!$this->isSupportedSwapNetwork($network)
       || !$this->isNetworkAddress($address, $network)
       || !preg_match('/^[0-9A-F]{64}$/', $public_key)) {
       return NULL;

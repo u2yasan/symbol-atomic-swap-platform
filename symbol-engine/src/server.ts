@@ -5,6 +5,7 @@ import { networkResponse } from './api/network.js';
 import { registerRoutes } from './api/routes.js';
 import { createLoggerOptions, DEFAULT_BODY_LIMIT_BYTES, registerSecurity } from './api/security.js';
 import { loadEnv } from './config/env.js';
+import { findNetworkProfile, loadNetworkProfilesFromEnv } from './config/networkProfile.js';
 import { runProductionPreflight } from './config/productionPreflight.js';
 import { createDatabase } from './db/pool.js';
 import { runMigrations } from './db/migrations.js';
@@ -17,6 +18,8 @@ import { handleShutdownSignal, shutdownSymbolEngine } from './serverLifecycle.js
 
 const env = loadEnv();
 await runProductionPreflight(env);
+const networkProfiles = loadNetworkProfilesFromEnv(env as unknown as NodeJS.ProcessEnv);
+const activeProfile = findNetworkProfile(env.SYMBOL_NETWORK, networkProfiles);
 const db = createDatabase(env);
 await runMigrations(db);
 
@@ -53,27 +56,29 @@ app.get('/v1/network', async () => {
   return networkResponse({
     network: env.SYMBOL_NETWORK,
     exposeNodeEndpoints: env.SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS,
-    nodeUrl: env.SYMBOL_NODE_URL,
-    wsUrl: env.SYMBOL_WS_URL,
+    nodeUrl: activeProfile.nodeUrl ?? env.SYMBOL_NODE_URL,
+    wsUrl: activeProfile.wsUrl ?? env.SYMBOL_WS_URL,
+    profiles: networkProfiles,
   });
 });
 
 await registerRoutes(app, {
   network: env.SYMBOL_NETWORK,
-  nodeUrl: env.SYMBOL_NODE_URL,
+  nodeUrl: activeProfile.nodeUrl ?? env.SYMBOL_NODE_URL,
   nodeRequestTimeoutMs: env.SYMBOL_NODE_REQUEST_TIMEOUT_MS,
+  profiles: networkProfiles,
   repositories,
 });
 
 let listener: SymbolListener | null = null;
 let reconciler: TransactionReconciler | null = null;
 if (env.SYMBOL_ENGINE_LISTENER_ENABLED) {
-  if (!env.SYMBOL_WS_URL) {
+  if (!(activeProfile.wsUrl ?? env.SYMBOL_WS_URL)) {
     throw new Error('SYMBOL_WS_URL is required when SYMBOL_ENGINE_LISTENER_ENABLED=true.');
   }
 
   listener = new SymbolListener({
-    wsUrl: env.SYMBOL_WS_URL,
+    wsUrl: activeProfile.wsUrl ?? env.SYMBOL_WS_URL!,
     network: env.SYMBOL_NETWORK,
     addresses: env.SYMBOL_ENGINE_LISTENER_ADDRESSES,
     repositories,
@@ -83,13 +88,13 @@ if (env.SYMBOL_ENGINE_LISTENER_ENABLED) {
 }
 
 if (env.SYMBOL_ENGINE_RECONCILER_ENABLED) {
-  if (!env.SYMBOL_NODE_URL) {
+  if (!(activeProfile.nodeUrl ?? env.SYMBOL_NODE_URL)) {
     throw new Error('SYMBOL_NODE_URL is required when SYMBOL_ENGINE_RECONCILER_ENABLED=true.');
   }
 
   reconciler = new TransactionReconciler({
     network: env.SYMBOL_NETWORK,
-    nodeUrl: env.SYMBOL_NODE_URL,
+    nodeUrl: activeProfile.nodeUrl ?? env.SYMBOL_NODE_URL!,
     nodeRequestTimeoutMs: env.SYMBOL_NODE_REQUEST_TIMEOUT_MS,
     intervalMs: env.SYMBOL_ENGINE_RECONCILER_INTERVAL_MS,
     repositories,

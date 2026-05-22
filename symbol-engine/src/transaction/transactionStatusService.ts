@@ -13,7 +13,7 @@ export type ReconciliationRepositories = {
 
 export type ReconciliationCandidate = {
   transactionHash: string;
-  network: 'mainnet' | 'testnet';
+  network: string;
   intent?: SwapIntentRecord;
 };
 
@@ -53,7 +53,7 @@ function uniqueCandidates(candidates: ReconciliationCandidate[]): Reconciliation
 }
 
 export async function collectReconciliationCandidates(input: {
-  network: 'mainnet' | 'testnet';
+  network: string;
   repositories: ReconciliationRepositories;
 }): Promise<ReconciliationCandidate[]> {
   const [intents, projections] = await Promise.all([
@@ -144,7 +144,7 @@ export async function reconcileTransactionStatus(input: {
 }
 
 export async function reconcileTransactionProjection(input: {
-  network: 'mainnet' | 'testnet';
+  network: string;
   transactionHash: string;
   client: ReconciliationClient;
   repositories: ReconciliationRepositories;

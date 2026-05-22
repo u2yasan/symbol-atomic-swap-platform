@@ -27,13 +27,10 @@ export async function announcePartialAggregateBonded(
     events: EventRepository;
     projections: ProjectionRepository;
     nodeRequestTimeoutMs?: number;
+    nodeUrlForNetwork?: (network: string) => string | undefined;
   },
 ): Promise<PartialAnnouncementResult> {
   const request = partialAnnouncementRequestSchema.parse(input);
-
-  if (!dependencies.nodeUrl) {
-    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for partial transaction announcement.');
-  }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());
   if (!intent || intent.aggregateType !== 'aggregate_bonded') {
@@ -44,7 +41,12 @@ export async function announcePartialAggregateBonded(
     throw new InvalidAnnouncementError('aggregate bonded intent must be signed before partial announcement');
   }
 
-  const response = await putJsonToSymbolNode(dependencies.nodeUrl, '/transactions/partial', {
+  const nodeUrl = dependencies.nodeUrlForNetwork?.(intent.network) ?? dependencies.nodeUrl;
+  if (!nodeUrl) {
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for partial transaction announcement.');
+  }
+
+  const response = await putJsonToSymbolNode(nodeUrl, '/transactions/partial', {
     payload: intent.signedPayload,
   }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 

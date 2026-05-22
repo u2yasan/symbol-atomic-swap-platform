@@ -36,7 +36,7 @@ function symbol_atomic_swap_schema(): array {
       ],
       'network' => [
         'type' => 'varchar',
-        'length' => 16,
+        'length' => 64,
         'not null' => TRUE,
       ],
       'correlation_id' => [
@@ -535,6 +535,22 @@ function symbol_atomic_swap_update_11014(): void {
     $config->clear($key);
   }
   $config->save();
+}
+
+/**
+ * Expands network keys for configured private Symbol network profiles.
+ */
+function symbol_atomic_swap_update_11015(): void {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->tableExists('symbol_atomic_swap_offer')) {
+    return;
+  }
+
+  $schema->changeField('symbol_atomic_swap_offer', 'network', 'network', [
+    'type' => 'varchar',
+    'length' => 64,
+    'not null' => TRUE,
+  ]);
 }
 
 /**

@@ -1,8 +1,9 @@
 import { PrivateKey, Signature, utils } from 'symbol-sdk';
 import { SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
+import { createSymbolFacadeForNetwork, deserializeTransactionForNetwork, networkKeySchema } from '../config/networkProfile.js';
 
 type Options = {
-  network: 'mainnet' | 'testnet';
+  network: string;
   unsignedPayload: string;
   privateKey: string;
 };
@@ -29,8 +30,8 @@ function requiredHex(value: string, label: string, length?: number): string {
 
 function options(): Options {
   const network = readOption('network') ?? process.env.SYMBOL_NETWORK ?? 'testnet';
-  if (network !== 'mainnet' && network !== 'testnet') {
-    throw new Error('network must be mainnet or testnet');
+  if (!networkKeySchema.safeParse(network).success) {
+    throw new Error('network must be a configured network profile key');
   }
 
   const unsignedPayload = readOption('unsigned-payload') ?? process.env.UNSIGNED_PAYLOAD ?? '';
@@ -51,9 +52,9 @@ function options(): Options {
 
 function main(): void {
   const parsed = options();
-  const facade = new SymbolFacade(parsed.network);
+  const { facade } = createSymbolFacadeForNetwork(parsed.network);
   const account = facade.createAccount(new PrivateKey(parsed.privateKey));
-  const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(parsed.unsignedPayload));
+  const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(parsed.unsignedPayload), parsed.network);
   const expectedSigner = transaction.signerPublicKey.toString().toUpperCase();
   const actualSigner = account.publicKey.toString().toUpperCase();
 
@@ -68,7 +69,7 @@ function main(): void {
     throw new Error('signed payload is missing');
   }
 
-  const signedTransaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(signedPayload.payload));
+  const { transaction: signedTransaction } = deserializeTransactionForNetwork(utils.hexToUint8(signedPayload.payload), parsed.network);
   if (!facade.verifyTransaction(signedTransaction, new Signature(signature.bytes))) {
     throw new Error('signed payload verification failed');
   }

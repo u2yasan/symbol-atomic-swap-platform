@@ -3,6 +3,7 @@
 namespace Drupal\symbol_login\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
 
 /**
  * Verifies Symbol Ed25519 signatures and address ownership.
@@ -60,7 +61,8 @@ final class SignatureVerifier {
 
   public function addressFromPublicKey(string $publicKey): string {
     $networkType = (string) ($this->configFactory->get('symbol_login.settings')->get('network_type') ?: 'testnet');
-    if (!isset(self::NETWORK_BYTES[$networkType])) {
+    $network_byte = self::NETWORK_BYTES[$networkType] ?? $this->networkIdentifierFromProfile($networkType);
+    if ($network_byte === NULL) {
       throw new SymbolLoginException('Unsupported Symbol network type.');
     }
 
@@ -71,7 +73,7 @@ final class SignatureVerifier {
 
     $publicKeyHash = hash('sha3-256', $publicKeyBytes, TRUE);
     $ripemd160 = hash('ripemd160', $publicKeyHash, TRUE);
-    $versioned = chr(self::NETWORK_BYTES[$networkType]) . $ripemd160;
+    $versioned = chr($network_byte) . $ripemd160;
     $checksum = substr(hash('sha3-256', $versioned, TRUE), 0, 3);
 
     return $this->base32Encode($versioned . $checksum);
@@ -94,5 +96,19 @@ final class SignatureVerifier {
     return $encoded;
   }
 
-}
+  private function networkIdentifierFromProfile(string $network): ?int {
+    try {
+      $profile = \Drupal::service('symbol_engine.client')->networkProfile($network);
+    }
+    catch (SymbolEngineException | \InvalidArgumentException | \RuntimeException) {
+      return NULL;
+    }
+    $identifier = $profile['networkIdentifier'] ?? NULL;
+    if (!is_int($identifier) && !(is_string($identifier) && preg_match('/^[0-9]+$/', $identifier) === 1)) {
+      return NULL;
+    }
+    $identifier = (int) $identifier;
+    return $identifier >= 0 && $identifier <= 255 ? $identifier : NULL;
+  }
 
+}

@@ -114,11 +114,11 @@ final class SwapOfferRepository {
   }
 
   public function nextCorrelationId(string $network): string {
-    if (!in_array($network, ['mainnet', 'testnet'], TRUE)) {
-      throw new \InvalidArgumentException('Network must be mainnet or testnet.');
+    if (preg_match('/^[A-Za-z0-9_-]{3,64}$/', $network) !== 1) {
+      throw new \InvalidArgumentException('Network must be a configured Symbol network key.');
     }
 
-    $prefix = 'swap-' . $network . '-';
+    $prefix = 'swap-' . strtolower($network) . '-';
     $records = $this->database->select(self::TABLE, 'o')
       ->fields('o', ['correlation_id'])
       ->condition('network', $network)

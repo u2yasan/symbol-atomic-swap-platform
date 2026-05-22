@@ -30,13 +30,10 @@ export async function announceVerifiedTransaction(
     events: EventRepository;
     projections: ProjectionRepository;
     nodeRequestTimeoutMs?: number;
+    nodeUrlForNetwork?: (network: string) => string | undefined;
   },
 ): Promise<AnnounceResult> {
   const request = announceRequestSchema.parse(input);
-
-  if (!dependencies.nodeUrl) {
-    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for transaction announcement.');
-  }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());
   if (!intent || intent.state !== 'signed' || !intent.signedPayload || !intent.transactionHash) {
@@ -47,7 +44,12 @@ export async function announceVerifiedTransaction(
     throw new InvalidAnnouncementError('aggregate bonded intent requires partial announcement');
   }
 
-  const response = await putJsonToSymbolNode(dependencies.nodeUrl, '/transactions', {
+  const nodeUrl = dependencies.nodeUrlForNetwork?.(intent.network) ?? dependencies.nodeUrl;
+  if (!nodeUrl) {
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for transaction announcement.');
+  }
+
+  const response = await putJsonToSymbolNode(nodeUrl, '/transactions', {
     payload: intent.signedPayload,
   }, dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {});
 

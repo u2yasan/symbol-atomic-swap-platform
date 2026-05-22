@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { networkKeySchema } from '../config/networkProfile.js';
 
 export const publicKeySchema = z.string().regex(/^[0-9A-Fa-f]{64}$/, 'public key must be 32-byte hex');
 export const addressSchema = z.string().min(39).max(46);
@@ -13,7 +14,7 @@ export const aggregateTransferLegSchema = z.object({
 });
 
 export const aggregateCompleteBuildRequestSchema = z.object({
-  network: z.enum(['mainnet', 'testnet']),
+  network: networkKeySchema,
   deadlineHours: z.number().int().min(1).max(6),
   maxFee: integerStringSchema.optional(),
   aggregateSignerPublicKey: publicKeySchema.optional(),

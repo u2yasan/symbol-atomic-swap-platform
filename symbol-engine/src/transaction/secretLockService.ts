@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { Hash256, PublicKey, Signature, utils } from 'symbol-sdk';
 import { Address, descriptors, models, SymbolFacade, SymbolTransactionFactory } from 'symbol-sdk/symbol';
 import { z } from 'zod';
+import { createSymbolFacadeForNetwork, deserializeTransactionForNetwork, networkKeySchema } from '../config/networkProfile.js';
 import { addressSchema, integerStringSchema, mosaicIdSchema, publicKeySchema } from '../dto/aggregateComplete.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
@@ -13,7 +14,7 @@ const signedPayloadSchema = z.string().regex(/^[0-9A-Fa-f]+$/, 'payload must be 
 const lockHashAlgorithmSchema = z.literal('SHA3_256');
 
 const secretLockBuildRequestSchema = z.object({
-  network: z.enum(['mainnet', 'testnet']),
+  network: networkKeySchema,
   signerPublicKey: publicKeySchema,
   recipientAddress: addressSchema,
   mosaicId: mosaicIdSchema,
@@ -30,7 +31,7 @@ const signedSecretLockAnnouncementSchema = secretLockBuildRequestSchema.omit({ d
 });
 
 const secretProofBuildRequestSchema = z.object({
-  network: z.enum(['mainnet', 'testnet']),
+  network: networkKeySchema,
   signerPublicKey: publicKeySchema,
   recipientAddress: addressSchema,
   proof: proofSchema,
@@ -44,7 +45,7 @@ const signedSecretProofAnnouncementSchema = secretProofBuildRequestSchema.omit({
 });
 
 export type SecretLockBuildResult = {
-  network: 'mainnet' | 'testnet';
+  network: string;
   signerPublicKey: string;
   recipientAddress: string;
   mosaicId: string;
@@ -57,7 +58,7 @@ export type SecretLockBuildResult = {
 };
 
 export type SecretProofBuildResult = {
-  network: 'mainnet' | 'testnet';
+  network: string;
   signerPublicKey: string;
   recipientAddress: string;
   secret: string;
@@ -154,7 +155,7 @@ function publicSecretLockVerificationFailureReason(error: unknown, fallback: str
 
 export function buildSecretLockTransaction(input: unknown): SecretLockBuildResult {
   const request = secretLockBuildRequestSchema.parse(input);
-  const facade = new SymbolFacade(request.network);
+  const { facade } = createSymbolFacadeForNetwork(request.network);
   const transaction = facade.createTransactionFromTypedDescriptor(
     new descriptors.SecretLockTransactionV1Descriptor(
       new Address(request.recipientAddress),
@@ -191,7 +192,7 @@ export function buildSecretLockTransaction(input: unknown): SecretLockBuildResul
 
 export function buildSecretProofTransaction(input: unknown): SecretProofBuildResult {
   const request = secretProofBuildRequestSchema.parse(input);
-  const facade = new SymbolFacade(request.network);
+  const { facade } = createSymbolFacadeForNetwork(request.network);
   const proof = request.proof.toUpperCase();
   const secret = secretFromProof(proof);
   const transaction = facade.createTransactionFromTypedDescriptor(
@@ -235,12 +236,12 @@ export function verifySignedSecretLockPayload(input: unknown): {
 
   try {
     const request = parsed.data;
-    const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(request.payload));
-    const facade = new SymbolFacade(request.network);
+    const { facade, profile } = createSymbolFacadeForNetwork(request.network);
+    const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(request.payload), request.network);
     if (transaction.type.value !== models.TransactionType.SECRET_LOCK.value) {
       return { accepted: false, reason: 'transaction is not secret lock' };
     }
-    if (transaction.network.value !== (request.network === 'mainnet' ? 104 : 152)) {
+    if (transaction.network.value !== profile.networkIdentifier) {
       return { accepted: false, reason: 'network mismatch' };
     }
     if (transaction.signerPublicKey.toString().toUpperCase() !== request.signerPublicKey.toUpperCase()) {
@@ -302,12 +303,12 @@ export function verifySignedSecretProofPayload(input: unknown): {
   try {
     const request = parsed.data;
     const expectedSecret = secretFromProof(request.proof.toUpperCase());
-    const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(request.payload));
-    const facade = new SymbolFacade(request.network);
+    const { facade, profile } = createSymbolFacadeForNetwork(request.network);
+    const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(request.payload), request.network);
     if (transaction.type.value !== models.TransactionType.SECRET_PROOF.value) {
       return { accepted: false, reason: 'transaction is not secret proof' };
     }
-    if (transaction.network.value !== (request.network === 'mainnet' ? 104 : 152)) {
+    if (transaction.network.value !== profile.networkIdentifier) {
       return { accepted: false, reason: 'network mismatch' };
     }
     if (transaction.signerPublicKey.toString().toUpperCase() !== request.signerPublicKey.toUpperCase()) {

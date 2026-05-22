@@ -1,6 +1,6 @@
 import type { BlockchainEvent } from '../dto/events.js';
 
-type SymbolNetwork = 'mainnet' | 'testnet';
+type SymbolNetwork = string;
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? value as Record<string, unknown> : {};

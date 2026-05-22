@@ -336,12 +336,14 @@ final class SymbolLoginForm extends FormBase {
   }
 
   private function isNetworkAddress(string $address, string $network): bool {
-    $prefix = match ($network) {
-      'mainnet' => 'N',
-      'testnet' => 'T',
-      default => '',
-    };
-    return $prefix !== '' && preg_match('/^' . $prefix . '[A-Z2-7]{38}$/', strtoupper(trim($address))) === 1;
+    try {
+      $profile = $this->symbolEngineClient->networkProfile($network);
+    }
+    catch (SymbolEngineException | \InvalidArgumentException | \RuntimeException) {
+      return FALSE;
+    }
+    $prefix = strtoupper((string) ($profile['addressPrefix'] ?? ''));
+    return $prefix !== '' && preg_match('/^' . preg_quote($prefix, '/') . '[A-Z2-7]{38}$/', strtoupper(trim($address))) === 1;
   }
 
   private function normalizeHex(string $value): string {

@@ -4,7 +4,7 @@ import type { AggregateType, QrPayload, SwapIntentRecord, SwapIntentState, Norma
 type SwapIntentRow = {
   id: string;
   correlation_id: string;
-  network: 'mainnet' | 'testnet';
+  network: string;
   intent_hash: string;
   state: SwapIntentState;
   aggregate_type: AggregateType;
@@ -41,7 +41,7 @@ export class SwapIntentRepository {
   public async create(input: {
     id: string;
     correlationId: string;
-    network: 'mainnet' | 'testnet';
+    network: string;
     intentHash: string;
     aggregateType: AggregateType;
     unsignedPayload: string;

@@ -30,7 +30,7 @@ symbol_engine.projection:
     _title: 'Symbol Engine Projection'
   requirements:
     _permission: 'access content'
-    network: 'mainnet|testnet'
+    network: '[A-Za-z0-9_-]{3,64}'
     transactionHash: '[0-9A-Fa-f]{64}'
 
 symbol_engine.lookup:

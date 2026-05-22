@@ -26,7 +26,9 @@ final class SymbolEngineAccountPublicKeyResolver implements SymbolAccountPublicK
     if (preg_match('/^[0-9A-F]{64}$/', $public_key) !== 1) {
       throw new \InvalidArgumentException('Account public key was not found.');
     }
-    if ($this->addressDeriver->deriveFromPublicKey($public_key, $network) !== $address) {
+    $profile = $this->engineClient->networkProfile($network);
+    $network_identifier = isset($profile['networkIdentifier']) ? (int) $profile['networkIdentifier'] : NULL;
+    if ($this->addressDeriver->deriveFromPublicKey($public_key, $network, $network_identifier) !== $address) {
       throw new \InvalidArgumentException('Account public key does not match address.');
     }
     return $public_key;

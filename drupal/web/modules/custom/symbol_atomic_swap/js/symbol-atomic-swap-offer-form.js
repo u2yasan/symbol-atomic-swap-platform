@@ -15,7 +15,10 @@
   }
 
   function updateDefaultMosaics(form, networkValue) {
-    const nextMosaicId = CURRENCY_MOSAIC_IDS[networkValue] || CURRENCY_MOSAIC_IDS.testnet;
+    const nextMosaicId = CURRENCY_MOSAIC_IDS[networkValue];
+    if (!nextMosaicId) {
+      return;
+    }
     const knownMosaicIds = Object.values(CURRENCY_MOSAIC_IDS);
     form.querySelectorAll('[data-symbol-default-mosaic]').forEach((field) => {
       const current = normalizeHex(field.value);

@@ -48,8 +48,8 @@ symbol_atomic_swap.public_key_from_address:
     _title: 'Symbol account public key'
   requirements:
     _permission: 'view symbol atomic swap offers'
-    network: 'mainnet|testnet'
-    address: '[NT][A-Z2-7]{38}'
+    network: '[A-Za-z0-9_-]{3,64}'
+    address: '[A-Z2-7]{39}'
 
 symbol_atomic_swap.mosaic_metadata:
   path: '/symbol-atomic-swap/mosaic/{network}/{mosaicId}'
@@ -58,7 +58,7 @@ symbol_atomic_swap.mosaic_metadata:
     _title: 'Symbol mosaic metadata'
   requirements:
     _permission: 'view symbol atomic swap offers'
-    network: 'mainnet|testnet'
+    network: '[A-Za-z0-9_-]{3,64}'
     mosaicId: '[0-9A-Fa-f]{16}'
 
 symbol_atomic_swap.account_verification:

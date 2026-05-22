@@ -5,7 +5,7 @@ import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 
-type SymbolNetwork = 'mainnet' | 'testnet';
+type SymbolNetwork = string;
 
 export type TransactionReconcilerOptions = {
   network: SymbolNetwork;

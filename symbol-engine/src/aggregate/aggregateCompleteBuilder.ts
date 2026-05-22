@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { PublicKey, utils } from 'symbol-sdk';
 import { Address, descriptors, models, SymbolFacade } from 'symbol-sdk/symbol';
+import { createSymbolFacadeForNetwork } from '../config/networkProfile.js';
 import { aggregateCompleteBuildRequestSchema } from '../dto/aggregateComplete.js';
 import { canonicalize } from '../util/canonicalJson.js';
 import { createQrPayload } from '../qr/qrPayloadService.js';
@@ -9,7 +10,7 @@ import type { QrPayload, NormalizedSwapIntent } from '../repository/types.js';
 export type AggregateCompleteBuildResult = {
   intentId: string;
   correlationId: string;
-  network: 'mainnet' | 'testnet';
+  network: string;
   unsignedPayload: string;
   qrPayload: QrPayload;
   requiredCosigners: string[];
@@ -46,7 +47,7 @@ export function normalizeAggregateCompleteIntent(input: unknown): NormalizedSwap
 
 export function buildAggregateComplete(input: unknown): AggregateCompleteBuildResult & { intent: NormalizedSwapIntent } {
   const intent = normalizeAggregateCompleteIntent(input);
-  const facade = new SymbolFacade(intent.network);
+  const { facade } = createSymbolFacadeForNetwork(intent.network);
 
   const embeddedTransactions = intent.legs.map((leg) => facade.createEmbeddedTransactionFromTypedDescriptor(
     new descriptors.TransferTransactionV1Descriptor(

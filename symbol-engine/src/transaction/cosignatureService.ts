@@ -6,6 +6,7 @@ import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 import type { SwapIntentRepository } from '../repository/swapIntentRepository.js';
 import type { SwapIntentRecord } from '../repository/types.js';
+import { deserializeTransactionForNetwork } from '../config/networkProfile.js';
 import { InvalidAnnouncementError } from './announceService.js';
 import { SymbolNodeUnavailableError } from './symbolNodeErrors.js';
 import { putJsonToSymbolNode } from './symbolNodeHttp.js';
@@ -40,7 +41,7 @@ export type CosignatureAnnouncementResult = {
 function aggregateSignerPublicKey(intent: SwapIntentRecord): string {
   if (intent.signedPayload) {
     try {
-      const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(intent.signedPayload));
+      const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(intent.signedPayload), intent.network);
       return transaction.signerPublicKey.toString().toUpperCase();
     } catch {
       return intent.requiredCosigners[0]?.toUpperCase() ?? '';
@@ -57,13 +58,10 @@ export async function announceAggregateBondedCosignature(
     events: EventRepository;
     projections: ProjectionRepository;
     nodeRequestTimeoutMs?: number;
+    nodeUrlForNetwork?: (network: string) => string | undefined;
   },
 ): Promise<CosignatureAnnouncementResult> {
   const request = cosignatureAnnouncementSchema.parse(input);
-
-  if (!dependencies.nodeUrl) {
-    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for cosignature announcement.');
-  }
 
   const intent = await dependencies.swapIntents.findByIntentHash(request.intentHash.toUpperCase());
   if (!intent || intent.aggregateType !== 'aggregate_bonded') {
@@ -105,8 +103,12 @@ export async function announceAggregateBondedCosignature(
     signerPublicKey,
     version: '0',
   };
+  const nodeUrl = dependencies.nodeUrlForNetwork?.(intent.network) ?? dependencies.nodeUrl;
+  if (!nodeUrl) {
+    throw new SymbolNodeUnavailableError('SYMBOL_NODE_URL is required for cosignature announcement.');
+  }
   const response = await putJsonToSymbolNode(
-    dependencies.nodeUrl,
+    nodeUrl,
     '/transactions/cosignature',
     body,
     dependencies.nodeRequestTimeoutMs ? { timeoutMs: dependencies.nodeRequestTimeoutMs } : {},

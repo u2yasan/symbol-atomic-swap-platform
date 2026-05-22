@@ -5,7 +5,7 @@ import { normalizeFinalizedBlockHeight, normalizeSymbolWebSocketEvent } from './
 import type { EventRepository } from '../repository/eventRepository.js';
 import type { ProjectionRepository } from '../repository/projectionRepository.js';
 
-type SymbolNetwork = 'mainnet' | 'testnet';
+type SymbolNetwork = string;
 
 type ListenerRepositories = {
   events: EventRepository;

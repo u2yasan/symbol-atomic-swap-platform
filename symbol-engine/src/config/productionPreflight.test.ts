@@ -119,12 +119,17 @@ test('runProductionPreflight skips production network check without node URL', a
 });
 
 test('runProductionPreflight accepts matching Symbol network identifier', async () => {
-  let requestedUrl = '';
+  const requestedUrls: string[] = [];
   let signalConfigured = false;
   await runProductionPreflight(productionEnv, {
     fetcher: async (input, init) => {
-      requestedUrl = String(input);
+      requestedUrls.push(String(input));
       signalConfigured = init?.signal instanceof AbortSignal;
+      if (String(input).endsWith('/node/info')) {
+        return jsonResponse({
+          networkGenerationHashSeed: '49D6E1CE276A85B70EAFE52349AACCA389302E7A9754BCF1221E79494FC665A4',
+        });
+      }
       return jsonResponse({
         network: {
           identifier: 'testnet',
@@ -133,7 +138,10 @@ test('runProductionPreflight accepts matching Symbol network identifier', async 
     },
   });
 
-  assert.equal(requestedUrl, 'https://symbol-node.example:3001/network/properties');
+  assert.deepEqual(requestedUrls, [
+    'https://symbol-node.example:3001/network/properties',
+    'https://symbol-node.example:3001/node/info',
+  ]);
   assert.equal(signalConfigured, true);
 });
 
@@ -144,7 +152,7 @@ test('runProductionPreflight rejects mismatched Symbol network identifier', asyn
         identifier: 'mainnet',
       },
     }),
-  }), /SYMBOL_NETWORK=testnet does not match Symbol node network identifier=mainnet/);
+  }), /Network profile testnet does not match Symbol node network identifier=mainnet/);
 });
 
 test('runProductionPreflight rejects missing Symbol network identifier', async () => {

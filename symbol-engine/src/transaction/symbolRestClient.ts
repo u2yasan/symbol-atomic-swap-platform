@@ -22,6 +22,10 @@ export type SymbolNetworkProperties = {
   networkIdentifier?: string;
 };
 
+export type SymbolNodeInfo = {
+  networkGenerationHashSeed?: string;
+};
+
 export type SymbolAccountPublicKeyLookup = {
   found: boolean;
   address: string;
@@ -87,6 +91,14 @@ function extractNetworkIdentifier(payload: unknown): string | undefined {
   const record = asRecord(payload);
   const network = asRecord(record.network);
   return readString(network.identifier, record.identifier);
+}
+
+function extractGenerationHashSeed(payload: unknown): string | undefined {
+  const record = asRecord(payload);
+  const generationHashSeed = readString(record.networkGenerationHashSeed, record.networkGenerationHash);
+  return generationHashSeed && /^[0-9A-Fa-f]{64}$/.test(generationHashSeed)
+    ? generationHashSeed.toUpperCase()
+    : undefined;
 }
 
 function extractAccountPublicKey(payload: unknown): string | undefined {
@@ -264,6 +276,18 @@ export class SymbolRestClient {
     const networkIdentifier = extractNetworkIdentifier(raw);
     return {
       ...(networkIdentifier ? { networkIdentifier } : {}),
+    };
+  }
+
+  public async getNodeInfo(): Promise<SymbolNodeInfo> {
+    const response = await this.request('/node/info');
+    if (!response.ok) {
+      throw new Error(`node info lookup failed: ${response.status}`);
+    }
+
+    const generationHashSeed = extractGenerationHashSeed(await readJson(response));
+    return {
+      ...(generationHashSeed ? { networkGenerationHashSeed: generationHashSeed } : {}),
     };
   }
 

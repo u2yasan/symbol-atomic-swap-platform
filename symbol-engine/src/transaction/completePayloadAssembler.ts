@@ -1,6 +1,7 @@
 import { Hash256, PublicKey, Signature, utils } from 'symbol-sdk';
 import { models, SymbolFacade, SymbolTransactionFactory, Verifier } from 'symbol-sdk/symbol';
 import { z } from 'zod';
+import { createSymbolFacadeForNetwork, deserializeTransactionForNetwork } from '../config/networkProfile.js';
 import type { SwapIntentRecord } from '../repository/types.js';
 import { verifySignedPayload } from './signedPayloadVerifier.js';
 
@@ -49,8 +50,8 @@ export function assembleCompleteSignedPayload(input: unknown, intent: SwapIntent
   }
 
   try {
-    const facade = new SymbolFacade(intent.network);
-    const transaction = SymbolTransactionFactory.deserialize(utils.hexToUint8(parsed.data.rootSignedPayload));
+    const { facade } = createSymbolFacadeForNetwork(intent.network);
+    const { transaction } = deserializeTransactionForNetwork(utils.hexToUint8(parsed.data.rootSignedPayload), intent.network);
     if (transaction.type.value !== models.TransactionType.AGGREGATE_COMPLETE.value) {
       return { accepted: false, reason: 'transaction is not aggregate_complete' };
     }

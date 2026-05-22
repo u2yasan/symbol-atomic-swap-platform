@@ -4,6 +4,7 @@ namespace Drupal\symbol_login\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\symbol_engine\Exception\SymbolEngineException;
 use Drupal\user\Entity\Role;
 
 /**
@@ -25,10 +26,7 @@ final class SymbolLoginSettingsForm extends ConfigFormBase {
     $form['network_type'] = [
       '#type' => 'select',
       '#title' => $this->t('Network type'),
-      '#options' => [
-        'testnet' => $this->t('Testnet'),
-        'mainnet' => $this->t('Mainnet'),
-      ],
+      '#options' => $this->networkOptions(),
       '#default_value' => $config->get('network_type') ?: 'testnet',
       '#required' => TRUE,
     ];
@@ -159,6 +157,32 @@ final class SymbolLoginSettingsForm extends ConfigFormBase {
    */
   private function parseLines(string $value): array {
     return array_values(array_filter(array_map('trim', preg_split('/\R/', $value) ?: [])));
+  }
+
+  /**
+   * @return array<string, string>
+   */
+  private function networkOptions(): array {
+    try {
+      $profiles = \Drupal::service('symbol_engine.client')->networkProfiles();
+    }
+    catch (SymbolEngineException | \RuntimeException) {
+      $profiles = [];
+    }
+    $options = [];
+    foreach ($profiles as $profile) {
+      if (!is_array($profile)) {
+        continue;
+      }
+      $key = (string) ($profile['key'] ?? '');
+      if ($key !== '') {
+        $options[$key] = (string) ($profile['label'] ?? $key);
+      }
+    }
+    return $options ?: [
+      'testnet' => (string) $this->t('Testnet'),
+      'mainnet' => (string) $this->t('Mainnet'),
+    ];
   }
 
 }

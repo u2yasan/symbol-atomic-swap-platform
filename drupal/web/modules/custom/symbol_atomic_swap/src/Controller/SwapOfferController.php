@@ -137,9 +137,16 @@ final class SwapOfferController extends ControllerBase {
     $network = (string) ($account->get('field_symbol_network')->value ?? '');
     $address = strtoupper((string) ($account->get('field_symbol_address')->value ?? ''));
     $public_key = strtoupper((string) ($account->get('field_symbol_public_key')->value ?? ''));
+    try {
+      $profile = $this->engineClient->networkProfile($network);
+    }
+    catch (SymbolEngineException | \InvalidArgumentException | \RuntimeException) {
+      return NULL;
+    }
+    $prefix = strtoupper((string) ($profile['addressPrefix'] ?? ''));
     if (
-      !in_array($network, ['mainnet', 'testnet'], TRUE)
-      || !preg_match('/^[NT][A-Z2-7]{38}$/', $address)
+      $prefix === ''
+      || !preg_match('/^' . preg_quote($prefix, '/') . '[A-Z2-7]{38}$/', $address)
       || !preg_match('/^[0-9A-F]{64}$/', $public_key)
     ) {
       return NULL;

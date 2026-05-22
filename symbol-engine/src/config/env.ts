@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { loadNetworkProfilesFromEnv, networkKeySchema } from './networkProfile.js';
 
 dotenv.config();
 
@@ -67,10 +68,33 @@ const envSchema = z.object({
   SYMBOL_ENGINE_RECONCILER_INTERVAL_MS: z.coerce.number().int().min(5000).max(3600000).default(30000),
   SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SYMBOL_NODE_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(10000),
-  SYMBOL_NETWORK: z.enum(['mainnet', 'testnet']).default('testnet'),
+  SYMBOL_NETWORK: networkKeySchema.default('testnet'),
+  SYMBOL_NETWORK_PROFILES_JSON: optionalNonEmptyStringSchema,
   SYMBOL_NODE_URL: optionalUrlSchema,
   SYMBOL_WS_URL: optionalUrlSchema,
 }).superRefine((value, context) => {
+  let profiles;
+  try {
+    profiles = loadNetworkProfilesFromEnv(value as unknown as NodeJS.ProcessEnv);
+  } catch (error) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_NETWORK_PROFILES_JSON'],
+      message: error instanceof Error ? error.message : 'Invalid SYMBOL_NETWORK_PROFILES_JSON.',
+    });
+    return;
+  }
+
+  const activeProfile = profiles.find((profile) => profile.key === value.SYMBOL_NETWORK.toLowerCase());
+  if (!activeProfile) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_NETWORK'],
+      message: `SYMBOL_NETWORK=${value.SYMBOL_NETWORK} is not configured in network profiles.`,
+    });
+    return;
+  }
+
   const token = value.SYMBOL_ENGINE_API_TOKEN;
   if (token && token.length < 32) {
     context.addIssue({
@@ -152,7 +176,7 @@ const envSchema = z.object({
     });
   }
 
-  const expectedAddressPrefix = value.SYMBOL_NETWORK === 'mainnet' ? 'N' : 'T';
+  const expectedAddressPrefix = activeProfile.addressPrefix;
   for (const address of value.SYMBOL_ENGINE_LISTENER_ADDRESSES) {
     if (!isRawSymbolAddress(address)) {
       context.addIssue({

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { networkKeySchema } from '../config/networkProfile.js';
 import { aggregateTransferLegSchema, integerStringSchema, mosaicIdSchema } from './aggregateComplete.js';
 
 export const hashLockRequirementsSchema = z.object({
@@ -8,7 +9,7 @@ export const hashLockRequirementsSchema = z.object({
 });
 
 export const aggregateBondedBuildRequestSchema = z.object({
-  network: z.enum(['mainnet', 'testnet']),
+  network: networkKeySchema,
   deadlineHours: z.number().int().min(1).max(48),
   maxFee: integerStringSchema.optional(),
   legs: z.array(aggregateTransferLegSchema).length(2),

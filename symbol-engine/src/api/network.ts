@@ -1,24 +1,36 @@
+import { publicNetworkProfile, type SymbolNetworkProfile } from '../config/networkProfile.js';
+
 export type NetworkResponseInput = {
-  network: 'mainnet' | 'testnet';
+  network: string;
   exposeNodeEndpoints: boolean;
   nodeUrl?: string | undefined;
   wsUrl?: string | undefined;
+  profiles?: SymbolNetworkProfile[];
 };
 
 export function networkResponse(input: NetworkResponseInput): {
-  network: 'mainnet' | 'testnet';
+  network: string;
   nodeUrl?: string | null;
   wsUrl?: string | null;
+  profiles?: ReturnType<typeof publicNetworkProfile>[];
 } {
   if (!input.exposeNodeEndpoints) {
-    return {
+    const response: ReturnType<typeof networkResponse> = {
       network: input.network,
     };
+    if (input.profiles) {
+      response.profiles = input.profiles.map(publicNetworkProfile);
+    }
+    return response;
   }
 
-  return {
+  const response: ReturnType<typeof networkResponse> = {
     network: input.network,
     nodeUrl: input.nodeUrl ?? null,
     wsUrl: input.wsUrl ?? null,
   };
+  if (input.profiles) {
+    response.profiles = input.profiles.map(publicNetworkProfile);
+  }
+  return response;
 }
