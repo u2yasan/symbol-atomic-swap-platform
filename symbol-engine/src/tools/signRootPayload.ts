@@ -35,12 +35,14 @@ function options(): Options {
   }
 
   const unsignedPayload = readOption('unsigned-payload') ?? process.env.UNSIGNED_PAYLOAD ?? '';
-  const privateKey = readOption('private-key') ?? process.env.SIGNER_PRIVATE_KEY ?? '';
+  // The signer private key is read only from the environment, never from a CLI
+  // argument, so it cannot leak via `ps`/process listings or shell history.
+  const privateKey = process.env.SIGNER_PRIVATE_KEY ?? '';
   if (unsignedPayload === '') {
     throw new Error('unsigned payload is required via --unsigned-payload or UNSIGNED_PAYLOAD');
   }
   if (privateKey === '') {
-    throw new Error('signer private key is required via --private-key or SIGNER_PRIVATE_KEY');
+    throw new Error('signer private key is required via the SIGNER_PRIVATE_KEY environment variable');
   }
 
   return {

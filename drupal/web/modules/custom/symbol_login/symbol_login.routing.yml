@@ -39,6 +39,7 @@ symbol_login.verify:
   methods: [POST]
   requirements:
     _user_is_logged_in: 'FALSE'
+    _csrf_request_header_token: 'TRUE'
 
 symbol_login.sss_challenge:
   path: '/symbol/login/sss/challenge'
@@ -55,6 +56,7 @@ symbol_login.sss_verify:
   methods: [POST]
   requirements:
     _user_is_logged_in: 'FALSE'
+    _csrf_request_header_token: 'TRUE'
 
 symbol_login.account:
   path: '/symbol/account'

@@ -13,7 +13,6 @@ env:
   POSTGRES_DB: drupal
   POSTGRES_USER: drupal
   POSTGRES_PASSWORD: drupal
-  SYMBOL_ENGINE_API_TOKEN: f3b9c1a84e7d42fa9c05b8d63e2a71cb
   SYMBOL_ENGINE_DATABASE_URL: postgresql://drupal:drupal@postgres:5432/drupal
   SYMBOL_ENGINE_LISTENER_ENABLED: "false"
   SYMBOL_ENGINE_RECONCILER_ENABLED: "false"
@@ -28,6 +27,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Generate ephemeral Symbol Engine API token
+        run: echo "SYMBOL_ENGINE_API_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
       - name: Check sensitive file policy
         run: make check-sensitive-files
@@ -60,7 +62,7 @@ jobs:
         run: docker compose run --rm --no-deps symbol-engine npm ci
 
       - name: Start infrastructure
-        run: docker compose up -d postgres redis
+        run: docker compose up -d postgres
 
       - name: Wait for PostgreSQL
         run: |

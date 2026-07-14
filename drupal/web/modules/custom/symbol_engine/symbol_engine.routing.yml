@@ -12,7 +12,7 @@ symbol_engine.network:
     _controller: '\Drupal\symbol_engine\Controller\EngineController::network'
     _title: 'Symbol Engine Network'
   requirements:
-    _permission: 'access content'
+    _permission: 'access symbol engine read api'
 
 symbol_engine.intent:
   path: '/symbol-engine/intent/{intentHash}'
@@ -20,7 +20,7 @@ symbol_engine.intent:
     _controller: '\Drupal\symbol_engine\Controller\EngineController::intent'
     _title: 'Symbol Engine Intent'
   requirements:
-    _permission: 'access content'
+    _permission: 'access symbol engine read api'
     intentHash: '[0-9A-Fa-f]{64}'
 
 symbol_engine.projection:
@@ -29,7 +29,7 @@ symbol_engine.projection:
     _controller: '\Drupal\symbol_engine\Controller\EngineController::projection'
     _title: 'Symbol Engine Projection'
   requirements:
-    _permission: 'access content'
+    _permission: 'access symbol engine read api'
     network: '[A-Za-z0-9_-]{3,64}'
     transactionHash: '[0-9A-Fa-f]{64}'
 

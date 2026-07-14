@@ -3,3 +3,7 @@ administer symbol engine:
   description: 'Configure shared Symbol Engine integration settings.'
   restrict access: true
 
+access symbol engine read api:
+  title: 'Access Symbol Engine read API'
+  description: 'Read Symbol Engine network status, swap intents, and projections through the Drupal proxy endpoints.'
+

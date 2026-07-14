@@ -40,11 +40,10 @@ SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS=false
 DRUPAL_BIND_ADDRESS=127.0.0.1 or private reverse-proxy interface
 SYMBOL_ENGINE_BIND_ADDRESS=127.0.0.1
 POSTGRES_BIND_ADDRESS=127.0.0.1
-REDIS_BIND_ADDRESS=127.0.0.1
 ```
 
-Terminate HTTPS at the reverse proxy. Do not expose Symbol Engine, PostgreSQL,
-or Redis directly to the internet.
+Terminate HTTPS at the reverse proxy. Do not expose Symbol Engine or PostgreSQL
+directly to the internet.
 
 In Drupal settings, keep `Enable mainnet UI operations` disabled. With this
 disabled, new Symbol account verification, P2P listings, and P2P take flow are
