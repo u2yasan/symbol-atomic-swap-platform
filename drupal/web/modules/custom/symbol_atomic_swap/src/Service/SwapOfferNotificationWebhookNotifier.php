@@ -11,10 +11,17 @@ use GuzzleHttp\Exception\GuzzleException;
 
 final class SwapOfferNotificationWebhookNotifier {
 
+  /**
+   * @param (callable(string): string[])|null $hostAddressResolver
+   *   Resolves a hostname to its IP addresses. Defaults to real DNS resolution;
+   *   injectable so the SSRF guard can be tested deterministically without
+   *   depending on live DNS.
+   */
   public function __construct(
     private readonly ClientInterface $httpClient,
     private readonly LoggerChannelFactoryInterface $loggerFactory,
     private readonly ConfigFactoryInterface $configFactory,
+    private $hostAddressResolver = NULL,
   ) {}
 
   /**
@@ -94,6 +101,30 @@ final class SwapOfferNotificationWebhookNotifier {
       return $this->isPublicAddress($literal);
     }
 
+    $addresses = $this->resolveHostAddresses($host);
+    if ($addresses === []) {
+      return FALSE;
+    }
+
+    foreach ($addresses as $address) {
+      if (!$this->isPublicAddress($address)) {
+        return FALSE;
+      }
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Resolves a hostname to its IPv4/IPv6 addresses.
+   *
+   * @return string[]
+   */
+  private function resolveHostAddresses(string $host): array {
+    if ($this->hostAddressResolver !== NULL) {
+      return array_values(($this->hostAddressResolver)($host));
+    }
+
     $addresses = [];
     $ipv4 = @gethostbynamel($host);
     if (is_array($ipv4)) {
@@ -108,17 +139,7 @@ final class SwapOfferNotificationWebhookNotifier {
       }
     }
 
-    if ($addresses === []) {
-      return FALSE;
-    }
-
-    foreach ($addresses as $address) {
-      if (!$this->isPublicAddress($address)) {
-        return FALSE;
-      }
-    }
-
-    return TRUE;
+    return $addresses;
   }
 
   private function isPublicAddress(string $address): bool {
