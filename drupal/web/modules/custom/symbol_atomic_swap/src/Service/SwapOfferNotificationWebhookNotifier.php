@@ -11,10 +11,17 @@ use GuzzleHttp\Exception\GuzzleException;
 
 final class SwapOfferNotificationWebhookNotifier {
 
+  /**
+   * @param (callable(string): string[])|null $hostAddressResolver
+   *   Resolves a hostname to its IP addresses. Defaults to real DNS resolution;
+   *   injectable so the SSRF guard can be tested deterministically without
+   *   depending on live DNS.
+   */
   public function __construct(
     private readonly ClientInterface $httpClient,
     private readonly LoggerChannelFactoryInterface $loggerFactory,
     private readonly ConfigFactoryInterface $configFactory,
+    private $hostAddressResolver = NULL,
   ) {}
 
   /**
@@ -31,6 +38,15 @@ final class SwapOfferNotificationWebhookNotifier {
 
     if (!filter_var($url, FILTER_VALIDATE_URL) || !in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'], TRUE)) {
       $this->loggerFactory->get('symbol_atomic_swap')->warning('Swap notification webhook URL is invalid.');
+      return;
+    }
+
+    // SSRF guard: the webhook destination must resolve to a public address so a
+    // misconfigured URL cannot be used to reach loopback, link-local, or
+    // private-range internal services (e.g. cloud metadata endpoints).
+    $host = (string) parse_url($url, PHP_URL_HOST);
+    if ($host === '' || !$this->hostResolvesToPublicAddress($host)) {
+      $this->loggerFactory->get('symbol_atomic_swap')->warning('Swap notification webhook URL resolves to a non-public address and was blocked.');
       return;
     }
 
@@ -60,6 +76,9 @@ final class SwapOfferNotificationWebhookNotifier {
         ],
         'timeout' => $timeout,
         'http_errors' => FALSE,
+        // Do not follow redirects: a 30x to an internal host would otherwise
+        // bypass the resolved-address SSRF guard above.
+        'allow_redirects' => FALSE,
       ]);
     }
     catch (GuzzleException $exception) {
@@ -67,6 +86,68 @@ final class SwapOfferNotificationWebhookNotifier {
         '@message' => $exception->getMessage(),
       ]);
     }
+  }
+
+  /**
+   * Determines whether every resolved address for a host is publicly routable.
+   *
+   * Fails closed: an unresolvable host or any private/reserved/loopback/
+   * link-local address blocks delivery.
+   */
+  private function hostResolvesToPublicAddress(string $host): bool {
+    // Strip an IPv6 literal's surrounding brackets, e.g. "[::1]".
+    $literal = trim($host, '[]');
+    if (filter_var($literal, FILTER_VALIDATE_IP) !== FALSE) {
+      return $this->isPublicAddress($literal);
+    }
+
+    $addresses = $this->resolveHostAddresses($host);
+    if ($addresses === []) {
+      return FALSE;
+    }
+
+    foreach ($addresses as $address) {
+      if (!$this->isPublicAddress($address)) {
+        return FALSE;
+      }
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Resolves a hostname to its IPv4/IPv6 addresses.
+   *
+   * @return string[]
+   */
+  private function resolveHostAddresses(string $host): array {
+    if ($this->hostAddressResolver !== NULL) {
+      return array_values(($this->hostAddressResolver)($host));
+    }
+
+    $addresses = [];
+    $ipv4 = @gethostbynamel($host);
+    if (is_array($ipv4)) {
+      $addresses = $ipv4;
+    }
+    $ipv6Records = @dns_get_record($host, DNS_AAAA);
+    if (is_array($ipv6Records)) {
+      foreach ($ipv6Records as $record) {
+        if (isset($record['ipv6'])) {
+          $addresses[] = (string) $record['ipv6'];
+        }
+      }
+    }
+
+    return $addresses;
+  }
+
+  private function isPublicAddress(string $address): bool {
+    return filter_var(
+      $address,
+      FILTER_VALIDATE_IP,
+      FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE,
+    ) !== FALSE;
   }
 
 }

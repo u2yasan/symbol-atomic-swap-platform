@@ -58,20 +58,26 @@ done
 grep -Fxq '.env' .gitignore || fail ".gitignore must exclude .env"
 grep -Fxq '.env.local' .gitignore || fail ".gitignore must exclude .env.local"
 
-weak_engine_token_config=$(
+# Reject any hard-coded Symbol Engine API token in workflow/compose files. Only
+# an empty value or a ${VAR} indirection is permitted, so a committed literal
+# can never be copy-pasted into a real deployment (regardless of its entropy).
+literal_engine_token_config=$(
   git ls-files '.github/workflows/*.yml' 'docker-compose*.yml' | xargs awk '
-    /SYMBOL_ENGINE_API_TOKEN:[[:space:]]*0123456789abcdef0123456789abcdef/ {
-      print FILENAME ":" FNR ": " $0
-    }
-    /SYMBOL_ENGINE_API_TOKEN:[[:space:]]*replace-with-at-least-32-random-characters/ {
+    /^[[:space:]]*SYMBOL_ENGINE_API_TOKEN:/ {
+      val = $0
+      sub(/^[[:space:]]*SYMBOL_ENGINE_API_TOKEN:[[:space:]]*/, "", val)
+      sub(/[[:space:]]*(#.*)?$/, "", val)
+      gsub(/^"|"$/, "", val)
+      if (val == "") next
+      if (val ~ /^\$\{/) next
       print FILENAME ":" FNR ": " $0
     }
   '
 )
 
-if [ -n "$weak_engine_token_config" ]; then
-  printf '%s\n' "Refusing weak Symbol Engine API token in runtime configuration:" >&2
-  printf '%s\n' "$weak_engine_token_config" >&2
+if [ -n "$literal_engine_token_config" ]; then
+  printf '%s\n' "Refusing hard-coded Symbol Engine API token in runtime configuration (use \${SYMBOL_ENGINE_API_TOKEN}):" >&2
+  printf '%s\n' "$literal_engine_token_config" >&2
   exit 1
 fi
 

@@ -3,7 +3,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { LoggerOptions } from 'pino';
-import { extractToken } from './auth.js';
+import { extractToken, secureCompare } from './auth.js';
 
 export const DEFAULT_BODY_LIMIT_BYTES = 64 * 1024;
 export const SMALL_BODY_LIMIT_BYTES = 8 * 1024;
@@ -64,16 +64,29 @@ function tokenRateLimitKey(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-export function rateLimitKey(request: FastifyRequest): string {
-  const token = extractToken(request);
-  if (token) {
-    return `token:${tokenRateLimitKey(token)}`;
-  }
+/**
+ * Builds the rate-limit key generator.
+ *
+ * A dedicated per-token bucket is only granted once the supplied token matches
+ * the configured API token. Unauthenticated or invalid-token requests all fall
+ * back to a per-IP bucket, so an attacker cannot escape the limit by rotating
+ * random Bearer values (each of which would otherwise mint a fresh bucket).
+ */
+export function createRateLimitKey(expectedToken: string | undefined) {
+  return function rateLimitKey(request: FastifyRequest): string {
+    const token = extractToken(request);
+    if (token && expectedToken && secureCompare(token, expectedToken)) {
+      return `token:${tokenRateLimitKey(token)}`;
+    }
 
-  return `ip:${request.ip}`;
+    return `ip:${request.ip}`;
+  };
 }
 
-export async function registerSecurity(app: FastifyInstance): Promise<void> {
+export async function registerSecurity(
+  app: FastifyInstance,
+  expectedToken?: string,
+): Promise<void> {
   await app.register(helmet, {
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
@@ -88,7 +101,7 @@ export async function registerSecurity(app: FastifyInstance): Promise<void> {
     global: true,
     max: DEFAULT_RATE_LIMIT_MAX,
     timeWindow: DEFAULT_RATE_LIMIT_WINDOW,
-    keyGenerator: rateLimitKey,
+    keyGenerator: createRateLimitKey(expectedToken),
     allowList: (request) => request.url === '/health',
     errorResponseBuilder: (_request, context) => ({
       statusCode: context.statusCode,

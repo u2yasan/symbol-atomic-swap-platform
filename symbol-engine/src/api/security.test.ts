@@ -7,8 +7,8 @@ import { createApiAuthHook } from './auth.js';
 import { handleApiError } from './errorHandler.js';
 import {
   createLoggerOptions,
+  createRateLimitKey,
   DEFAULT_BODY_LIMIT_BYTES,
-  rateLimitKey,
   registerSecurity,
   SMALL_BODY_LIMIT_BYTES,
 } from './security.js';
@@ -21,7 +21,7 @@ async function makeApp() {
     bodyLimit: DEFAULT_BODY_LIMIT_BYTES,
     logger: false,
   });
-  await registerSecurity(app);
+  await registerSecurity(app, token);
   app.setErrorHandler(handleApiError);
 
   app.get('/health', {
@@ -72,9 +72,12 @@ test('protected API routes fail closed without a token', async () => {
 test('protected API routes reject invalid bearer tokens regardless of length', async () => {
   const app = await makeApp();
 
+  // Use distinct client IPs so the per-IP rate limiter (max 1 on /protected)
+  // does not mask the auth rejection we are asserting here.
   const shortToken = await app.inject({
     method: 'POST',
     url: '/protected',
+    remoteAddress: '198.51.100.1',
     headers: {
       authorization: 'Bearer wrong',
     },
@@ -83,6 +86,7 @@ test('protected API routes reject invalid bearer tokens regardless of length', a
   const sameLengthToken = await app.inject({
     method: 'POST',
     url: '/protected',
+    remoteAddress: '198.51.100.2',
     headers: {
       authorization: `Bearer ${'f'.repeat(token.length)}`,
     },
@@ -143,7 +147,8 @@ test('rate limit is enforced per API token and excludes health', async () => {
   await app.close();
 });
 
-test('rate limit key hashes API tokens instead of storing raw token values', () => {
+test('rate limit key hashes valid API tokens instead of storing raw token values', () => {
+  const rateLimitKey = createRateLimitKey(token);
   const request = {
     headers: {
       authorization: `Bearer ${token}`,
@@ -162,6 +167,35 @@ test('rate limit key hashes API tokens instead of storing raw token values', () 
   assert.match(first, /^token:[0-9a-f]{64}$/);
   assert.doesNotMatch(first, new RegExp(token));
   assert.equal(fallback, 'ip:127.0.0.1');
+});
+
+test('rate limit key falls back to the client IP for invalid tokens', () => {
+  const rateLimitKey = createRateLimitKey(token);
+
+  // An attacker rotating random Bearer values must not escape the IP bucket:
+  // every distinct invalid token has to collapse onto the same per-IP key.
+  const firstFakeToken = rateLimitKey({
+    headers: { authorization: `Bearer ${'a'.repeat(token.length)}` },
+    ip: '203.0.113.7',
+  } as never);
+  const secondFakeToken = rateLimitKey({
+    headers: { authorization: `Bearer ${'b'.repeat(token.length)}` },
+    ip: '203.0.113.7',
+  } as never);
+
+  assert.equal(firstFakeToken, 'ip:203.0.113.7');
+  assert.equal(secondFakeToken, 'ip:203.0.113.7');
+});
+
+test('rate limit key falls back to the client IP when no token is configured', () => {
+  const rateLimitKey = createRateLimitKey(undefined);
+
+  const key = rateLimitKey({
+    headers: { authorization: `Bearer ${token}` },
+    ip: '203.0.113.9',
+  } as never);
+
+  assert.equal(key, 'ip:203.0.113.9');
 });
 
 test('security headers are set on responses', async () => {

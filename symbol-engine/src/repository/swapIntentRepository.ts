@@ -104,19 +104,30 @@ export class SwapIntentRepository {
   }
 
   public async markSigned(intentHash: string, signedPayload: string, transactionHash: string): Promise<SwapIntentRecord> {
+    // Only a freshly created or already-signed intent may (re)enter the signed
+    // state. Guarding here prevents a replayed signed payload from regressing an
+    // intent that has already advanced to announced/partial_cosigned back to
+    // 'signed', which would otherwise re-enable duplicate node announcement.
     const result = await this.db.query<SwapIntentRow>(
       `UPDATE swap_intents
        SET state = 'signed', signed_payload = $2, transaction_hash = $3, updated_at = now()
-       WHERE intent_hash = $1
+       WHERE intent_hash = $1 AND state IN ('created', 'signed')
        RETURNING *`,
       [intentHash, signedPayload, transactionHash],
     );
 
-    if (!result.rows[0]) {
+    if (result.rows[0]) {
+      return toRecord(result.rows[0]);
+    }
+
+    const current = await this.findByIntentHash(intentHash);
+    if (!current) {
       throw new Error('swap intent not found');
     }
 
-    return toRecord(result.rows[0]);
+    // Intent exists but has already progressed beyond the signable states; keep
+    // it unchanged rather than regressing the state machine.
+    return current;
   }
 
   public async markAnnounced(intentHash: string, nodeResponse: unknown): Promise<SwapIntentRecord> {

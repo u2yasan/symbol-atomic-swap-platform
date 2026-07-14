@@ -65,7 +65,7 @@ final class SwapOfferNotificationWebhookNotifierTest extends KernelTestBase {
     $history = [];
     $notifier = $this->notifier([
       new Response(202, [], '{"ok":true}'),
-    ], $history);
+    ], $history, static fn (): array => ['93.184.216.34']);
 
     $notifier->notify([
       'offer_id' => 42,
@@ -85,6 +85,29 @@ final class SwapOfferNotificationWebhookNotifierTest extends KernelTestBase {
     $this->assertSame('swap_offer_notification', $payload['event']);
     $this->assertSame(42, $payload['offerId']);
     $this->assertSame('offer_confirmed', $payload['type']);
+  }
+
+  /**
+   * A webhook host that resolves to a private address is blocked (SSRF guard).
+   */
+  public function testNotifyBlocksPrivateAddressWebhook(): void {
+    putenv('SYMBOL_ATOMIC_SWAP_WEBHOOK_URL=https://internal.example.test/symbol');
+    putenv('SYMBOL_ATOMIC_SWAP_WEBHOOK_TOKEN=test-token');
+
+    $history = [];
+    // Host resolves to a link-local metadata address; delivery must be blocked
+    // before any request is issued.
+    $notifier = $this->notifier([], $history, static fn (): array => ['169.254.169.254']);
+
+    $notifier->notify([
+      'offer_id' => 42,
+      'type' => 'offer_confirmed',
+      'severity' => 'status',
+      'message' => 'Swap transaction was confirmed.',
+      'created' => 1700000000,
+    ]);
+
+    $this->assertSame([], $history);
   }
 
   /**
@@ -111,8 +134,9 @@ final class SwapOfferNotificationWebhookNotifierTest extends KernelTestBase {
   /**
    * @param \Psr\Http\Message\ResponseInterface[] $responses
    * @param array<int, array<string, mixed>> $history
+   * @param (callable(string): string[])|null $hostAddressResolver
    */
-  private function notifier(array $responses, array &$history): SwapOfferNotificationWebhookNotifier {
+  private function notifier(array $responses, array &$history, ?callable $hostAddressResolver = NULL): SwapOfferNotificationWebhookNotifier {
     $mock = new MockHandler($responses);
     $stack = HandlerStack::create($mock);
     $stack->push(Middleware::history($history));
@@ -121,6 +145,7 @@ final class SwapOfferNotificationWebhookNotifierTest extends KernelTestBase {
       new Client(['handler' => $stack]),
       $this->container->get('logger.factory'),
       $this->container->get('config.factory'),
+      $hostAddressResolver,
     );
   }
 

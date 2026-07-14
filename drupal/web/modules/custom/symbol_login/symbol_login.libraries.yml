@@ -1,5 +1,5 @@
 login:
-  version: 20260520.2
+  version: 20260714.1
   js:
     js/symbol-login.js: {}
   css:

@@ -1,6 +1,29 @@
 (function (Drupal, drupalSettings, once) {
   'use strict';
 
+  let csrfTokenPromise = null;
+
+  // Fetch a session-bound CSRF token so the verify endpoints (which finalize a
+  // login) cannot be driven cross-site: an attacker's page cannot read the
+  // victim's token, so it cannot forge the X-CSRF-Token header.
+  function csrfToken() {
+    if (!csrfTokenPromise) {
+      csrfTokenPromise = fetch(Drupal.url('session/token'), {
+        credentials: 'same-origin',
+        headers: { accept: 'text/plain' },
+      }).then(function (response) {
+        if (!response.ok) {
+          throw new Error('CSRFトークンの取得に失敗しました。');
+        }
+        return response.text();
+      }).catch(function (error) {
+        csrfTokenPromise = null;
+        throw error;
+      });
+    }
+    return csrfTokenPromise;
+  }
+
   function setStatus(form, message, state) {
     const container = form.querySelector('[data-symbol-login-status]');
     const label = form.querySelector('[data-symbol-login-message]');
@@ -173,12 +196,14 @@
   }
 
   async function verify(challenge, signed) {
+    const token = await csrfToken();
     const response = await fetch(drupalSettings.symbolLogin.verifyUrl, {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        'X-CSRF-Token': token,
       },
       body: JSON.stringify({
         challengeId: challenge.id,
@@ -196,12 +221,14 @@
   }
 
   async function verifySss(challenge, payload) {
+    const token = await csrfToken();
     const response = await fetch(drupalSettings.symbolLogin.sssVerifyUrl, {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        'X-CSRF-Token': token,
       },
       body: JSON.stringify({
         challengeId: challenge.id,
