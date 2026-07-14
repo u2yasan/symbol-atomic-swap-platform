@@ -4,6 +4,7 @@ services:
     arguments:
       - '@http_client'
       - '@config.factory'
+      - '@cache.default'
 
   symbol_engine.address_deriver:
     class: Drupal\symbol_engine\Service\SymbolAddressDeriver
