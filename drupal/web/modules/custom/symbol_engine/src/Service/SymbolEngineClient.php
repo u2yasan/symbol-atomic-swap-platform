@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\symbol_engine\Service;
 
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\symbol_engine\Exception\SymbolEngineException;
 use GuzzleHttp\ClientInterface;
@@ -21,9 +22,24 @@ final class SymbolEngineClient {
     'development-token',
   ];
 
+  /**
+   * Cache ID for the engine network profile catalogue.
+   */
+  private const NETWORK_PROFILES_CACHE_ID = 'symbol_engine:network_profiles';
+
+  /**
+   * Lifetime, in seconds, for the cached network profile catalogue.
+   *
+   * Network profiles are static engine configuration that only change when the
+   * engine is redeployed with a different SYMBOL_NETWORK_PROFILES_JSON, so a
+   * short TTL is safe and keeps this off the per-request hot path.
+   */
+  private const NETWORK_PROFILES_CACHE_TTL = 300;
+
   public function __construct(
     private readonly ClientInterface $httpClient,
     private readonly ConfigFactoryInterface $configFactory,
+    private readonly ?CacheBackendInterface $cache = NULL,
   ) {}
 
   public function health(): array {
@@ -38,9 +54,28 @@ final class SymbolEngineClient {
    * @return array<int, array<string, mixed>>
    */
   public function networkProfiles(): array {
+    if ($this->cache !== NULL) {
+      $cached = $this->cache->get(self::NETWORK_PROFILES_CACHE_ID);
+      if ($cached !== FALSE && is_array($cached->data)) {
+        return $cached->data;
+      }
+    }
+
     $response = $this->request('GET', '/v1/network-profiles');
     $profiles = $response['profiles'] ?? [];
-    return is_array($profiles) ? $profiles : [];
+    $profiles = is_array($profiles) ? $profiles : [];
+
+    // Only cache a non-empty catalogue so a transient empty/failed response is
+    // never persisted for the full TTL.
+    if ($this->cache !== NULL && $profiles !== []) {
+      $this->cache->set(
+        self::NETWORK_PROFILES_CACHE_ID,
+        $profiles,
+        time() + self::NETWORK_PROFILES_CACHE_TTL,
+      );
+    }
+
+    return $profiles;
   }
 
   /**
