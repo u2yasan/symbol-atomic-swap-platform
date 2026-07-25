@@ -14,7 +14,7 @@ final class SwapOfferRepository {
   private const TABLE = 'symbol_atomic_swap_offer';
   public const TERMINAL_STATES = ['expired', 'cancelled', 'failed', 'rolled_back', 'finalized'];
   public const SIGNABLE_STATES = ['payload_generated', 'root_signed', 'signed'];
-  public const CANCELLABLE_STATES = ['open', 'draft', 'payload_generated', 'root_signed', 'signed'];
+  public const CANCELLABLE_STATES = ['open', 'draft', 'accepting', 'payload_generated', 'root_signed', 'signed'];
   public const SYNCABLE_STATES = ['signed', 'announced', 'unconfirmed', 'confirmed', 'partial_announced', 'partial_cosigned'];
 
   public function __construct(
@@ -281,18 +281,88 @@ final class SwapOfferRepository {
   /**
    * @param array<string, mixed> $values
    */
-  public function accept(int $id, array $values): void {
-    $offer = $this->find($id);
-    if (!$offer) {
-      throw new \InvalidArgumentException('Atomic settlement not found.');
-    }
-    if (!$this->canAccept($offer)) {
-      throw new \InvalidArgumentException('Only open atomic settlements can be finalized.');
+  public function reserveAcceptance(int $id, array $values): bool {
+    $allowed_fields = array_flip([
+      'deadline_hours',
+      'leg1_recipient_address',
+      'leg2_signer_public_key',
+    ]);
+    $reservation = array_intersect_key($values, $allowed_fields);
+    $reservation['state'] = 'accepting';
+    $reservation['intent_hash'] = NULL;
+    $reservation['unsigned_payload'] = NULL;
+    $reservation['qr_payload'] = NULL;
+    $reservation['transaction_hash'] = NULL;
+    $reservation['changed'] = \Drupal::time()->getRequestTime();
+
+    $affected = $this->database->update(self::TABLE)
+      ->fields($reservation)
+      ->condition('id', $id)
+      ->condition('state', ['open', 'draft'], 'IN')
+      ->isNull('intent_hash')
+      ->isNull('unsigned_payload')
+      ->execute();
+
+    return (int) $affected === 1;
+  }
+
+  /**
+   * @param array<string, mixed> $engine_fields
+   */
+  public function completeAcceptance(int $id, string $taker_public_key, array $engine_fields): bool {
+    $intent_hash = strtoupper((string) ($engine_fields['intent_hash'] ?? ''));
+    $unsigned_payload = strtoupper((string) ($engine_fields['unsigned_payload'] ?? ''));
+    if (!$this->isHash($intent_hash) || preg_match('/^(?:[0-9A-F]{2})+$/', $unsigned_payload) !== 1) {
+      throw new \InvalidArgumentException('Symbol Engine returned invalid acceptance artifacts.');
     }
 
-    $this->update($id, $values + [
+    $fields = array_intersect_key($engine_fields, array_flip([
+      'intent_hash',
+      'unsigned_payload',
+      'qr_payload',
+      'root_signed_payload',
+      'root_transaction_hash',
+      'transaction_hash',
+    ]));
+    $fields['state'] = 'payload_generated';
+    $fields['changed'] = \Drupal::time()->getRequestTime();
+
+    $affected = $this->database->update(self::TABLE)
+      ->fields($fields)
+      ->condition('id', $id)
+      ->condition('state', 'accepting')
+      ->condition('leg2_signer_public_key', strtoupper($taker_public_key))
+      ->execute();
+
+    return (int) $affected === 1;
+  }
+
+  /**
+   * Releases an in-progress reservation after a synchronous Engine failure.
+   *
+   * @param array<string, mixed> $original
+   */
+  public function releaseAcceptance(int $id, string $taker_public_key, array $original): bool {
+    $fields = [
+      'state' => (string) ($original['state'] ?? 'open'),
+      'deadline_hours' => (int) ($original['deadline_hours'] ?? 1),
+      'leg1_recipient_address' => (string) ($original['leg1_recipient_address'] ?? ''),
+      'leg2_signer_public_key' => (string) ($original['leg2_signer_public_key'] ?? ''),
+      'intent_hash' => $original['intent_hash'] ?? NULL,
+      'unsigned_payload' => $original['unsigned_payload'] ?? NULL,
+      'qr_payload' => $original['qr_payload'] ?? NULL,
+      'transaction_hash' => $original['transaction_hash'] ?? NULL,
       'changed' => \Drupal::time()->getRequestTime(),
-    ]);
+    ];
+
+    $affected = $this->database->update(self::TABLE)
+      ->fields($fields)
+      ->condition('id', $id)
+      ->condition('state', 'accepting')
+      ->condition('leg2_signer_public_key', strtoupper($taker_public_key))
+      ->execute();
+
+    return (int) $affected === 1;
   }
 
   public function markAnnounced(int $id, string $transaction_hash): void {

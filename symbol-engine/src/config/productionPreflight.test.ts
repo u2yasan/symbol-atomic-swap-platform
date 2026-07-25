@@ -6,6 +6,7 @@ import { runProductionPreflight } from './productionPreflight.js';
 const productionEnv: EngineEnv = {
   NODE_ENV: 'production',
   SYMBOL_ENGINE_PORT: 3000,
+  SYMBOL_ENGINE_RATE_LIMIT_MAX: 120,
   SYMBOL_ENGINE_API_TOKEN: 'f3b9c1a84e7d42fa9c05b8d63e2a71cb',
   SYMBOL_ENGINE_DATABASE_URL: 'postgresql://drupal:drupal@postgres:5432/drupal',
   SYMBOL_ENGINE_LISTENER_ENABLED: false,

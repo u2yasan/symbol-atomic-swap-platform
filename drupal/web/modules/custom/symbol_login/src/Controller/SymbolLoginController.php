@@ -7,6 +7,7 @@ use Drupal\Core\Url;
 use Drupal\symbol_engine\Exception\SymbolEngineException;
 use Drupal\symbol_engine\Service\SymbolEngineClient;
 use Drupal\symbol_login\Service\ChallengeManager;
+use Drupal\symbol_login\Service\LoginFloodControl;
 use Drupal\symbol_login\Service\RoleSynchronizer;
 use Drupal\symbol_login\Service\SignatureVerifier;
 use Drupal\symbol_login\Service\SymbolLoginException;
@@ -26,6 +27,7 @@ final class SymbolLoginController extends ControllerBase {
     private readonly SymbolUserMapper $symbolUserMapper,
     private readonly RoleSynchronizer $roleSynchronizer,
     private readonly SymbolEngineClient $symbolEngineClient,
+    private readonly LoginFloodControl $floodControl,
   ) {}
 
   public static function create(ContainerInterface $container): self {
@@ -35,14 +37,21 @@ final class SymbolLoginController extends ControllerBase {
       $container->get('symbol_login.user_mapper'),
       $container->get('symbol_login.role_synchronizer'),
       $container->get('symbol_engine.client'),
+      $container->get('symbol_login.flood_control'),
     );
   }
 
-  public function challenge(): JsonResponse {
+  public function challenge(Request $request): JsonResponse {
+    if ($limited = $this->rateLimit($request, 'challenge', 5)) {
+      return $limited;
+    }
     return new JsonResponse($this->challengeManager->create());
   }
 
   public function verify(Request $request): JsonResponse {
+    if ($limited = $this->rateLimit($request, 'verify', 10)) {
+      return $limited;
+    }
     $payload = json_decode((string) $request->getContent(), TRUE);
     if (!is_array($payload)) {
       return $this->error('Invalid JSON request.', 400);
@@ -74,6 +83,9 @@ final class SymbolLoginController extends ControllerBase {
   }
 
   public function sssChallenge(Request $request): JsonResponse {
+    if ($limited = $this->rateLimit($request, 'sss_challenge', 5)) {
+      return $limited;
+    }
     $payload = json_decode((string) $request->getContent(), TRUE);
     if (!is_array($payload)) {
       return $this->error('Invalid JSON request.', 400);
@@ -106,6 +118,9 @@ final class SymbolLoginController extends ControllerBase {
   }
 
   public function sssVerify(Request $request): JsonResponse {
+    if ($limited = $this->rateLimit($request, 'sss_verify', 10)) {
+      return $limited;
+    }
     $payload = json_decode((string) $request->getContent(), TRUE);
     if (!is_array($payload)) {
       return $this->error('Invalid JSON request.', 400);
@@ -148,6 +163,19 @@ final class SymbolLoginController extends ControllerBase {
       'ok' => FALSE,
       'error' => $message,
     ], $status);
+  }
+
+  private function rateLimit(Request $request, string $operation, int $threshold): ?JsonResponse {
+    if ($this->floodControl->consume($request, $operation, $threshold)) {
+      return NULL;
+    }
+
+    return new JsonResponse([
+      'ok' => FALSE,
+      'error' => 'too_many_requests',
+    ], 429, [
+      'Retry-After' => (string) $this->floodControl->retryAfterSeconds(),
+    ]);
   }
 
 }

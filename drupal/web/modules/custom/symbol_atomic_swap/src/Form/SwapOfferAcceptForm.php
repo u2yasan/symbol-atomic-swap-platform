@@ -240,7 +240,12 @@ final class SwapOfferAcceptForm extends FormBase {
       'qr_payload' => NULL,
       'transaction_hash' => NULL,
     ];
-    $this->offers->accept($offer_id, $values);
+    if (!$this->offers->reserveAcceptance($offer_id, $values)) {
+      $this->messenger()->addError($this->t('This atomic settlement was accepted or changed by another request. Reload the page and verify its current state.'));
+      $form_state->setRedirect('symbol_atomic_swap.offer_view', ['offerId' => $offer_id]);
+      return;
+    }
+
     $accepted = $this->offers->find($offer_id);
     if (!$accepted) {
       throw new \RuntimeException('Accepted offer was not found.');
@@ -257,13 +262,17 @@ final class SwapOfferAcceptForm extends FormBase {
         $payload['aggregateSignerPublicKey'] = $taker_public_key;
         $engine_result = $this->engineClient->buildAggregateComplete($payload);
       }
-      $this->offers->update($offer_id, $this->offers->engineFields($accepted, $engine_result) + [
-        'changed' => \Drupal::time()->getRequestTime(),
-      ]);
+      $engine_fields = $this->offers->engineFields($accepted, $engine_result);
+      if (!$this->offers->completeAcceptance($offer_id, $taker_public_key, $engine_fields)) {
+        throw new \RuntimeException('Atomic settlement acceptance changed before payload persistence.');
+      }
       $this->messenger()->addStatus($this->t('Atomic settlement was finalized and payload was generated.'));
     }
-    catch (SymbolEngineException | \RuntimeException $exception) {
-      $this->messenger()->addError($this->t('Atomic settlement was finalized, but Symbol Engine build failed: @message', [
+    catch (SymbolEngineException | \InvalidArgumentException | \RuntimeException $exception) {
+      $released = $this->offers->releaseAcceptance($offer_id, $taker_public_key, $offer);
+      $this->messenger()->addError($this->t($released
+        ? 'Atomic settlement acceptance failed and was released for retry: @message'
+        : 'Atomic settlement acceptance failed after its state changed; manual review is required: @message', [
         '@message' => $exception->getMessage(),
       ]));
     }

@@ -19,6 +19,24 @@ test('loadEnvFrom accepts production environment with required secrets', () => {
   assert.equal(env.SYMBOL_ENGINE_DATABASE_URL, validProductionEnv.SYMBOL_ENGINE_DATABASE_URL);
   assert.equal(env.SYMBOL_ENGINE_EXPOSE_NODE_ENDPOINTS, false);
   assert.equal(env.SYMBOL_NODE_REQUEST_TIMEOUT_MS, 10000);
+  assert.equal(env.SYMBOL_ENGINE_RATE_LIMIT_MAX, 120);
+});
+
+test('loadEnvFrom allows a higher rate limit only in test environments', () => {
+  const env = loadEnvFrom({
+    NODE_ENV: 'test',
+    SYMBOL_ENGINE_RATE_LIMIT_MAX: '1000',
+  });
+  assert.equal(env.SYMBOL_ENGINE_RATE_LIMIT_MAX, 1000);
+
+  assert.throws(() => loadEnvFrom({
+    ...validProductionEnv,
+    SYMBOL_ENGINE_RATE_LIMIT_MAX: '1000',
+  }), (error) => {
+    assert.ok(error instanceof ZodError);
+    assert.match(error.message, /allowed only when NODE_ENV=test/);
+    return true;
+  });
 });
 
 test('loadEnvFrom rejects production environment without API token', () => {

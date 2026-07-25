@@ -122,8 +122,13 @@ function makeDependencies(intent: SwapIntentRecord | null) {
         },
       } as unknown as SwapIntentRepository,
       events: {
-        insert: async (event: BlockchainEvent) => {
+        apply: async (
+          event: BlockchainEvent,
+          _key: string,
+          buildProjection: (existing: null) => unknown,
+        ) => {
           events.push(event);
+          return buildProjection(null);
         },
       } as unknown as EventRepository,
       projections: {

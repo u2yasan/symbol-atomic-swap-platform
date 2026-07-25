@@ -7,7 +7,7 @@ import type { SymbolRestClient, SymbolStatusLookup, SymbolTransactionLookup } fr
 
 export type ReconciliationRepositories = {
   swapIntents: Pick<SwapIntentRepository, 'findByTransactionHash' | 'findReconciliationCandidates' | 'markFailed'>;
-  events: Pick<EventRepository, 'insert'>;
+  events: Pick<EventRepository, 'apply'>;
   projections: Pick<ProjectionRepository, 'find' | 'findReconciliationCandidates' | 'findConfirmedAtOrBelow' | 'upsert'>;
 };
 

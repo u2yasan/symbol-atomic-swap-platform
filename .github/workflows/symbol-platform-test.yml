@@ -10,12 +10,14 @@ permissions:
   contents: read
 
 env:
+  NODE_ENV: test
   POSTGRES_DB: drupal
   POSTGRES_USER: drupal
   POSTGRES_PASSWORD: drupal
   SYMBOL_ENGINE_DATABASE_URL: postgresql://drupal:drupal@postgres:5432/drupal
   SYMBOL_ENGINE_LISTENER_ENABLED: "false"
   SYMBOL_ENGINE_RECONCILER_ENABLED: "false"
+  SYMBOL_ENGINE_RATE_LIMIT_MAX: "1000"
   SYMBOL_NETWORK: testnet
 
 jobs:

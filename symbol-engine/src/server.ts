@@ -34,7 +34,7 @@ const app = Fastify({
   logger: createLoggerOptions(),
 });
 
-await registerSecurity(app, env.SYMBOL_ENGINE_API_TOKEN);
+await registerSecurity(app, env.SYMBOL_ENGINE_API_TOKEN, env.SYMBOL_ENGINE_RATE_LIMIT_MAX);
 
 app.setErrorHandler(handleApiError);
 

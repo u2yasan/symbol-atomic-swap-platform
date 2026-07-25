@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { reconcileTransactionProjection, reconcileTransactionStatus } from './transactionStatusService.js';
+import type { BlockchainEvent } from '../dto/events.js';
+import type { ProjectionUpdate } from '../repository/eventRepository.js';
 import type { TransactionProjection } from '../repository/projectionRepository.js';
-import { DuplicateEventError } from '../repository/eventRepository.js';
 import type { SwapIntentRecord } from '../repository/types.js';
 
 const transactionHash = 'CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC';
@@ -24,9 +25,21 @@ function repositories() {
         },
       },
       events: {
-        insert: async (_event: unknown, key: string) => {
-          if (events.has(key)) throw new DuplicateEventError('duplicate');
+        apply: async (
+          event: BlockchainEvent,
+          key: string,
+          buildProjection: (existing: TransactionProjection | null) => ProjectionUpdate,
+        ) => {
+          const mapKey = `${event.network}:${event.transactionHash}`;
+          const existing = projections.get(mapKey) ?? null;
+          if (events.has(key)) {
+            if (!existing) throw new Error('idempotency record exists without projection');
+            return existing;
+          }
+          const projection = buildProjection(existing);
           events.add(key);
+          projections.set(mapKey, projection);
+          return projection;
         },
       },
       projections: {

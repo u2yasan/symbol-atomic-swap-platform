@@ -331,6 +331,68 @@ final class SwapOfferRepositoryTest extends KernelTestBase {
   }
 
   /**
+   * Acceptance reservation is a compare-and-set and cannot be claimed twice.
+   */
+  public function testAcceptanceReservationIsAtomicAndCompletesForReservedTaker(): void {
+    $id = $this->repository->insert($this->offerValues([
+      'uuid' => 'offer-atomic-acceptance',
+      'state' => 'open',
+      'intent_hash' => NULL,
+      'unsigned_payload' => NULL,
+      'qr_payload' => NULL,
+      'transaction_hash' => NULL,
+    ]));
+    $first_taker = str_repeat('A', 64);
+    $second_taker = str_repeat('B', 64);
+
+    $this->assertTrue($this->repository->reserveAcceptance($id, [
+      'deadline_hours' => 6,
+      'leg1_recipient_address' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'leg2_signer_public_key' => $first_taker,
+    ]));
+    $this->assertFalse($this->repository->reserveAcceptance($id, [
+      'deadline_hours' => 6,
+      'leg1_recipient_address' => 'TDJF6EAS3P6HNKO4LTPK7PIFGEGZA33LG5FLLAI',
+      'leg2_signer_public_key' => $second_taker,
+    ]));
+    $this->assertSame('accepting', $this->repository->find($id)['state']);
+
+    $engine_fields = [
+      'intent_hash' => str_repeat('C', 64),
+      'unsigned_payload' => 'ABCD',
+      'qr_payload' => '{"type":"symbol-aggregate-complete"}',
+    ];
+    $this->assertFalse($this->repository->completeAcceptance($id, $second_taker, $engine_fields));
+    $this->assertTrue($this->repository->completeAcceptance($id, $first_taker, $engine_fields));
+    $this->assertSame('payload_generated', $this->repository->find($id)['state']);
+  }
+
+  /**
+   * A failed synchronous build releases only the matching reservation.
+   */
+  public function testAcceptanceReservationCanBeReleasedAfterEngineFailure(): void {
+    $original = $this->offerValues([
+      'uuid' => 'offer-release-acceptance',
+      'state' => 'open',
+      'intent_hash' => NULL,
+      'unsigned_payload' => NULL,
+      'qr_payload' => NULL,
+      'transaction_hash' => NULL,
+    ]);
+    $id = $this->repository->insert($original);
+    $taker = str_repeat('A', 64);
+
+    $this->assertTrue($this->repository->reserveAcceptance($id, [
+      'deadline_hours' => 6,
+      'leg1_recipient_address' => 'TAEF3VF4OYCKPSSJQAAN4FS2WAZLC6IKKCE3UIQ',
+      'leg2_signer_public_key' => $taker,
+    ]));
+    $this->assertFalse($this->repository->releaseAcceptance($id, str_repeat('B', 64), $original));
+    $this->assertTrue($this->repository->releaseAcceptance($id, $taker, $original));
+    $this->assertSame('open', $this->repository->find($id)['state']);
+  }
+
+  /**
    * Cron expires stale offers before queueing projection sync candidates.
    */
   public function testCronExpiresStaleOffers(): void {

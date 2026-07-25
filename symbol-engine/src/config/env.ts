@@ -57,6 +57,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   SYMBOL_ENGINE_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   SYMBOL_ENGINE_API_TOKEN: optionalNonEmptyStringSchema,
+  SYMBOL_ENGINE_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(10000).default(120),
   SYMBOL_ENGINE_DATABASE_URL: z.string().url().optional(),
   SYMBOL_ENGINE_LISTENER_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   SYMBOL_ENGINE_LISTENER_ADDRESSES: z.string().default('').transform((value) => [
@@ -133,6 +134,14 @@ const envSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['SYMBOL_ENGINE_API_TOKEN'],
       message: 'SYMBOL_ENGINE_API_TOKEN is required in production.',
+    });
+  }
+
+  if (value.NODE_ENV !== 'test' && value.SYMBOL_ENGINE_RATE_LIMIT_MAX > 120) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['SYMBOL_ENGINE_RATE_LIMIT_MAX'],
+      message: 'SYMBOL_ENGINE_RATE_LIMIT_MAX above 120 is allowed only when NODE_ENV=test.',
     });
   }
 

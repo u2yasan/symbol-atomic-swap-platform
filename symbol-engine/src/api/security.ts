@@ -86,6 +86,7 @@ export function createRateLimitKey(expectedToken: string | undefined) {
 export async function registerSecurity(
   app: FastifyInstance,
   expectedToken?: string,
+  rateLimitMax = DEFAULT_RATE_LIMIT_MAX,
 ): Promise<void> {
   await app.register(helmet, {
     contentSecurityPolicy: false,
@@ -99,7 +100,7 @@ export async function registerSecurity(
 
   await app.register(rateLimit, {
     global: true,
-    max: DEFAULT_RATE_LIMIT_MAX,
+    max: rateLimitMax,
     timeWindow: DEFAULT_RATE_LIMIT_WINDOW,
     keyGenerator: createRateLimitKey(expectedToken),
     allowList: (request) => request.url === '/health',

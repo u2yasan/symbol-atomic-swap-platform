@@ -1,4 +1,9 @@
 services:
+  symbol_login.flood_control:
+    class: Drupal\symbol_login\Service\LoginFloodControl
+    arguments:
+      - '@flood'
+
   symbol_login.challenge_manager:
     class: Drupal\symbol_login\Service\ChallengeManager
     arguments:
